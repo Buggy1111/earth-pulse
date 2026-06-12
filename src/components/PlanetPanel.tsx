@@ -87,6 +87,12 @@ export function PlanetPanel({
       </div>
       {moon ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
+          <img
+            src={`planets/cards/${moon.id}.webp`}
+            alt={`${moon.name} — NASA spacecraft photo`}
+            loading="lazy"
+            className="mb-1 max-h-36 w-full rounded-lg object-cover"
+          />
           <span className="num">
             🪐 moon of {moon.planet.name} · {Math.round(moon.aKkm * 1_000).toLocaleString('en-US')}{' '}
             km out
@@ -96,7 +102,9 @@ export function PlanetPanel({
             {moon.periodD < 2 ? `${(moon.periodD * 24).toFixed(0)} h` : `${moon.periodD.toFixed(1)} days`}
             {moon.retrograde ? ' ↺ retrograde' : ''}
           </span>
+          {moon.discoveredBy && <span>🔭 discovered by {moon.discoveredBy}</span>}
           {moon.fact && <span className="text-slate-300">✨ {moon.fact}</span>}
+          <span className="text-[10px] text-slate-600">photo: NASA (public domain)</span>
         </div>
       ) : p && def ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">

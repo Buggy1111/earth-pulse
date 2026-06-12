@@ -46,25 +46,63 @@ const MAPS = [
   { id: 'pluto', url: pia(19858), out: '../public/planets/pluto.webp', width: 2048 },
 ]
 
+// Iconic spacecraft portraits for the detail cards (PIA = Photojournal;
+// ARC-* = Voyager press scans on images-assets.nasa.gov, the ~ is literal)
+const img = (id) => `https://images-assets.nasa.gov/image/${id}/${id}~orig.jpg`
+const PHOTOS = [
+  { id: 'phobos', url: pia(10368) },
+  { id: 'deimos', url: img('PIA11826') },
+  { id: 'io', url: pia('02308') },
+  { id: 'europa', url: pia(19048) },
+  { id: 'ganymede', url: pia(24681) },
+  { id: 'callisto', url: pia('03456') },
+  { id: 'mimas', url: pia(12570) },
+  { id: 'enceladus', url: pia('07800') },
+  { id: 'tethys', url: pia('07738') },
+  { id: 'dione', url: pia('07744') },
+  { id: 'rhea', url: pia('07763') },
+  { id: 'titan', url: img('ARC-1981-AC81-7065') },
+  { id: 'iapetus', url: pia('08384') },
+  { id: 'miranda', url: pia(18185) },
+  { id: 'ariel', url: pia('01534') },
+  { id: 'umbriel', url: img('ARC-1986-AC86-7018') },
+  { id: 'titania', url: img('ARC-1986-AC86-7025') },
+  { id: 'oberon', url: img('ARC-1986-AC86-7012') },
+  { id: 'triton', url: pia('00317') },
+  { id: 'charon', url: pia(19968) },
+]
+
 await mkdir(new URL('../public/planets/moons', import.meta.url), { recursive: true })
+await mkdir(new URL('../public/planets/cards', import.meta.url), { recursive: true })
 let failed = 0
-for (const m of MAPS) {
-  const out = new URL(m.out ?? `../public/planets/moons/${m.id}.webp`, import.meta.url)
+const grab = async (id, url, transform, out) => {
   try {
-    const resp = await fetch(m.url)
+    const resp = await fetch(url)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const buf = Buffer.from(await resp.arrayBuffer())
-    const w = m.width ?? 1024
-    const webp = await sharp(buf)
-      .resize(w, w / 2, { fit: 'fill' })
-      .webp({ quality: 80 })
-      .toBuffer()
+    const webp = await transform(Buffer.from(await resp.arrayBuffer()))
     await writeFile(out, webp)
-    console.log(`✓ ${m.id} (${(webp.length / 1024).toFixed(0)} KB)`)
+    console.log(`✓ ${id} (${(webp.length / 1024).toFixed(0)} KB)`)
   } catch (err) {
     failed++
-    console.error(`✗ ${m.id}: ${err.message}`)
+    console.error(`✗ ${id}: ${err.message}`)
   }
 }
+for (const m of MAPS) {
+  const w = m.width ?? 1024
+  await grab(
+    m.id,
+    m.url,
+    (buf) => sharp(buf).resize(w, w / 2, { fit: 'fill' }).webp({ quality: 80 }).toBuffer(),
+    new URL(m.out ?? `../public/planets/moons/${m.id}.webp`, import.meta.url),
+  )
+}
+for (const p of PHOTOS) {
+  await grab(
+    `card:${p.id}`,
+    p.url,
+    (buf) => sharp(buf).resize({ width: 480 }).webp({ quality: 78 }).toBuffer(),
+    new URL(`../public/planets/cards/${p.id}.webp`, import.meta.url),
+  )
+}
 if (failed > 0) process.exit(1)
-console.log(`Done — ${MAPS.length} maps.`)
+console.log(`Done — ${MAPS.length} maps + ${PHOTOS.length} card photos.`)

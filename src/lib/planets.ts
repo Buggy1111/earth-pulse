@@ -213,6 +213,8 @@ export interface MoonDef {
   name: string
   /** Semi-major axis, thousands of km. */
   aKkm: number
+  /** Who found it and when — for the detail card. */
+  discoveredBy?: string
   /** Orbital period, Earth days (sidereal). */
   periodD: number
   /** Real mean radius, km. */
@@ -229,36 +231,36 @@ export interface MoonDef {
 /** The major moons — real orbits, periods, sizes and distances. */
 export const PLANET_MOONS: Record<string, MoonDef[]> = {
   mars: [
-    { id: 'phobos', name: 'Phobos', aKkm: 9.4, periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
-    { id: 'deimos', name: 'Deimos', aKkm: 23.5, periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
+    { id: 'phobos', name: 'Phobos', aKkm: 9.4, discoveredBy: 'Asaph Hall, 1877', periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
+    { id: 'deimos', name: 'Deimos', aKkm: 23.5, discoveredBy: 'Asaph Hall, 1877', periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
   ],
   jupiter: [
-    { id: 'io', name: 'Io', aKkm: 421.8, periodD: 1.769, radiusKm: 1822, color: '#d8c45a', texture: true, fact: 'the most volcanic body in the solar system' },
-    { id: 'europa', name: 'Europa', aKkm: 671.1, periodD: 3.551, radiusKm: 1561, color: '#d9d2c2', texture: true, fact: 'an ocean of liquid water under the ice' },
-    { id: 'ganymede', name: 'Ganymede', aKkm: 1070.4, periodD: 7.155, radiusKm: 2634, color: '#a89a85', texture: true, fact: 'the largest moon anywhere — bigger than Mercury' },
-    { id: 'callisto', name: 'Callisto', aKkm: 1882.7, periodD: 16.689, radiusKm: 2410, color: '#7a7164', texture: true, fact: 'the most cratered surface known' },
+    { id: 'io', name: 'Io', aKkm: 421.8, discoveredBy: 'Galileo Galilei, 1610', periodD: 1.769, radiusKm: 1822, color: '#d8c45a', texture: true, fact: 'the most volcanic body in the solar system' },
+    { id: 'europa', name: 'Europa', aKkm: 671.1, discoveredBy: 'Galileo Galilei, 1610', periodD: 3.551, radiusKm: 1561, color: '#d9d2c2', texture: true, fact: 'an ocean of liquid water under the ice' },
+    { id: 'ganymede', name: 'Ganymede', aKkm: 1070.4, discoveredBy: 'Galileo Galilei, 1610', periodD: 7.155, radiusKm: 2634, color: '#a89a85', texture: true, fact: 'the largest moon anywhere — bigger than Mercury' },
+    { id: 'callisto', name: 'Callisto', aKkm: 1882.7, discoveredBy: 'Galileo Galilei, 1610', periodD: 16.689, radiusKm: 2410, color: '#7a7164', texture: true, fact: 'the most cratered surface known' },
   ],
   saturn: [
-    { id: 'mimas', name: 'Mimas', aKkm: 185.5, periodD: 0.942, radiusKm: 198, color: '#c6c2bb', texture: true, fact: 'one huge crater — yes, it does look like the Death Star' },
-    { id: 'enceladus', name: 'Enceladus', aKkm: 238, periodD: 1.37, radiusKm: 252, color: '#eef2f6', texture: true, fact: 'water geysers erupt from its south pole' },
-    { id: 'tethys', name: 'Tethys', aKkm: 294.7, periodD: 1.888, radiusKm: 531, color: '#d4d2cc', texture: true, fact: 'almost pure water ice, a canyon 3/4 of the way around it' },
-    { id: 'dione', name: 'Dione', aKkm: 377.4, periodD: 2.737, radiusKm: 561, color: '#c9c5bd', texture: true, fact: 'bright ice-cliff streaks across its trailing side' },
-    { id: 'rhea', name: 'Rhea', aKkm: 527.1, periodD: 4.518, radiusKm: 764, color: '#beb7ac', texture: true },
-    { id: 'titan', name: 'Titan', aKkm: 1221.9, periodD: 15.945, radiusKm: 2575, color: '#cfa14f', texture: true, tint: '#d8a557', fact: 'thick orange atmosphere, methane rain and lakes' },
-    { id: 'iapetus', name: 'Iapetus', aKkm: 3560.8, periodD: 79.32, radiusKm: 735, color: '#b3a89a', texture: true, fact: 'two-toned: one side coal-black, the other bright ice' },
+    { id: 'mimas', name: 'Mimas', aKkm: 185.5, discoveredBy: 'William Herschel, 1789', periodD: 0.942, radiusKm: 198, color: '#c6c2bb', texture: true, fact: 'one huge crater — yes, it does look like the Death Star' },
+    { id: 'enceladus', name: 'Enceladus', aKkm: 238, discoveredBy: 'William Herschel, 1789', periodD: 1.37, radiusKm: 252, color: '#eef2f6', texture: true, fact: 'water geysers erupt from its south pole' },
+    { id: 'tethys', name: 'Tethys', aKkm: 294.7, discoveredBy: 'Giovanni Cassini, 1684', periodD: 1.888, radiusKm: 531, color: '#d4d2cc', texture: true, fact: 'almost pure water ice, a canyon 3/4 of the way around it' },
+    { id: 'dione', name: 'Dione', aKkm: 377.4, discoveredBy: 'Giovanni Cassini, 1684', periodD: 2.737, radiusKm: 561, color: '#c9c5bd', texture: true, fact: 'bright ice-cliff streaks across its trailing side' },
+    { id: 'rhea', name: 'Rhea', aKkm: 527.1, discoveredBy: 'Giovanni Cassini, 1672', periodD: 4.518, radiusKm: 764, color: '#beb7ac', texture: true },
+    { id: 'titan', name: 'Titan', aKkm: 1221.9, discoveredBy: 'Christiaan Huygens, 1655', periodD: 15.945, radiusKm: 2575, color: '#cfa14f', texture: true, tint: '#d8a557', fact: 'thick orange atmosphere, methane rain and lakes' },
+    { id: 'iapetus', name: 'Iapetus', aKkm: 3560.8, discoveredBy: 'Giovanni Cassini, 1671', periodD: 79.32, radiusKm: 735, color: '#b3a89a', texture: true, fact: 'two-toned: one side coal-black, the other bright ice' },
   ],
   uranus: [
-    { id: 'miranda', name: 'Miranda', aKkm: 129.9, periodD: 1.413, radiusKm: 236, color: '#aab4bd', texture: true, fact: 'a patchwork world with 20 km ice cliffs' },
-    { id: 'ariel', name: 'Ariel', aKkm: 190.9, periodD: 2.52, radiusKm: 579, color: '#b6bdc4', texture: true, fact: 'the brightest Uranian moon — young icy plains' },
-    { id: 'umbriel', name: 'Umbriel', aKkm: 266, periodD: 4.144, radiusKm: 585, color: '#7e848c', texture: true, fact: 'the darkest one, with a single bright crater ring' },
-    { id: 'titania', name: 'Titania', aKkm: 435.9, periodD: 8.706, radiusKm: 788, color: '#9aa3ad', texture: true },
-    { id: 'oberon', name: 'Oberon', aKkm: 583.5, periodD: 13.46, radiusKm: 761, color: '#8f8a84', texture: true },
+    { id: 'miranda', name: 'Miranda', aKkm: 129.9, discoveredBy: 'Gerard Kuiper, 1948', periodD: 1.413, radiusKm: 236, color: '#aab4bd', texture: true, fact: 'a patchwork world with 20 km ice cliffs' },
+    { id: 'ariel', name: 'Ariel', aKkm: 190.9, discoveredBy: 'William Lassell, 1851', periodD: 2.52, radiusKm: 579, color: '#b6bdc4', texture: true, fact: 'the brightest Uranian moon — young icy plains' },
+    { id: 'umbriel', name: 'Umbriel', aKkm: 266, discoveredBy: 'William Lassell, 1851', periodD: 4.144, radiusKm: 585, color: '#7e848c', texture: true, fact: 'the darkest one, with a single bright crater ring' },
+    { id: 'titania', name: 'Titania', aKkm: 435.9, discoveredBy: 'William Herschel, 1787', periodD: 8.706, radiusKm: 788, color: '#9aa3ad', texture: true },
+    { id: 'oberon', name: 'Oberon', aKkm: 583.5, discoveredBy: 'William Herschel, 1787', periodD: 13.46, radiusKm: 761, color: '#8f8a84', texture: true },
   ],
   neptune: [
-    { id: 'triton', name: 'Triton', aKkm: 354.8, periodD: 5.877, radiusKm: 1353, retrograde: true, color: '#d9cfc6', texture: true, fact: 'orbits BACKWARDS — a captured Kuiper-belt world with nitrogen geysers' },
+    { id: 'triton', name: 'Triton', aKkm: 354.8, discoveredBy: 'William Lassell, 1846', periodD: 5.877, radiusKm: 1353, retrograde: true, color: '#d9cfc6', texture: true, fact: 'orbits BACKWARDS — a captured Kuiper-belt world with nitrogen geysers' },
   ],
   pluto: [
-    { id: 'charon', name: 'Charon', aKkm: 19.6, periodD: 6.387, radiusKm: 606, color: '#a9a29c', texture: true, fact: 'half Pluto\'s size — they orbit a point between them, a true double world' },
+    { id: 'charon', name: 'Charon', aKkm: 19.6, discoveredBy: 'James Christy, 1978', periodD: 6.387, radiusKm: 606, color: '#a9a29c', texture: true, fact: 'half Pluto\'s size — they orbit a point between them, a true double world' },
   ],
 }
 
