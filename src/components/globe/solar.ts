@@ -62,15 +62,15 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const loader = new THREE.TextureLoader()
   // sun-lit bodies: the texture doubles as a faint emissive floor so the
   // night side reads as a dim disc instead of vanishing into space
-  const loadTex = (mesh: THREE.Mesh, url: string) => {
+  const loadTex = (mesh: THREE.Mesh, url: string, tint = '#ffffff') => {
     if (!url) return
     loader.load(url, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace
       const m = mesh.material as THREE.MeshLambertMaterial
       m.map = tex
       m.emissiveMap = tex
-      m.color.set('#ffffff')
-      m.emissive.set('#ffffff')
+      m.color.set(tint) // tint ≠ white casts grayscale maps (Titan's haze)
+      m.emissive.set(tint)
       m.needsUpdate = true
     })
   }
@@ -153,19 +153,28 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     if (p.id === 'uranus') addRing(1.6, 1.95, '#9fb6c0', 0.25)
     if (p.id === 'neptune') addRing(1.45, 1.62, '#8898a8', 0.15)
 
-    // major moons at real periods, sizes relative to their planet
+    // major moons: REAL distances (planet radii) and real relative sizes —
+    // only a minimum radius keeps the small ones visible and clickable
     const moons = PLANET_MOONS[p.id] ?? []
-    const aMax = moons.length ? Math.max(...moons.map((m) => m.aKkm)) : 1
     const animMoons: SolarAnimEntry['moons'] = []
     for (const m of moons) {
-      const rMoon = Math.min(
-        Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.8),
-        p.displayRadius * 0.5,
-      )
-      const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 12, 12), litMaterial(m.color))
+      const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.7)
+      const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 24, 24), litMaterial(m.color))
       moonMesh.layers.set(SUNLIT_LAYER)
+      if (m.texture) loadTex(moonMesh, `planets/moons/${m.id}.webp`, m.tint)
       moonMesh.add(makeNameSprite(m.name, rMoon * 1.4, true))
-      const rScene = p.displayRadius * 1.9 + (m.aKkm / aMax) * p.displayRadius * 3.4
+      const rScene = p.displayRadius * ((m.aKkm * 1_000) / (p.diameterKm / 2))
+      // a faint orbit ring makes each moon findable around its planet
+      const ringPts = Array.from({ length: 97 }, (_, i) => {
+        const a = (i / 96) * 2 * Math.PI
+        return new THREE.Vector3(Math.cos(a) * rScene, 0, Math.sin(a) * rScene)
+      })
+      tilt.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(ringPts),
+          new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.22 }),
+        ),
+      )
       tilt.add(moonMesh)
       animMoons.push({ mesh: moonMesh, def: m, rScene })
     }
