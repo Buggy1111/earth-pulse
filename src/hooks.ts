@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { parseIss, ISS_URL, type IssState } from './lib/iss'
 import { diffNewQuakes, parseQuakes, USGS_FEED_URL, type Quake, type UsgsFeed } from './lib/quakes'
-import {
-  parseTle,
-  propagateSats,
-  toTrackedSats,
-  TLE_LOCAL_URL,
-  type SatPos,
-  type TrackedSat,
-} from './lib/satellites'
+import { parseTle, toTrackedSats, TLE_LOCAL_URL, type TrackedSat } from './lib/satellites'
 import {
   KP_URL,
   parseKp,
@@ -75,50 +68,25 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
   return { quakes, newQuakes, flashes }
 }
 
-/** Live satellites: TLE snapshot fetched once, SGP4-propagated every `tickMs`.
- * Object identities stay stable across ticks so the globe just moves meshes. */
-export function useSatellites(tickMs = 1_000): SatPos[] {
-  const [positions, setPositions] = useState<SatPos[]>([])
+/** Parsed TLE element sets, loaded once. Propagation itself runs inside
+ * GlobeView's 1 Hz engine — React only sees this single load. */
+export function useTleSats(): TrackedSat[] {
+  const [sats, setSats] = useState<TrackedSat[]>([])
   useEffect(() => {
     let cancelled = false
-    let timer: ReturnType<typeof setInterval> | undefined
-    const run = async () => {
-      let sats: TrackedSat[] = []
-      try {
-        const resp = await fetch(TLE_LOCAL_URL)
-        sats = toTrackedSats(parseTle(await resp.text()))
-      } catch {
-        return // no TLE snapshot — globe simply shows no satellites
-      }
-      if (cancelled || sats.length === 0) return
-      const byName = new Map<string, SatPos>()
-      const tick = () => {
-        const now = new Date()
-        const next: SatPos[] = []
-        for (const p of propagateSats(sats, now)) {
-          const existing = byName.get(p.name)
-          if (existing) {
-            existing.lat = p.lat
-            existing.lng = p.lng
-            existing.altKm = p.altKm
-            next.push(existing)
-          } else {
-            byName.set(p.name, p)
-            next.push(p)
-          }
-        }
-        if (!cancelled) setPositions(next)
-      }
-      tick()
-      timer = setInterval(tick, tickMs)
-    }
-    void run()
+    void fetch(TLE_LOCAL_URL)
+      .then((r) => r.text())
+      .then((text) => {
+        if (!cancelled) setSats(toTrackedSats(parseTle(text)))
+      })
+      .catch(() => {
+        // no TLE snapshot — globe simply shows no satellites
+      })
     return () => {
       cancelled = true
-      if (timer) clearInterval(timer)
     }
-  }, [tickMs])
-  return positions
+  }, [])
+  return sats
 }
 
 export interface SpaceWeather {
@@ -153,7 +121,7 @@ export function useSpaceWeather(intervalMs = 60_000): SpaceWeather {
 }
 
 /** ISS position, refreshed every `intervalMs` (API asks for >= 1s between calls). */
-export function useIss(intervalMs = 5_000): IssState | null {
+export function useIss(intervalMs = 3_000): IssState | null {
   const [iss, setIss] = useState<IssState | null>(null)
   useEffect(() => {
     let cancelled = false

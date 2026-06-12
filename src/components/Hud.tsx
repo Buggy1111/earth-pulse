@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { formatCoords, formatKm, formatKmh, formatMag, formatUtcClock, timeAgo } from '../lib/format'
 import type { IssState } from '../lib/iss'
 import { quakeStats, type Quake } from '../lib/quakes'
@@ -21,7 +22,11 @@ export function TitleCard({ now, satCount }: { now: number; satCount: number }) 
   )
 }
 
-export function SpaceWeatherPanel({ weather }: { weather: SpaceWeather }) {
+export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
+  weather,
+}: {
+  weather: SpaceWeather
+}) {
   const { kp, wind } = weather
   return (
     <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '180ms' }}>
@@ -45,10 +50,12 @@ export function SpaceWeatherPanel({ weather }: { weather: SpaceWeather }) {
           {Number.isFinite(wind.densityPerCm3) && <> · {wind.densityPerCm3.toFixed(1)} p/cm³</>}
         </p>
       )}
-      <p className="mt-2 text-[10px] text-slate-600">data: NOAA SWPC, refreshed every minute</p>
+      <p className="mt-2 text-[10px] text-slate-600">
+        data: NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
+      </p>
     </div>
   )
-}
+})
 
 export function SoundToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -152,7 +159,13 @@ export function IssPanel({ iss }: { iss: IssState | null }) {
   )
 }
 
-export function WikiPanel({ edits, totalSeen }: { edits: WikiEdit[]; totalSeen: number }) {
+export const WikiPanel = memo(function WikiPanel({
+  edits,
+  totalSeen,
+}: {
+  edits: WikiEdit[]
+  totalSeen: number
+}) {
   return (
     <div className="hud fade-up pointer-events-auto w-72 px-5 py-4" style={{ animationDelay: '360ms' }}>
       <h2 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
@@ -182,7 +195,7 @@ export function WikiPanel({ edits, totalSeen }: { edits: WikiEdit[]; totalSeen: 
       </ul>
     </div>
   )
-}
+})
 
 export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number; onClose: () => void }) {
   return (

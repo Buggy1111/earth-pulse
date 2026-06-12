@@ -37,15 +37,17 @@ export function subsolarPoint(date: Date): LatLng {
   return { lat: declination, lng }
 }
 
-/** Polygon (GeoJSON ring, [lng, lat][]) covering the night hemisphere. */
-export function nightPolygon(date: Date, steps = 96): [number, number][] {
-  const sun = subsolarPoint(date)
-  // antisolar point = center of the night hemisphere
-  const center = { lat: -sun.lat, lng: ((sun.lng + 360) % 360) - 180 }
+/** Circle of `radiusDeg` great-circle degrees around `center`, as a GeoJSON
+ * ring ([lng, lat][], closed). Shared by the night hemisphere and aurora ovals. */
+export function sphericalCircle(
+  center: LatLng,
+  radiusDeg: number,
+  steps = 96,
+): [number, number][] {
   const ring: [number, number][] = []
   const latC = center.lat * RAD
   const lngC = center.lng * RAD
-  const r = 90 * RAD // hemisphere
+  const r = radiusDeg * RAD
   for (let i = 0; i <= steps; i++) {
     const bearing = (i / steps) * 2 * Math.PI
     const lat = Math.asin(
@@ -60,4 +62,12 @@ export function nightPolygon(date: Date, steps = 96): [number, number][] {
     ring.push([(((lng / RAD + 540) % 360) - 180), lat / RAD])
   }
   return ring
+}
+
+/** Polygon (GeoJSON ring, [lng, lat][]) covering the night hemisphere. */
+export function nightPolygon(date: Date, steps = 96): [number, number][] {
+  const sun = subsolarPoint(date)
+  // antisolar point = center of the night hemisphere
+  const center = { lat: -sun.lat, lng: ((sun.lng + 360) % 360) - 180 }
+  return sphericalCircle(center, 90, steps)
 }

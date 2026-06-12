@@ -1,10 +1,18 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { magColor, magRadius, type Quake } from '../lib/quakes'
-import { globeAltitude, type SatPos } from '../lib/satellites'
-import { nightPolygon } from '../lib/sun'
+import {
+  globeAltitude,
+  orbitTrack,
+  propagateSats,
+  type SatPos,
+  type TrackedSat,
+} from '../lib/satellites'
+import { subsolarPoint } from '../lib/sun'
+import { makeDayNightMaterial, sunlitClouds } from './dayNightMaterial'
 import { makeIssObject, makeSatelliteObject } from './spaceObjects'
 
 interface Props {
@@ -12,15 +20,21 @@ interface Props {
   /** Quakes that just appeared in the feed — rendered as bright flash rings. */
   flashes: Quake[]
   iss: IssState | null
-  satellites: SatPos[]
+  /** Parsed TLE sets; propagation runs inside this component, off the React path. */
+  sats: TrackedSat[]
+  /** Live Kp index for the aurora ovals (null until the first NOAA reading). */
+  kp: number | null
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
+  /** Click on the ISS model toggles follow mode. */
+  onIssClick: () => void
   onQuakeClick: (quake: Quake) => void
   onReady: () => void
 }
 
-const NIGHT_REFRESH_MS = 60_000
+const SUN_REFRESH_MS = 60_000
+const SAT_TICK_MS = 1_000
 const CLOUDS_ALTITUDE = 0.006
 const CLOUDS_DEG_PER_FRAME = -0.012
 
@@ -28,6 +42,7 @@ const CLOUDS_DEG_PER_FRAME = -0.012
 interface OrbitObject extends SatPos {
   kind: 'sat' | 'iss'
   velocityKmh?: number
+  sat?: TrackedSat
 }
 
 /** Third-party text ends up in HTML tooltips — escape it. */
@@ -37,13 +52,6 @@ function escapeHtml(s: string): string {
 
 function tooltip(html: string): string {
   return `<div style="font-family:sans-serif;font-size:12px;background:rgba(7,9,15,.9);padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15)">${html}</div>`
-}
-
-function nightGeometry(d: object) {
-  return {
-    type: 'Polygon' as const,
-    coordinates: [(d as { ring: [number, number][] }).ring],
-  }
 }
 
 /** One datum for the rings layer: steady ripples on strong quakes + bright flashes on new ones. */
@@ -58,66 +66,92 @@ export function GlobeView({
   quakes,
   flashes,
   iss,
-  satellites,
+  sats,
+  kp,
   followIss,
   onFollowBroken,
+  onIssClick,
   onQuakeClick,
   onReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const globeRef = useRef<GlobeInstance | null>(null)
   const onFollowBrokenRef = useRef(onFollowBroken)
+  const onIssClickRef = useRef(onIssClick)
   const onReadyRef = useRef(onReady)
   const followRef = useRef(followIss)
   useEffect(() => {
     onFollowBrokenRef.current = onFollowBroken
+    onIssClickRef.current = onIssClick
     onReadyRef.current = onReady
     followRef.current = followIss
-  }, [onFollowBroken, onReady, followIss])
+  }, [onFollowBroken, onIssClick, onReady, followIss])
+
+  // the globe slowly spins as an opening showcase — first user touch stops it for good
+  const userInteractedRef = useRef(false)
+
+  // orbit-layer data lives outside React: the 1 Hz propagation loop mutates
+  // these stable objects and pushes them straight into the globe
+  const issDatumRef = useRef<OrbitObject>({ kind: 'iss', name: 'ISS', lat: 0, lng: 0, altKm: 420 })
+  const orbitObjectsRef = useRef<OrbitObject[]>([])
+  const trailNameRef = useRef<string | null>(null)
 
   // one-time globe setup
   useEffect(() => {
     if (!containerRef.current) return
     const globe = new Globe(containerRef.current)
-      .globeImageUrl('earth-blue-marble.jpg')
-      .bumpImageUrl('earth-topology.png')
       .backgroundImageUrl('night-sky.png')
       .atmosphereColor('#7dd3fc')
       .atmosphereAltitude(0.18)
       .pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
-      .onGlobeReady(() => onReadyRef.current())
 
     globe.controls().autoRotate = true
     globe.controls().autoRotateSpeed = 0.45
     const onDragStart = () => {
+      userInteractedRef.current = true
+      globe.controls().autoRotate = false
       if (followRef.current) onFollowBrokenRef.current()
     }
     globe.controls().addEventListener('start', onDragStart)
 
-    // day/night terminator as a translucent polygon over the night hemisphere
-    const applyNight = () => {
-      globe
-        .polygonsData([{ ring: nightPolygon(new Date()) }])
-        .polygonCapColor(() => 'rgba(2, 6, 23, 0.55)')
-        .polygonSideColor(() => 'rgba(0,0,0,0)')
-        .polygonStrokeColor(() => 'rgba(125, 211, 252, 0.18)')
-        .polygonAltitude(0.004)
-        // globe.gl types GeoJSON coordinates loosely as number[] — cast the valid Polygon
-        .polygonGeoJsonGeometry(
-          nightGeometry as unknown as Parameters<GlobeInstance['polygonGeoJsonGeometry']>[0],
-        )
+    // one Sun for everything: the globe shader and the cloud layer share this
+    // uniform, refreshed from the real subsolar point once a minute
+    const sunUniform = { value: new THREE.Vector3(1, 0, 0) }
+    const applySun = () => {
+      const sun = subsolarPoint(new Date())
+      const { x, y, z } = globe.getCoords(sun.lat, sun.lng, 0)
+      sunUniform.value.set(x, y, z).normalize()
     }
-    applyNight()
-    const nightTimer = setInterval(applyNight, NIGHT_REFRESH_MS)
+    applySun()
+    const sunTimer = setInterval(applySun, SUN_REFRESH_MS)
 
-    // slowly drifting cloud layer just above the surface
+    // real day & night: NASA Blue Marble blended into city lights along the
+    // live terminator
+    const loader = new THREE.TextureLoader()
+    void Promise.all([
+      loader.loadAsync('earth-blue-marble.jpg'),
+      loader.loadAsync('earth-night.jpg'),
+    ]).then(([day, night]) => {
+      if (!globeRef.current) return // unmounted while loading
+      globe.globeMaterial(makeDayNightMaterial(day, night, sunUniform))
+      onReadyRef.current()
+    })
+
+    // slowly drifting cloud layer just above the surface, fading out at night
     let clouds: THREE.Mesh | null = null
     let cloudsRaf = 0
-    new THREE.TextureLoader().load('clouds.png', (texture) => {
-      if (!globeRef.current) return // unmounted before the texture arrived
+    loader.load('clouds.webp', (texture) => {
+      if (!globeRef.current) return
+      const cloudsMaterial = new THREE.MeshPhongMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      })
+      sunlitClouds(cloudsMaterial, sunUniform)
       clouds = new THREE.Mesh(
-        new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALTITUDE), 75, 75),
-        new THREE.MeshPhongMaterial({ map: texture, transparent: true, opacity: 0.55 }),
+        new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALTITUDE), 64, 64),
+        cloudsMaterial,
       )
       globe.scene().add(clouds)
       const rotate = () => {
@@ -137,7 +171,7 @@ export function GlobeView({
     // e2e hook: headless tests steer the camera through this handle
     ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
     return () => {
-      clearInterval(nightTimer)
+      if (sunTimer) clearInterval(sunTimer)
       cancelAnimationFrame(cloudsRaf)
       if (clouds) {
         globe.scene().remove(clouds)
@@ -152,6 +186,24 @@ export function GlobeView({
       globeRef.current = null
     }
   }, [])
+
+  // aurora ovals around the geomagnetic poles, scaled by the live Kp index
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || kp === null) return
+    globe
+      .polygonsData(auroraOvals(kp))
+      .polygonCapColor((d) => `rgba(74, 222, 128, ${(d as { opacity: number }).opacity})`)
+      .polygonSideColor(() => 'rgba(0,0,0,0)')
+      .polygonStrokeColor(() => 'rgba(0,0,0,0)')
+      .polygonAltitude(0.018)
+      .polygonGeoJsonGeometry(
+        ((d: { rings: [number, number][][] }) => ({
+          type: 'Polygon' as const,
+          coordinates: d.rings,
+        })) as unknown as Parameters<GlobeInstance['polygonGeoJsonGeometry']>[0],
+      )
+  }, [kp])
 
   // earthquakes: glowing points + ripple rings (steady on M4+, bright flash on brand-new)
   useEffect(() => {
@@ -192,25 +244,34 @@ export function GlobeView({
       .ringRepeatPeriod((d) => ((d as RingDatum).flash ? 600 : 1800))
   }, [quakes, flashes, onQuakeClick])
 
-  // orbit layer: ~150 satellites + the ISS as miniature 3D models.
-  // Object identities stay stable across ticks, so the globe just moves the meshes.
-  const issDatumRef = useRef<OrbitObject>({ kind: 'iss', name: 'ISS', lat: 0, lng: 0, altKm: 420 })
+  // orbit engine: SGP4-propagate all satellites every second and move their
+  // meshes directly — React never sees the 1 Hz churn
   useEffect(() => {
     const globe = globeRef.current
-    if (!globe) return
-    const objects: OrbitObject[] = satellites.map((s) =>
-      Object.assign(s as OrbitObject, { kind: 'sat' as const }),
-    )
-    if (iss) {
-      const d = issDatumRef.current
-      d.lat = iss.lat
-      d.lng = iss.lng
-      d.altKm = iss.altitudeKm
-      d.velocityKmh = iss.velocityKmh
-      objects.push(d)
+    if (!globe || sats.length === 0) return
+
+    const byName = new Map<string, OrbitObject>()
+    for (const s of sats) {
+      byName.set(s.name, { kind: 'sat', name: s.name, lat: 0, lng: 0, altKm: 0, sat: s })
     }
+
+    const refresh = () => {
+      const objects: OrbitObject[] = []
+      const now = new Date()
+      for (const p of propagateSats(sats, now)) {
+        const o = byName.get(p.name)
+        if (!o) continue
+        o.lat = p.lat
+        o.lng = p.lng
+        o.altKm = p.altKm
+        objects.push(o)
+      }
+      objects.push(issDatumRef.current)
+      orbitObjectsRef.current = objects
+      globe.objectsData(objects)
+    }
+
     globe
-      .objectsData(objects)
       .objectLat((d) => (d as OrbitObject).lat)
       .objectLng((d) => (d as OrbitObject).lng)
       .objectAltitude((d) => globeAltitude((d as OrbitObject).altKm))
@@ -220,17 +281,63 @@ export function GlobeView({
       .objectLabel((d) => {
         const o = d as OrbitObject
         if (o.kind === 'iss') {
-          const speed = o.velocityKmh ? ` · ${Math.round(o.velocityKmh).toLocaleString('en-US')} km/h` : ''
-          return tooltip(`🛰 <b>ISS</b> · ${Math.round(o.altKm)} km${speed}`)
+          const speed = o.velocityKmh
+            ? ` · ${Math.round(o.velocityKmh).toLocaleString('en-US')} km/h`
+            : ''
+          return tooltip(`🛰 <b>ISS</b> · ${Math.round(o.altKm)} km${speed} · click to follow`)
         }
-        return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km`)
+        return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km · click for orbit`)
       })
-  }, [satellites, iss])
+      .onObjectClick((d) => {
+        const o = d as OrbitObject
+        if (o.kind === 'iss') {
+          onIssClickRef.current()
+          return
+        }
+        // toggle a one-orbit trail for the clicked satellite
+        if (trailNameRef.current === o.name || !o.sat) {
+          trailNameRef.current = null
+          globe.pathsData([])
+          return
+        }
+        trailNameRef.current = o.name
+        const track = orbitTrack(o.sat, new Date()).map(
+          (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
+        )
+        globe
+          .pathsData([track])
+          .pathPoints((d) => d as [number, number, number][])
+          .pathPointLat((p) => (p as number[])[0])
+          .pathPointLng((p) => (p as number[])[1])
+          .pathPointAlt((p) => (p as number[])[2])
+          .pathColor(() => ['rgba(165, 232, 255, 0.85)', 'rgba(56, 189, 248, 0.15)'])
+          .pathStroke(1.6)
+          .pathDashLength(0.05)
+          .pathDashGap(0.012)
+          .pathDashAnimateTime(12_000)
+      })
 
-  // floating "ISS" name tag just above the station model
+    refresh()
+    const timer = setInterval(refresh, SAT_TICK_MS)
+    return () => {
+      clearInterval(timer)
+      globe.pathsData([])
+      trailNameRef.current = null
+    }
+  }, [sats])
+
+  // ISS live telemetry feeds its orbit-layer datum + floating name tag
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
+    if (iss) {
+      const d = issDatumRef.current
+      d.lat = iss.lat
+      d.lng = iss.lng
+      d.altKm = iss.altitudeKm
+      d.velocityKmh = iss.velocityKmh
+      if (orbitObjectsRef.current.length > 0) globe.objectsData(orbitObjectsRef.current)
+    }
     globe
       .htmlElementsData(iss ? [iss] : [])
       .htmlLat((d) => (d as IssState).lat)
@@ -249,10 +356,10 @@ export function GlobeView({
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
-    globe.controls().autoRotate = !followIss
+    globe.controls().autoRotate = !followIss && !userInteractedRef.current
     if (followIss && iss) {
       const altitude = Math.min(globe.pointOfView().altitude ?? 2.2, 1.6)
-      globe.pointOfView({ lat: iss.lat, lng: iss.lng, altitude }, 900)
+      globe.pointOfView({ lat: iss.lat, lng: iss.lng, altitude }, 2_700)
     }
   }, [followIss, iss])
 

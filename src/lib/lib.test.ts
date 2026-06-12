@@ -3,9 +3,10 @@ import { formatCoords, formatKmh, formatUtcClock, timeAgo } from './format'
 import { parseIss } from './iss'
 import { pingDuration, pingFrequency, pingGain } from './ping'
 import { diffNewQuakes, magColor, magRadius, parseQuakes, quakeStats, type UsgsFeed } from './quakes'
-import { globeAltitude, parseTle, propagateSats, toTrackedSats } from './satellites'
+import { auroraColatitude, auroraOpacity, auroraOvals, auroraWidth } from './aurora'
+import { globeAltitude, orbitTrack, parseTle, propagateSats, toTrackedSats } from './satellites'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
-import { nightPolygon, subsolarPoint } from './sun'
+import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
 import { parseWikiEvent, pushEdit } from './wiki'
 
 describe('parseQuakes', () => {
@@ -150,6 +151,54 @@ HST
   it('globeAltitude převádí km na poloměry Země', () => {
     expect(globeAltitude(6371)).toBe(1)
     expect(globeAltitude(420)).toBeCloseTo(0.0659, 3)
+  })
+})
+
+describe('sphericalCircle + aurora', () => {
+  it('kružnice kolem pólu drží konstantní vzdálenost', () => {
+    const ring = sphericalCircle({ lat: 90, lng: 0 }, 20, 24)
+    expect(ring).toHaveLength(25)
+    for (const [, lat] of ring) expect(lat).toBeCloseTo(70, 5)
+  })
+
+  it('ovály rostou a jasní s Kp', () => {
+    expect(auroraColatitude(7)).toBeGreaterThan(auroraColatitude(1))
+    expect(auroraWidth(7)).toBeGreaterThan(auroraWidth(1))
+    expect(auroraOpacity(7)).toBeGreaterThan(auroraOpacity(1))
+    expect(auroraColatitude(99)).toBe(auroraColatitude(9)) // clamp
+  })
+
+  it('auroraOvals: severní + jižní annulus s dírou', () => {
+    const ovals = auroraOvals(3, 24)
+    expect(ovals.map((o) => o.pole)).toEqual(['north', 'south'])
+    for (const o of ovals) {
+      expect(o.rings).toHaveLength(2) // outer + inner hole
+      expect(o.rings[0]).toHaveLength(25)
+      expect(o.opacity).toBeGreaterThan(0)
+      expect(o.opacity).toBeLessThan(1)
+    }
+    // severní ovál leží na severu, jižní na jihu
+    expect(ovals[0].rings[0].every(([, lat]) => lat > 30)).toBe(true)
+    expect(ovals[1].rings[0].every(([, lat]) => lat < -30)).toBe(true)
+  })
+})
+
+describe('orbitTrack', () => {
+  const TLE = `HST
+1 20580U 90037B   26162.50000000  .00001000  00000+0  50000-4 0  9991
+2 20580  28.4690  80.0000 0002500 100.0000 260.0000 15.09700000 10002`
+
+  it('vrátí souvislou dráhu v LEO kolem zadaného času', () => {
+    const [sat] = toTrackedSats(parseTle(TLE))
+    const track = orbitTrack(sat, new Date(Date.UTC(2026, 5, 12, 6)), 94, 60)
+    expect(track.length).toBe(95) // ±47 min po minutě
+    for (const p of track) {
+      expect(p.altKm).toBeGreaterThan(200)
+      expect(p.altKm).toBeLessThan(2000)
+      expect(Math.abs(p.lat)).toBeLessThanOrEqual(90)
+    }
+    // HST inklinace 28.5° — dráha nikdy nad ~29° šířky
+    expect(Math.max(...track.map((p) => Math.abs(p.lat)))).toBeLessThan(29.5)
   })
 })
 

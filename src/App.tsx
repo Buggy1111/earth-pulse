@@ -11,14 +11,14 @@ import {
   TitleCard,
   WikiPanel,
 } from './components/Hud'
-import { useIss, useNow, useQuakes, useSatellites, useSpaceWeather, useWikiFeed } from './hooks'
+import { useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 
 export default function App() {
   const { quakes, newQuakes, flashes } = useQuakes()
   const iss = useIss()
-  const satellites = useSatellites()
+  const sats = useTleSats()
   const weather = useSpaceWeather()
   const { edits, totalSeen } = useWikiFeed()
   const now = useNow()
@@ -52,6 +52,7 @@ export default function App() {
 
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
+  const onIssClick = useCallback(() => setFollowIss((f) => !f), [])
 
   return (
     <>
@@ -59,9 +60,11 @@ export default function App() {
         quakes={quakes}
         flashes={flashes}
         iss={iss}
-        satellites={satellites}
+        sats={sats}
+        kp={weather.kp?.kp ?? null}
         followIss={followIss}
         onFollowBroken={onFollowBroken}
+        onIssClick={onIssClick}
         onQuakeClick={setSelected}
         onReady={onReady}
       />
@@ -71,7 +74,7 @@ export default function App() {
       <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-3">
-            <TitleCard now={now} satCount={satellites.length} />
+            <TitleCard now={now} satCount={sats.length} />
             <SpaceWeatherPanel weather={weather} />
           </div>
           <WikiPanel edits={edits} totalSeen={totalSeen} />

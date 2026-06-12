@@ -86,6 +86,41 @@ export function propagateSats(sats: TrackedSat[], date: Date): SatPos[] {
   return out
 }
 
+export interface TrackPoint {
+  lat: number
+  lng: number
+  altKm: number
+}
+
+/** Ground/orbit track for one satellite: ±`spanMin`/2 minutes around `date`,
+ * one point per `stepSec`. Powers the click-to-show orbit trail. */
+export function orbitTrack(
+  sat: TrackedSat,
+  date: Date,
+  spanMin = 94,
+  stepSec = 60,
+): TrackPoint[] {
+  const out: TrackPoint[] = []
+  const half = (spanMin * 60_000) / 2
+  for (let ms = -half; ms <= half; ms += stepSec * 1000) {
+    const t = new Date(date.getTime() + ms)
+    try {
+      const pv = propagate(sat.satrec, t)
+      if (!pv || typeof pv.position === 'boolean') continue
+      const geo = eciToGeodetic(pv.position, gstime(t))
+      if (!Number.isFinite(geo.height)) continue
+      out.push({
+        lat: degreesLat(geo.latitude),
+        lng: degreesLong(geo.longitude),
+        altKm: geo.height,
+      })
+    } catch {
+      // skip points the propagator can't produce
+    }
+  }
+  return out
+}
+
 export const EARTH_RADIUS_KM = 6371
 
 /** globe.gl altitude is in units of globe radius. */
