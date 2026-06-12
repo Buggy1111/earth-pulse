@@ -41,19 +41,31 @@ export function parseQuakes(feed: UsgsFeed): Quake[] {
   return out.sort((a, b) => b.time - a.time)
 }
 
-/** Color by magnitude: calm teal -> alarming red. */
+/** Warm energy ramp by magnitude: pale gold -> amber -> orange -> red. */
 export function magColor(mag: number): string {
   if (mag >= 6) return '#ef4444'
   if (mag >= 5) return '#f97316'
-  if (mag >= 4) return '#fbbf24'
-  if (mag >= 2.5) return '#a3e635'
-  return '#2dd4bf'
+  if (mag >= 4) return '#fb923c'
+  if (mag >= 2.5) return '#fbbf24'
+  return '#fde68a'
 }
 
 /** Globe ring radius (degrees) by magnitude — quadratic so the big ones dominate. */
 export function magRadius(mag: number): number {
   const m = Math.max(mag, 0)
   return Math.max(0.4, m * m * 0.18)
+}
+
+/** Glow sprite size (globe units) — quadratic so big quakes visibly dominate. */
+export function glowScale(mag: number): number {
+  const m = Math.max(mag, 0)
+  return 1.4 + m * m * 0.26
+}
+
+/** Glow opacity by event age: fresh quakes burn bright, day-old ones smolder. */
+export function glowOpacity(time: number, now: number): number {
+  const age = Math.min(Math.max((now - time) / 86_400_000, 0), 1)
+  return 1 - age * 0.62
 }
 
 /** Quakes not yet in `seenIds` — the live "just happened" detection. */

@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { formatCoords, formatKmh, formatUtcClock, timeAgo } from './format'
 import { parseIss } from './iss'
 import { pingDuration, pingFrequency, pingGain } from './ping'
-import { diffNewQuakes, magColor, magRadius, parseQuakes, quakeStats, type UsgsFeed } from './quakes'
+import {
+  diffNewQuakes,
+  glowOpacity,
+  glowScale,
+  magColor,
+  magRadius,
+  parseQuakes,
+  quakeStats,
+  type UsgsFeed,
+} from './quakes'
 import { auroraColatitude, auroraOpacity, auroraOvals, auroraWidth } from './aurora'
 import { globeAltitude, orbitTrack, parseTle, propagateSats, toTrackedSats } from './satellites'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
@@ -35,11 +44,21 @@ describe('parseQuakes', () => {
     expect(quakeStats([])).toEqual({ count: 0, strongest: null, latest: null })
   })
 
-  it('barvy a poloměry rostou s magnitudou', () => {
-    expect(magColor(1)).toBe('#2dd4bf')
+  it('barvy a poloměry rostou s magnitudou (teplá škála)', () => {
+    expect(magColor(1)).toBe('#fde68a')
+    expect(magColor(3)).toBe('#fbbf24')
     expect(magColor(6.5)).toBe('#ef4444')
     expect(magRadius(6)).toBeGreaterThan(magRadius(3))
     expect(magRadius(0)).toBeGreaterThan(0)
+  })
+
+  it('glow: velikost roste s magnitudou, jas klesá se stářím', () => {
+    expect(glowScale(6)).toBeGreaterThan(glowScale(2) * 2)
+    expect(glowScale(-1)).toBe(glowScale(0))
+    const now = 1_000_000_000
+    expect(glowOpacity(now, now)).toBe(1)
+    expect(glowOpacity(now - 86_400_000, now)).toBeCloseTo(0.38)
+    expect(glowOpacity(now - 2 * 86_400_000, now)).toBeCloseTo(0.38) // clamp za 24 h
   })
 })
 

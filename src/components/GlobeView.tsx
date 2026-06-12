@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
-import { magColor, magRadius, type Quake } from '../lib/quakes'
+import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
 import {
   globeAltitude,
   orbitTrack,
@@ -48,6 +48,30 @@ interface OrbitObject extends SatPos {
 /** Third-party text ends up in HTML tooltips — escape it. */
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+}
+
+/** Soft radial glow, tinted per quake by the sprite material color. */
+let glowTexture: THREE.CanvasTexture | null = null
+function getGlowTexture(): THREE.CanvasTexture {
+  if (glowTexture) return glowTexture
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 128
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.22, 'rgba(255,255,255,0.65)')
+  g.addColorStop(0.55, 'rgba(255,255,255,0.14)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 128, 128)
+  glowTexture = new THREE.CanvasTexture(canvas)
+  return glowTexture
+}
+
+/** Two overlaid strokes per orbit: a wide soft halo + a bright animated core. */
+interface TrailPath {
+  points: [number, number, number][]
+  kind: 'halo' | 'core'
 }
 
 function tooltip(html: string): string {
@@ -205,22 +229,43 @@ export function GlobeView({
       )
   }, [kp])
 
-  // earthquakes: glowing points + ripple rings (steady on M4+, bright flash on brand-new)
+  // earthquakes: additive glow sprites (warm ramp, fading with event age)
+  // + ripple rings (steady on M4+, bright flash on brand-new)
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
+    const now = Date.now()
     globe
-      .pointsData(quakes)
-      .pointLat((d) => (d as Quake).lat)
-      .pointLng((d) => (d as Quake).lng)
-      .pointColor((d) => magColor((d as Quake).mag))
-      .pointAltitude(0.01)
-      .pointRadius((d) => Math.max(0.12, (d as Quake).mag * 0.09))
-      .onPointClick((d) => onQuakeClick(d as Quake))
-      .pointLabel((d) => {
+      .customLayerData(quakes)
+      .customThreeObject((d) => {
+        const q = d as Quake
+        const sprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: getGlowTexture(),
+            color: magColor(q.mag),
+            transparent: true,
+            opacity: glowOpacity(q.time, now),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        )
+        const scale = glowScale(q.mag)
+        sprite.scale.set(scale, scale, 1)
+        return sprite
+      })
+      .customThreeObjectUpdate((obj, d) => {
+        const q = d as Quake
+        Object.assign(obj.position, globe.getCoords(q.lat, q.lng, 0.012))
+        ;((obj as THREE.Sprite).material as THREE.SpriteMaterial).opacity = glowOpacity(
+          q.time,
+          now,
+        )
+      })
+      .customLayerLabel((d) => {
         const q = d as Quake
         return tooltip(`<b>M ${q.mag.toFixed(1)}</b> · ${escapeHtml(q.place)}`)
       })
+      .onCustomLayerClick((d) => onQuakeClick(d as Quake))
 
     const rings: RingDatum[] = [
       ...quakes
@@ -304,17 +349,27 @@ export function GlobeView({
         const track = orbitTrack(o.sat, new Date()).map(
           (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
         )
+        // sci-fi neon: wide soft halo underneath, bright energy pulse running on top
+        const trail: TrailPath[] = [
+          { points: track, kind: 'halo' },
+          { points: track, kind: 'core' },
+        ]
         globe
-          .pathsData([track])
-          .pathPoints((d) => d as [number, number, number][])
+          .pathsData(trail)
+          .pathPoints((d) => (d as TrailPath).points)
           .pathPointLat((p) => (p as number[])[0])
           .pathPointLng((p) => (p as number[])[1])
           .pathPointAlt((p) => (p as number[])[2])
-          .pathColor(() => ['rgba(165, 232, 255, 0.85)', 'rgba(56, 189, 248, 0.15)'])
-          .pathStroke(1.6)
-          .pathDashLength(0.05)
-          .pathDashGap(0.012)
-          .pathDashAnimateTime(12_000)
+          .pathColor((d: object) =>
+            (d as TrailPath).kind === 'halo'
+              ? ['rgba(56, 189, 248, 0.05)', 'rgba(56, 189, 248, 0.4)', 'rgba(56, 189, 248, 0.05)']
+              : ['rgba(240, 253, 255, 0.95)', 'rgba(125, 211, 252, 0.9)', 'rgba(240, 253, 255, 0.95)'],
+          )
+          .pathStroke((d) => ((d as TrailPath).kind === 'halo' ? 5 : 1.3))
+          .pathDashLength((d) => ((d as TrailPath).kind === 'halo' ? 1 : 0.06))
+          .pathDashGap((d) => ((d as TrailPath).kind === 'halo' ? 0 : 0.025))
+          .pathDashAnimateTime((d) => ((d as TrailPath).kind === 'halo' ? 0 : 4_000))
+          .pathTransitionDuration(600)
       })
 
     refresh()

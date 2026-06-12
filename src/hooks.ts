@@ -31,12 +31,23 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
     let timer: ReturnType<typeof setTimeout> | undefined
     const flashTimers = new Set<ReturnType<typeof setTimeout>>()
     const seenIds = new Set<string>()
+    const byId = new Map<string, Quake>()
     let primed = false
     const tick = async () => {
       try {
         const resp = await fetch(USGS_FEED_URL)
         const data = (await resp.json()) as UsgsFeed
-        const parsed = parseQuakes(data)
+        // keep object identity for unchanged events so the globe reuses their
+        // sprites; rebuild the map so events aging out of the 24h window drop
+        const keep = new Map<string, Quake>()
+        const parsed = parseQuakes(data).map((q) => {
+          const old = byId.get(q.id)
+          const stable = old && old.mag === q.mag && old.time === q.time ? old : q
+          keep.set(q.id, stable)
+          return stable
+        })
+        byId.clear()
+        for (const [k, v] of keep) byId.set(k, v)
         // first load just primes the id set — don't flag 24h of history as "new"
         const fresh = primed ? diffNewQuakes(seenIds, parsed) : []
         primed = true

@@ -14,13 +14,16 @@
 ![Aurora oval driven by the live Kp index](docs/aurora.png)
 
 - 🌋 **Earthquakes** — every quake from the last 24 hours (USGS feed, refreshed every
-  minute); points sized and colored by magnitude, M 4+ quakes ripple. A quake that
-  happens **while you watch** gets a bright flash ring, a NEW badge, and an optional
-  audio ping (🔔 toggle, pitched by magnitude — bigger quake, deeper bell)
+  minute) as additive **glow sprites** on a warm energy ramp (pale gold → red), sized
+  by magnitude and fading with event age; clusters along the Ring of Fire visibly
+  burn. M 4+ quakes ripple. A quake that happens **while you watch** gets a bright
+  flash ring, a NEW badge, and an optional audio ping (🔔 toggle, pitched by
+  magnitude — bigger quake, deeper bell)
 - 🛰 **~150 live satellites** — the brightest objects in orbit, propagated locally
   from real Celestrak TLEs with SGP4 ([satellite.js](https://github.com/shashwatak/satellite-js))
   every second. Hover for name and altitude, **click any satellite to draw its
-  orbit** (one full revolution, animated). Zero runtime API calls
+  orbit** — a neon double-stroke trail (soft halo + bright energy pulse running
+  along the track). Zero runtime API calls
 - 🛰 **The ISS** — live position, speed and altitude every 3 seconds; click the
   station or hit **follow ISS** for a chase camera (drag the globe to break away)
 - ☀️ **Space weather** — planetary Kp index (green calm → red geomagnetic storm) and
