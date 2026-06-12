@@ -14,6 +14,7 @@ import {
 } from '../lib/satellites'
 import { subsolarPoint } from '../lib/sun'
 import { makeDayNightMaterial, sunlitClouds } from './dayNightMaterial'
+import type { LayerState } from './Hud'
 import { makeIssObject, makeSatelliteObject } from './spaceObjects'
 
 interface Props {
@@ -25,11 +26,21 @@ interface Props {
   sats: TrackedSat[]
   /** Live Kp index for the aurora ovals (null until the first NOAA reading). */
   kp: number | null
+  /** Which globe layers the user wants to see. */
+  layers: LayerState
+  /** NORAD ids whose orbits are drawn (managed by the parent via onSatClick). */
+  selectedOrbitIds: string[]
+  /** Browser geolocation result — marked on the globe and flown to. */
+  userLoc: { lat: number; lng: number } | null
+  /** Bumped on every locate click so we re-fly even to an unchanged position. */
+  locVersion: number
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
   /** Click on the ISS model toggles follow mode. */
   onIssClick: () => void
+  /** Click on a satellite toggles its orbit in the parent's list. */
+  onSatClick: (id: string, name: string) => void
   onQuakeClick: (quake: Quake) => void
   onReady: () => void
 }
@@ -37,6 +48,14 @@ interface Props {
 const SUN_REFRESH_MS = 60_000
 const CLOUDS_ALTITUDE = 0.006
 const CLOUDS_DEG_PER_FRAME = -0.002
+const ARROW_LOOP_MS = 22_000
+
+const ARROW_GEO = new THREE.ConeGeometry(0.8, 2.4, 8)
+const ARROW_MAT = new THREE.MeshBasicMaterial({
+  color: '#bdf0ff',
+  transparent: true,
+  opacity: 0.95,
+})
 
 /** One datum for the objects layer: a tracked satellite or the ISS itself. */
 interface OrbitObject extends SatPos {
@@ -47,6 +66,10 @@ interface OrbitObject extends SatPos {
 /** Third-party text ends up in HTML tooltips — escape it. */
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+}
+
+function tooltip(html: string): string {
+  return `<div style="font-family:sans-serif;font-size:12px;background:rgba(7,9,15,.9);padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15)">${html}</div>`
 }
 
 /** Soft radial glow, tinted per quake by the sprite material color. */
@@ -73,8 +96,12 @@ interface TrailPath {
   kind: 'halo' | 'core'
 }
 
-function tooltip(html: string): string {
-  return `<div style="font-family:sans-serif;font-size:12px;background:rgba(7,9,15,.9);padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15)">${html}</div>`
+/** One shown orbit: its path pair + the direction arrow riding the ring. */
+interface Trail {
+  paths: TrailPath[]
+  arrow: THREE.Mesh
+  vectors: THREE.Vector3[]
+  phase: number
 }
 
 /** One datum for the rings layer: steady ripples on strong quakes + bright flashes on new ones. */
@@ -91,9 +118,14 @@ export function GlobeView({
   iss,
   sats,
   kp,
+  layers,
+  selectedOrbitIds,
+  userLoc,
+  locVersion,
   followIss,
   onFollowBroken,
   onIssClick,
+  onSatClick,
   onQuakeClick,
   onReady,
 }: Props) {
@@ -101,20 +133,28 @@ export function GlobeView({
   const globeRef = useRef<GlobeInstance | null>(null)
   const onFollowBrokenRef = useRef(onFollowBroken)
   const onIssClickRef = useRef(onIssClick)
+  const onSatClickRef = useRef(onSatClick)
   const onReadyRef = useRef(onReady)
   const followRef = useRef(followIss)
+  const layersRef = useRef(layers)
   useEffect(() => {
     onFollowBrokenRef.current = onFollowBroken
     onIssClickRef.current = onIssClick
+    onSatClickRef.current = onSatClick
     onReadyRef.current = onReady
     followRef.current = followIss
-  }, [onFollowBroken, onIssClick, onReady, followIss])
+    layersRef.current = layers
+  }, [onFollowBroken, onIssClick, onSatClick, onReady, followIss, layers])
 
   // the globe slowly spins as an opening showcase — first user touch stops it for good
   const userInteractedRef = useRef(false)
 
   // live API telemetry for the ISS tooltip (visual position comes from SGP4)
   const issStateRef = useRef<IssState | null>(null)
+
+  // shown orbits + the cloud mesh, shared between effects outside React state
+  const trailsRef = useRef<Map<string, Trail>>(new Map())
+  const cloudsRef = useRef<THREE.Mesh | null>(null)
 
   // one-time globe setup
   useEffect(() => {
@@ -158,7 +198,6 @@ export function GlobeView({
     })
 
     // slowly drifting cloud layer just above the surface, fading out at night
-    let clouds: THREE.Mesh | null = null
     let cloudsRaf = 0
     loader.load('clouds.webp', (texture) => {
       if (!globeRef.current) return
@@ -169,13 +208,15 @@ export function GlobeView({
         depthWrite: false,
       })
       sunlitClouds(cloudsMaterial, sunUniform)
-      clouds = new THREE.Mesh(
+      const clouds = new THREE.Mesh(
         new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALTITUDE), 64, 64),
         cloudsMaterial,
       )
+      clouds.visible = layersRef.current.clouds
       globe.scene().add(clouds)
+      cloudsRef.current = clouds
       const rotate = () => {
-        if (clouds) clouds.rotation.y += (CLOUDS_DEG_PER_FRAME * Math.PI) / 180
+        clouds.rotation.y += (CLOUDS_DEG_PER_FRAME * Math.PI) / 180
         cloudsRaf = requestAnimationFrame(rotate)
       }
       cloudsRaf = requestAnimationFrame(rotate)
@@ -191,14 +232,15 @@ export function GlobeView({
     // e2e hook: headless tests steer the camera through this handle
     ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
     return () => {
-      if (sunTimer) clearInterval(sunTimer)
+      clearInterval(sunTimer)
       cancelAnimationFrame(cloudsRaf)
+      const clouds = cloudsRef.current
       if (clouds) {
         globe.scene().remove(clouds)
         clouds.geometry.dispose()
         ;(clouds.material as THREE.MeshPhongMaterial).map?.dispose()
         ;(clouds.material as THREE.MeshPhongMaterial).dispose()
-        clouds = null
+        cloudsRef.current = null
       }
       globe.controls().removeEventListener('start', onDragStart)
       window.removeEventListener('resize', onResize)
@@ -207,12 +249,17 @@ export function GlobeView({
     }
   }, [])
 
+  // cloud layer visibility (mesh lives outside React)
+  useEffect(() => {
+    if (cloudsRef.current) cloudsRef.current.visible = layers.clouds
+  }, [layers.clouds])
+
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || kp === null) return
     globe
-      .polygonsData(auroraOvals(kp))
+      .polygonsData(layers.aurora ? auroraOvals(kp) : [])
       .polygonCapColor((d) => `rgba(74, 222, 128, ${(d as { opacity: number }).opacity})`)
       .polygonSideColor(() => 'rgba(0,0,0,0)')
       .polygonStrokeColor(() => 'rgba(0,0,0,0)')
@@ -223,7 +270,7 @@ export function GlobeView({
           coordinates: d.rings,
         })) as unknown as Parameters<GlobeInstance['polygonGeoJsonGeometry']>[0],
       )
-  }, [kp])
+  }, [kp, layers.aurora])
 
   // earthquakes: additive glow sprites (warm ramp, fading with event age)
   // + ripple rings (steady on M4+, bright flash on brand-new)
@@ -232,7 +279,7 @@ export function GlobeView({
     if (!globe) return
     const now = Date.now()
     globe
-      .customLayerData(quakes)
+      .customLayerData(layers.quakes ? quakes : [])
       .customThreeObject((d) => {
         const q = d as Quake
         const sprite = new THREE.Sprite(
@@ -263,12 +310,14 @@ export function GlobeView({
       })
       .onCustomLayerClick((d) => onQuakeClick(d as Quake))
 
-    const rings: RingDatum[] = [
-      ...quakes
-        .filter((q) => q.mag >= 4)
-        .map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: false })),
-      ...flashes.map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: true })),
-    ]
+    const rings: RingDatum[] = layers.quakes
+      ? [
+          ...quakes
+            .filter((q) => q.mag >= 4)
+            .map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: false })),
+          ...flashes.map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: true })),
+        ]
+      : []
     globe
       .ringsData(rings)
       .ringLat((d) => (d as RingDatum).lat)
@@ -283,7 +332,7 @@ export function GlobeView({
       })
       .ringPropagationSpeed((d) => ((d as RingDatum).flash ? 4 : 1.4))
       .ringRepeatPeriod((d) => ((d as RingDatum).flash ? 600 : 1800))
-  }, [quakes, flashes, onQuakeClick])
+  }, [quakes, flashes, onQuakeClick, layers.quakes])
 
   // orbit engine: SGP4-propagate everything (ISS included) EVERY FRAME and
   // move the meshes directly — perfectly fluid motion, no React, no globe
@@ -292,6 +341,7 @@ export function GlobeView({
     const globe = globeRef.current
     if (!globe || sats.length === 0) return
 
+    const trails = trailsRef.current
     const satById = new Map(sats.map((s) => [s.id, s]))
     const byId = new Map<string, OrbitObject>()
     const objects: OrbitObject[] = []
@@ -311,58 +361,6 @@ export function GlobeView({
       objects.push(o)
     }
 
-    // clicked orbits: any number at once, each with an arrow flying along it
-    interface Trail {
-      paths: TrailPath[]
-      arrow: THREE.Mesh
-      vectors: THREE.Vector3[] // precomputed scene positions along the ring
-      phase: number
-    }
-    const trails = new Map<string, Trail>()
-    const ARROW_GEO = new THREE.ConeGeometry(0.8, 2.4, 8)
-    const ARROW_MAT = new THREE.MeshBasicMaterial({
-      color: '#bdf0ff',
-      transparent: true,
-      opacity: 0.95,
-    })
-    const ARROW_LOOP_MS = 22_000
-    const UP = new THREE.Vector3(0, 1, 0)
-
-    const syncPaths = () => {
-      globe.pathsData([...trails.values()].flatMap((t) => t.paths))
-    }
-
-    const removeTrail = (id: string) => {
-      const t = trails.get(id)
-      if (!t) return
-      globe.scene().remove(t.arrow)
-      trails.delete(id)
-      syncPaths()
-    }
-
-    const addTrail = (o: OrbitObject) => {
-      if (!o.sat) return
-      const track = orbitTrack(o.sat, new Date()).map(
-        (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
-      )
-      const vectors = track.map((p) => {
-        const { x, y, z } = globe.getCoords(p[0], p[1], p[2])
-        return new THREE.Vector3(x, y, z)
-      })
-      const arrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
-      globe.scene().add(arrow)
-      trails.set(o.id, {
-        paths: [
-          { points: track, kind: 'halo' },
-          { points: track, kind: 'core' },
-        ],
-        arrow,
-        vectors,
-        phase: trails.size * 0.37, // spread arrows so several orbits don't sync up
-      })
-      syncPaths()
-    }
-
     // three-globe hangs each datum's Object3D off the datum itself
     // (key __threeObjObject for the objects layer; older versions __threeObj)
     type WithMesh = { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D }
@@ -370,6 +368,7 @@ export function GlobeView({
     const dir = new THREE.Vector3()
     const frame = () => {
       const now = new Date()
+      const show = layersRef.current
       for (const p of propagateSats(sats, now)) {
         const o = byId.get(p.id)
         if (!o) continue
@@ -377,7 +376,10 @@ export function GlobeView({
         o.lng = p.lng
         o.altKm = p.altKm
         const mesh = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
-        if (mesh) Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
+        if (mesh) {
+          mesh.visible = o.kind === 'iss' ? show.iss : show.sats
+          Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
+        }
       }
       // arrows ride their orbit rings in the direction of flight
       const cycle = now.getTime() / ARROW_LOOP_MS
@@ -390,7 +392,7 @@ export function GlobeView({
         const b = t.vectors[Math.min(i + 1, n - 1)]
         t.arrow.position.lerpVectors(a, b, u - i)
         dir.subVectors(b, a).normalize()
-        t.arrow.quaternion.setFromUnitVectors(UP, dir)
+        t.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
       }
       raf = requestAnimationFrame(frame)
     }
@@ -413,13 +415,8 @@ export function GlobeView({
       })
       .onObjectClick((d) => {
         const o = d as OrbitObject
-        if (o.kind === 'iss') {
-          onIssClickRef.current()
-          return
-        }
-        // toggle this satellite's orbit — any number can be shown at once
-        if (trails.has(o.id)) removeTrail(o.id)
-        else addTrail(o)
+        if (o.kind === 'iss') onIssClickRef.current()
+        else onSatClickRef.current(o.id, o.name)
       })
 
     // sci-fi neon trails: wide soft halo underneath, bright energy pulse on top
@@ -446,10 +443,72 @@ export function GlobeView({
       for (const t of trails.values()) globe.scene().remove(t.arrow)
       trails.clear()
       globe.pathsData([])
-      ARROW_GEO.dispose()
-      ARROW_MAT.dispose()
     }
   }, [sats])
+
+  // sync shown orbits with the user's list (settings panel or clicks)
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || sats.length === 0) return
+    const trails = trailsRef.current
+    const want = new Set(selectedOrbitIds)
+
+    for (const id of [...trails.keys()]) {
+      if (!want.has(id)) {
+        const t = trails.get(id)!
+        globe.scene().remove(t.arrow)
+        trails.delete(id)
+      }
+    }
+    for (const id of want) {
+      if (trails.has(id)) continue
+      const sat = sats.find((s) => s.id === id)
+      if (!sat) continue
+      const track = orbitTrack(sat, new Date()).map(
+        (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
+      )
+      const vectors = track.map((p) => {
+        const { x, y, z } = globe.getCoords(p[0], p[1], p[2])
+        return new THREE.Vector3(x, y, z)
+      })
+      const arrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
+      globe.scene().add(arrow)
+      trails.set(id, {
+        paths: [
+          { points: track, kind: 'halo' },
+          { points: track, kind: 'core' },
+        ],
+        arrow,
+        vectors,
+        phase: trails.size * 0.37, // spread arrows so several orbits don't sync up
+      })
+    }
+    globe.pathsData([...trails.values()].flatMap((t) => t.paths))
+  }, [selectedOrbitIds, sats])
+
+  // user's own location: pulsing pin + camera flight on every locate click
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe) return
+    globe
+      .htmlElementsData(userLoc ? [userLoc] : [])
+      .htmlLat((d) => (d as { lat: number }).lat)
+      .htmlLng((d) => (d as { lng: number }).lng)
+      .htmlAltitude(0.012)
+      .htmlElement(() => {
+        const el = document.createElement('div')
+        el.innerHTML =
+          '<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translateY(-4px)">' +
+          '<div style="font-size:20px;filter:drop-shadow(0 0 6px rgba(56,189,248,.9))">📍</div>' +
+          '<div style="font:600 10px sans-serif;color:#bae6fd;text-shadow:0 0 6px #000">you are here</div></div>'
+        return el
+      })
+    if (userLoc) {
+      globe.pointOfView({ lat: userLoc.lat, lng: userLoc.lng, altitude: 0.9 }, 1_600)
+      globe.controls().autoRotate = false
+      userInteractedRef.current = true
+    }
+  }, [userLoc, locVersion])
 
   // live API telemetry — the tooltip and follow camera read it
   useEffect(() => {

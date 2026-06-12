@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { formatCoords, formatKm, formatKmh, formatMag, formatUtcClock, timeAgo } from '../lib/format'
 import type { IssState } from '../lib/iss'
 import { quakeStats, type Quake } from '../lib/quakes'
@@ -56,6 +56,130 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
     </div>
   )
 })
+
+export interface LayerState {
+  sats: boolean
+  iss: boolean
+  quakes: boolean
+  aurora: boolean
+  clouds: boolean
+}
+
+export interface OrbitEntry {
+  id: string
+  name: string
+}
+
+const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
+  { key: 'sats', label: '🛰 satellites' },
+  { key: 'iss', label: '🛰 ISS' },
+  { key: 'quakes', label: '🌋 earthquakes' },
+  { key: 'aurora', label: '🌌 aurora' },
+  { key: 'clouds', label: '☁️ clouds' },
+]
+
+export function SettingsPanel({
+  layers,
+  onToggleLayer,
+  orbits,
+  onRemoveOrbit,
+  onClearOrbits,
+  userLoc,
+  locating,
+  onLocate,
+}: {
+  layers: LayerState
+  onToggleLayer: (key: keyof LayerState) => void
+  orbits: OrbitEntry[]
+  onRemoveOrbit: (id: string) => void
+  onClearOrbits: () => void
+  userLoc: { lat: number; lng: number } | null
+  locating: boolean
+  onLocate: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="hud fade-up pointer-events-auto max-w-64 px-4 py-3" style={{ animationDelay: '240ms' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
+      >
+        ⚙ customize
+        <span className="text-slate-500">{open ? '▾' : '▸'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-2 flex flex-col gap-2">
+          <div className="flex flex-col gap-1">
+            {LAYER_LABELS.map(({ key, label }) => (
+              <label key={key} className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={layers[key]}
+                  onChange={() => onToggleLayer(key)}
+                  className="accent-sky-400"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          <div className="border-t border-white/10 pt-2">
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
+                Orbits shown ({orbits.length})
+              </h3>
+              {orbits.length > 1 && (
+                <button
+                  type="button"
+                  onClick={onClearOrbits}
+                  className="cursor-pointer text-[10px] text-slate-500 hover:text-rose-300"
+                >
+                  clear all
+                </button>
+              )}
+            </div>
+            {orbits.length === 0 ? (
+              <p className="mt-1 text-[11px] text-slate-500">click a satellite to draw its orbit</p>
+            ) : (
+              <ul className="mt-1 flex max-h-32 flex-col gap-0.5 overflow-y-auto">
+                {orbits.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-2 text-xs text-slate-300">
+                    <span className="truncate">{o.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveOrbit(o.id)}
+                      aria-label={`Remove orbit of ${o.name}`}
+                      className="cursor-pointer px-1 text-slate-500 hover:text-rose-300"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="border-t border-white/10 pt-2">
+            <button
+              type="button"
+              onClick={onLocate}
+              disabled={locating}
+              className="cursor-pointer text-xs text-sky-300 hover:text-sky-200 disabled:text-slate-500"
+            >
+              📍 {locating ? 'locating…' : userLoc ? 'fly to my location' : 'where am I?'}
+            </button>
+            {userLoc && (
+              <p className="num mt-0.5 text-[11px] text-slate-400">{formatCoords(userLoc.lat, userLoc.lng)}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function SoundToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
