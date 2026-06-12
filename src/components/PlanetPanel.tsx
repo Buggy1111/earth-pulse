@@ -1,8 +1,19 @@
-/** Info panel for Solar System mode — overview facts or the picked body. */
+/** Info panel for Solar System mode — overview facts or the picked body,
+ * faithful encyclopedic data: spin, year, tilt, temperature, moons. */
 
-import { PLANETS, planetPositions } from '../lib/planets'
+import { PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
 
 const AU_KM = 149_597_870
+
+function fmtRotation(h: number): string {
+  const abs = Math.abs(h)
+  const retro = h < 0 ? ' (retrograde!)' : ''
+  return abs >= 48 ? `${(abs / 24).toFixed(1)} days${retro}` : `${abs.toFixed(1)} h${retro}`
+}
+
+function fmtYear(d: number): string {
+  return d >= 700 ? `${(d / 365.25).toFixed(1)} years` : `${Math.round(d)} days`
+}
 
 export function PlanetPanel({
   focus,
@@ -19,6 +30,7 @@ export function PlanetPanel({
   const positions = planetPositions(new Date(now))
   const p = focus && focus !== 'sun' ? positions.find((x) => x.id === focus) : null
   const def = p ? PLANETS.find((x) => x.id === p.id) : null
+  const moons = p ? (PLANET_MOONS[p.id] ?? []) : []
   return (
     <div className="hud pointer-events-auto max-w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -45,13 +57,37 @@ export function PlanetPanel({
         </div>
       </div>
       {p && def ? (
-        <div className="num mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
-          <span>☀️ {p.distSunAu.toFixed(2)} AU from the Sun</span>
-          <span>
-            🌍 {p.distEarthAu.toFixed(2)} AU from Earth ·{' '}
-            {Math.round(p.distEarthAu * AU_KM / 1e6).toLocaleString('en-US')} mil. km
+        <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
+          <span className="num">
+            ☀️ {p.distSunAu.toFixed(2)} AU from the Sun · 🌍 {p.distEarthAu.toFixed(2)} AU (
+            {Math.round((p.distEarthAu * AU_KM) / 1e6).toLocaleString('en-US')} mil. km) from Earth
           </span>
-          <span>⌀ {def.diameterKm.toLocaleString('en-US')} km</span>
+          <span className="num">
+            ⌀ {def.diameterKm.toLocaleString('en-US')} km · tilt {def.facts.tiltDeg}° · ~
+            {def.facts.tempC} °C
+          </span>
+          <span className="num">
+            🔄 day: {fmtRotation(def.facts.rotationH)} · 🗓 year: {fmtYear(def.facts.yearDays)}
+          </span>
+          <span>☁️ {def.facts.atmosphere}</span>
+          <span className="text-slate-300">✨ {def.facts.fact}</span>
+          {def.facts.moonCount > 0 && (
+            <div className="mt-1 border-t border-white/10 pt-1">
+              <span className="text-[10px] tracking-wide text-slate-500 uppercase">
+                Moons ({def.facts.moonCount} known{moons.length > 0 ? `, ${moons.length} shown` : ''})
+              </span>
+              {moons.map((m) => (
+                <p key={m.name} className="mt-0.5 text-xs">
+                  <span className="text-slate-200">{m.name}</span>{' '}
+                  <span className="num text-slate-500">
+                    · orbits in {m.periodD < 2 ? `${(m.periodD * 24).toFixed(0)} h` : `${m.periodD.toFixed(1)} d`}
+                    {m.retrograde ? ' ↺' : ''}
+                  </span>
+                  {m.fact && <span className="text-slate-400"> — {m.fact}</span>}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       ) : focus === 'sun' ? (
         <p className="mt-1 text-xs text-slate-400">
@@ -60,8 +96,8 @@ export function PlanetPanel({
       ) : (
         <p className="mt-1 text-xs text-slate-500">
           all 7 planets at their real positions for right now (Earth is the big one you came
-          from). Click any body to orbit it; rings trace the orbits — distances compressed so
-          Neptune fits on screen.
+          from) — real axial tilts, real spin rates, major moons revolving at true speed. Click
+          any body to orbit it.
         </p>
       )}
     </div>

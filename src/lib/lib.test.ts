@@ -28,7 +28,7 @@ import {
 import { isSameEvent, mergeQuakes, parseEmscEvent } from './emsc'
 import { geometryLabelPoint, ringCentroid } from './labels'
 import { APOLLO_SITES, moonPhaseLabel, nextMoonPhases, subLunarPoint } from './moon'
-import { planetPositions, PLANETS, sceneDistance } from './planets'
+import { moonAngle, PLANET_MOONS, planetPositions, PLANETS, planetSpin, sceneDistance } from './planets'
 import { encodeView, parseView } from './share'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
@@ -475,6 +475,32 @@ describe('planety (JPL approximace)', () => {
     expect(sceneDistance(30)).toBeLessThan(7000)
     expect(sceneDistance(30)).toBeGreaterThan(sceneDistance(9.5))
     expect(PLANETS).toHaveLength(7)
+  })
+
+  it('měsíce: reálné periody, Triton retrográdní, řazení dle vzdálenosti', () => {
+    expect(PLANET_MOONS.jupiter.map((m) => m.name)).toEqual(['Io', 'Europa', 'Ganymede', 'Callisto'])
+    expect(PLANET_MOONS.neptune[0].retrograde).toBe(true)
+    for (const moons of Object.values(PLANET_MOONS)) {
+      for (let i = 1; i < moons.length; i++) expect(moons[i].aKkm).toBeGreaterThan(moons[i - 1].aKkm)
+      for (const m of moons) expect(m.periodD).toBeGreaterThan(0)
+    }
+  })
+
+  it('moonAngle: Io oběhne za 1.769 dne přesně 2π, Triton běží záporně', () => {
+    const io = PLANET_MOONS.jupiter[0]
+    const t0 = 1_000_000_000_000
+    const dAngle = moonAngle(io, t0 + io.periodD * 86_400_000) - moonAngle(io, t0)
+    expect(dAngle).toBeCloseTo(2 * Math.PI, 6)
+    const triton = PLANET_MOONS.neptune[0]
+    expect(moonAngle(triton, t0 + 1000) - moonAngle(triton, t0)).toBeLessThan(0)
+  })
+
+  it('planetSpin: Jupiter se otočí za 9.9 h, Venuše točí pozpátku', () => {
+    expect(planetSpin(9.9, 9.9 * 3_600_000)).toBeCloseTo(2 * Math.PI)
+    expect(planetSpin(-5832.5, 3_600_000)).toBeLessThan(0)
+    const venus = PLANETS.find((p) => p.id === 'venus')!
+    expect(venus.facts.rotationH).toBeLessThan(0)
+    expect(PLANETS.find((p) => p.id === 'uranus')!.facts.tiltDeg).toBeCloseTo(97.8)
   })
 })
 

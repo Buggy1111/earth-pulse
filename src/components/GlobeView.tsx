@@ -5,7 +5,16 @@ import { feature as topoFeature, mesh as topoMesh } from 'topojson-client'
 import type { Topology, Objects } from 'topojson-specification'
 import { geometryLabelPoint } from '../lib/labels'
 import { APOLLO_SITES, subLunarPoint, type ApolloSite } from '../lib/moon'
-import { PLANETS, planetPositions, sceneDistance, subPlanetPoint } from '../lib/planets'
+import {
+  moonAngle,
+  PLANET_MOONS,
+  PLANETS,
+  planetPositions,
+  planetSpin,
+  sceneDistance,
+  subPlanetPoint,
+  type MoonDef,
+} from '../lib/planets'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
@@ -257,9 +266,13 @@ export function GlobeView({
   /** Whatever the orbit controls should stay pinned to (Moon, Sun, a planet). */
   const pinTargetRef = useRef<THREE.Object3D | null>(null)
   const solarGroupRef = useRef<THREE.Group | null>(null)
-  const planetMeshesRef = useRef<Map<string, THREE.Mesh>>(new Map())
+  const planetMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const sunMeshRef = useRef<THREE.Mesh | null>(null)
   const updateSolarRef = useRef<() => void>(() => {})
+  /** Per-frame animation data: spinning planets + revolving moons. */
+  const solarAnimRef = useRef<
+    { mesh: THREE.Mesh; rotationH: number; moons: { mesh: THREE.Mesh; def: MoonDef; rScene: number }[] }[]
+  >([])
   const ecoRef = useRef(eco)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
@@ -346,10 +359,15 @@ export function GlobeView({
       )
       raycaster.setFromCamera(ndc, globe.camera() as THREE.PerspectiveCamera)
       if (solarModeRef.current) {
-        const bodies = [...planetMeshesRef.current.values()]
+        const bodies: THREE.Object3D[] = [...planetMeshesRef.current.values()]
         if (sunMeshRef.current) bodies.push(sunMeshRef.current)
-        const hit = raycaster.intersectObjects(bodies, false)[0]
-        if (hit) onPlanetPickRef.current(hit.object.userData.planetId as string)
+        const hit = raycaster.intersectObjects(bodies, true)[0]
+        if (hit) {
+          // the hit may be a moon/ring/label — walk up to the system group
+          let o: THREE.Object3D | null = hit.object
+          while (o && !o.userData.planetId) o = o.parent
+          if (o?.userData.planetId) onPlanetPickRef.current(o.userData.planetId as string)
+        }
       } else if (moonModeRef.current) {
         const hit = raycaster.intersectObjects(apolloMarkersRef.current, false)[0]
         onApolloPickRef.current((hit?.object.userData.site as ApolloSite) ?? null)
@@ -852,6 +870,17 @@ export function GlobeView({
       if (pinTargetRef.current) {
         globe.controls().target.copy(pinTargetRef.current.position)
       }
+      // solar mode: planets spin and moons revolve at their TRUE rates
+      if (solarModeRef.current && solarGroupRef.current?.visible) {
+        const ms = now.getTime()
+        for (const entry of solarAnimRef.current) {
+          entry.mesh.rotation.y = planetSpin(entry.rotationH, ms)
+          for (const m of entry.moons) {
+            const a = moonAngle(m.def, ms)
+            m.mesh.position.set(Math.cos(a) * m.rScene, 0, Math.sin(a) * m.rScene)
+          }
+        }
+      }
       // arrows ride their orbit rings in the direction of flight
       const cycle = now.getTime() / ARROW_LOOP_MS
       for (const t of trails.values()) {
@@ -1045,35 +1074,66 @@ export function GlobeView({
       group.add(sun)
       sunMeshRef.current = sun
 
+      solarAnimRef.current = []
       for (const p of PLANETS) {
+        // system group (positioned) → tilt group (real axial tilt) → spinning
+        // planet + equatorial rings + revolving moons
+        const system = new THREE.Group()
+        system.userData.planetId = p.id
+        const tilt = new THREE.Group()
+        tilt.rotation.z = p.facts.tiltDeg * (Math.PI / 180)
+        system.add(tilt)
+
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(p.displayRadius, 24, 24),
           new THREE.MeshBasicMaterial({ color: '#9aa3ae' }),
         )
-        mesh.userData.planetId = p.id
         loadTex(mesh, p.texture)
-        mesh.add(makeNameSprite(p.name, p.displayRadius))
-        if (p.id === 'saturn') {
+        tilt.add(mesh)
+        system.add(makeNameSprite(p.name, p.displayRadius))
+
+        // ring systems: Saturn's grand one, the faint ones of Uranus & Neptune
+        const addRing = (inner: number, outer: number, color: string, opacity: number, tex?: string) => {
           const ring = new THREE.Mesh(
-            new THREE.RingGeometry(p.displayRadius * 1.3, p.displayRadius * 2.2, 48),
-            new THREE.MeshBasicMaterial({
-              color: '#d8c9a3',
-              side: THREE.DoubleSide,
-              transparent: true,
-              opacity: 0.8,
-            }),
+            new THREE.RingGeometry(p.displayRadius * inner, p.displayRadius * outer, 48),
+            new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity }),
           )
-          loader.load('planets/saturn_ring.png', (tex) => {
-            const m = ring.material as THREE.MeshBasicMaterial
-            m.map = tex
-            m.color.set('#ffffff')
-            m.needsUpdate = true
-          })
-          ring.rotation.x = Math.PI / 2 - 0.46 // Saturn's 26.7° tilt
-          mesh.add(ring)
+          if (tex)
+            loader.load(tex, (t) => {
+              const m = ring.material as THREE.MeshBasicMaterial
+              m.map = t
+              m.color.set('#ffffff')
+              m.needsUpdate = true
+            })
+          ring.rotation.x = Math.PI / 2 // equatorial plane; the tilt group does the rest
+          tilt.add(ring)
         }
-        group.add(mesh)
-        planetMeshesRef.current.set(p.id, mesh)
+        if (p.id === 'saturn') addRing(1.3, 2.2, '#d8c9a3', 0.85, 'planets/saturn_ring.png')
+        if (p.id === 'uranus') addRing(1.55, 1.75, '#9fb6c0', 0.3)
+        if (p.id === 'neptune') addRing(1.4, 1.55, '#8898a8', 0.18)
+
+        // major moons at real periods (true revolution rates, scaled orbits)
+        const moons = PLANET_MOONS[p.id] ?? []
+        const aMax = moons.length ? Math.max(...moons.map((m) => m.aKkm)) : 1
+        const animMoons: { mesh: THREE.Mesh; def: MoonDef; rScene: number }[] = []
+        for (const m of moons) {
+          const rMoon = Math.min(
+            Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)) * 4, 1.4),
+            p.displayRadius * 0.38,
+          )
+          const moonMeshSolar = new THREE.Mesh(
+            new THREE.SphereGeometry(rMoon, 12, 12),
+            new THREE.MeshBasicMaterial({ color: m.color }),
+          )
+          moonMeshSolar.add(makeNameSprite(m.name, rMoon * 1.4))
+          const rScene = p.displayRadius * 1.8 + (m.aKkm / aMax) * p.displayRadius * 3.2
+          tilt.add(moonMeshSolar)
+          animMoons.push({ mesh: moonMeshSolar, def: m, rScene })
+        }
+        solarAnimRef.current.push({ mesh, rotationH: p.facts.rotationH, moons: animMoons })
+
+        group.add(system)
+        planetMeshesRef.current.set(p.id, system)
       }
 
       // orbit guide rings, rebuilt on every position update
