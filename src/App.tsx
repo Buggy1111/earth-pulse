@@ -39,6 +39,7 @@ export default function App() {
     aurora: true,
     clouds: true,
     borders: true,
+    detail: true,
   })
   const [orbits, setOrbits] = useState<OrbitEntry[]>([])
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null)
@@ -192,7 +193,8 @@ export default function App() {
       </div>
 
       <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-slate-600">
-        Earth Pulse · open source · no API keys, everything runs in your browser
+        Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
+        Solar System Scope (CC BY)
       </p>
     </>
   )

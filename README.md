@@ -4,11 +4,14 @@
 
 ![Earth Pulse — night side with real city lights](docs/earth-pulse-v0.3.png)
 
-- 🌃 **Real day & night** — a custom globe shader blends NASA's Blue Marble into
-  the night-lights map along the *actual* terminator: city lights switch on exactly
+- 🌃 **Real day & night in 8K** — a custom globe shader blends an 8192×4096 day
+  texture into 8K city lights along the *actual* terminator: lights switch on exactly
   where the Sun has just set, the cloud layer fades out with them, and a warm
   dawn/dusk glow hugs the terminator through real civil twilight (the surface
   starts brightening from ~−10° sun elevation, just like the view from orbit)
+- 🔎 **Map-grade zoom** — zoom in close and the built-in tile engine streams real
+  Esri World Imagery (LOD up to street level, like a maps app); zoom back out and
+  the live day/night globe returns. 🗺 Country borders (Natural Earth) on top
 - 🌌 **Live aurora** — ovals around the geomagnetic poles that grow and brighten
   with the real-time Kp index; during a geomagnetic storm they visibly push toward
   the mid-latitudes
@@ -83,8 +86,10 @@ npm run fetch-tle  # refresh the bundled Celestrak TLE snapshot (do this every f
 ## Stack
 
 React 19 + TypeScript + Vite + Tailwind v4 + [globe.gl](https://github.com/vasturiano/globe.gl)
-(three.js) + satellite.js. Globe and cloud textures are bundled locally (NASA Blue
-Marble via three-globe).
+(three.js) + satellite.js + topojson-client. 8K day/night textures ©
+[Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0), zoom
+imagery © Esri & contributors, borders from Natural Earth — all other data live
+from public feeds.
 
 All data-layer logic lives in pure, tested functions under `src/lib/` — the React
 layer only wires feeds to the globe.

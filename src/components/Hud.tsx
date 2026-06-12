@@ -87,6 +87,7 @@ export interface LayerState {
   aurora: boolean
   clouds: boolean
   borders: boolean
+  detail: boolean
 }
 
 export interface OrbitEntry {
@@ -101,6 +102,7 @@ const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
   { key: 'aurora', label: '🌌 aurora' },
   { key: 'clouds', label: '☁️ clouds' },
   { key: 'borders', label: '🗺 country borders' },
+  { key: 'detail', label: '🔎 hi-res zoom imagery' },
 ]
 
 export function SettingsPanel({

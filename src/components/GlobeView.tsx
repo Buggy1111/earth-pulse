@@ -166,6 +166,7 @@ export function GlobeView({
   const cloudsRef = useRef<THREE.Mesh | null>(null)
   const bordersRef = useRef<THREE.LineSegments | null>(null)
   const orbitObjectsRef = useRef<Map<string, OrbitObject>>(new Map())
+  const tileUpdateRef = useRef<() => void>(() => {})
 
   // one-time globe setup
   useEffect(() => {
@@ -196,17 +197,39 @@ export function GlobeView({
     applySun()
     const sunTimer = setInterval(applySun, SUN_REFRESH_MS)
 
-    // real day & night: NASA Blue Marble blended into city lights along the
-    // live terminator
+    // real day & night: 8K day texture blended into 8K city lights along the
+    // live terminator (textures © Solar System Scope, CC BY 4.0)
     const loader = new THREE.TextureLoader()
     void Promise.all([
-      loader.loadAsync('earth-blue-marble.jpg'),
-      loader.loadAsync('earth-night.jpg'),
+      loader.loadAsync('earth-day-8k.jpg'),
+      loader.loadAsync('earth-night-8k.jpg'),
     ]).then(([day, night]) => {
       if (!globeRef.current) return // unmounted while loading
       globe.globeMaterial(makeDayNightMaterial(day, night, sunUniform))
       onReadyRef.current()
     })
+
+    // map-style detail: below TILES_ON altitude the built-in tile engine
+    // streams Esri World Imagery (LOD up to street level); zooming back out
+    // returns to the day/night shader. Hysteresis avoids flicker.
+    const TILES_ON = 0.25
+    const TILES_OFF = 0.38
+    const tileUrl = (x: number, y: number, l: number) =>
+      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
+    let tilesOn = false
+    const updateTileEngine = () => {
+      const alt = globe.pointOfView().altitude ?? 10
+      if (layersRef.current.detail && alt < TILES_ON && !tilesOn) {
+        tilesOn = true
+        globe.globeTileEngineUrl(tileUrl)
+      } else if ((!layersRef.current.detail || alt > TILES_OFF) && tilesOn) {
+        tilesOn = false
+        globe.globeTileEngineUrl(null as unknown as Parameters<GlobeInstance['globeTileEngineUrl']>[0])
+      }
+    }
+    globe.globeTileEngineMaxLevel(17)
+    globe.controls().addEventListener('change', updateTileEngine)
+    tileUpdateRef.current = updateTileEngine
 
     // slowly drifting cloud layer just above the surface, fading out at night
     let cloudsRaf = 0
@@ -293,6 +316,7 @@ export function GlobeView({
         bordersRef.current = null
       }
       globe.controls().removeEventListener('start', onDragStart)
+      globe.controls().removeEventListener('change', updateTileEngine)
       window.removeEventListener('resize', onResize)
       globe._destructor()
       globeRef.current = null
@@ -306,6 +330,9 @@ export function GlobeView({
   useEffect(() => {
     if (bordersRef.current) bordersRef.current.visible = layers.borders
   }, [layers.borders])
+  useEffect(() => {
+    tileUpdateRef.current()
+  }, [layers.detail])
 
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
   useEffect(() => {
