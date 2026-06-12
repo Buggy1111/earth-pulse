@@ -121,7 +121,7 @@ export function GlobeView(props: Props) {
     if (!containerRef.current) return
     const fromLink = initialPovRef.current
     const globe = new Globe(containerRef.current)
-      .backgroundImageUrl('night-sky.png')
+      .backgroundColor('#000005')
       .atmosphereColor('#7dd3fc')
       .atmosphereAltitude(0.18)
       .pointOfView(fromLink ?? { lat: 25, lng: 15, altitude: 2.2 }, 0)
@@ -140,7 +140,6 @@ export function GlobeView(props: Props) {
     skyRef.current = sky
     applySkyRef.current = sky.applySky
     moonMeshRef.current = sky.moonMesh
-
 
     const surface = setupSurface(globe, {
       sunUniform: sky.sunUniform,
@@ -361,7 +360,9 @@ export function GlobeView(props: Props) {
     const controls = globe.controls()
     const prevFar = cam.far
     const prevMax = controls.maxDistance
-    cam.far = 220_000
+    // Pluto's orbit line reaches ~49 AU (108k); camera fully zoomed out on
+    // the opposite side must still see it: 130k + 108k < far
+    cam.far = 260_000
     cam.updateProjectionMatrix()
     controls.maxDistance = 130_000
     controls.autoRotate = false

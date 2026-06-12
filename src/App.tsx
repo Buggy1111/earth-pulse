@@ -61,7 +61,6 @@ export default function App() {
   const { userLoc, locating, locVersion, onLocate } = useGeolocate()
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
-
   const { eco, onToggleEco } = useEcoMode(ready)
 
   const orbitIds = useMemo(() => orbits.map((o) => o.id), [orbits])
@@ -326,6 +325,7 @@ export default function App() {
                 onWarp={onWarp}
                 onWarpReset={onWarpReset}
                 onOverview={onSolarOverview}
+                onNavigate={setFocusPlanet}
                 onBack={onSolarExit}
               />
             )}

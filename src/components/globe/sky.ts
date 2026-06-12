@@ -19,6 +19,15 @@ export interface Sky {
 }
 
 export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
+  // infinite starfield: globe.gl's backgroundImageUrl is a FINITE 50k-unit
+  // sky sphere — solar mode lets the camera 130k units out, where the sphere
+  // ends and bare background color showed through. scene.background with an
+  // equirect texture renders behind everything at any distance.
+  const starTex = new THREE.TextureLoader().load('night-sky.png')
+  starTex.mapping = THREE.EquirectangularReflectionMapping
+  starTex.colorSpace = THREE.SRGBColorSpace
+  globe.scene().background = starTex
+
   const sunUniform = { value: new THREE.Vector3(1, 0, 0) }
   const sunSprite = new THREE.Sprite(
     new THREE.SpriteMaterial({
@@ -97,6 +106,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
     applySky,
     dispose: () => {
       clearInterval(sunTimer)
+      starTex.dispose()
       globe.scene().remove(sunSprite)
       sunSprite.material.dispose()
       globe.scene().remove(moonMesh)

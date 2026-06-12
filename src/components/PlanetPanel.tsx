@@ -22,6 +22,20 @@ const WARPS: { label: string; factor: number }[] = [
   { label: '1 w/s', factor: 604_800 },
 ]
 
+/** One-click navigation: every body in the scene, camera glides to it. */
+const NAV: { id: string; label: string; color: string }[] = [
+  { id: 'sun', label: 'Sun', color: '#ffd27a' },
+  { id: 'mercury', label: 'Mercury', color: '#9aa3ae' },
+  { id: 'venus', label: 'Venus', color: '#e8c47a' },
+  { id: 'earth', label: 'Earth', color: '#38bdf8' },
+  { id: 'mars', label: 'Mars', color: '#e07a5f' },
+  { id: 'jupiter', label: 'Jupiter', color: '#d9b38c' },
+  { id: 'saturn', label: 'Saturn', color: '#d8c9a3' },
+  { id: 'uranus', label: 'Uranus', color: '#9fd3dd' },
+  { id: 'neptune', label: 'Neptune', color: '#6f8fd8' },
+  { id: 'pluto', label: 'Pluto', color: '#c9b29b' },
+]
+
 export function PlanetPanel({
   focus,
   now,
@@ -30,9 +44,10 @@ export function PlanetPanel({
   onWarp,
   onWarpReset,
   onOverview,
+  onNavigate,
   onBack,
 }: {
-  /** Planet id, 'sun', or null for the system overview. */
+  /** Planet id, 'sun', 'earth', or null for the system overview. */
   focus: string | null
   /** Simulated time (warped). */
   now: number
@@ -42,6 +57,8 @@ export function PlanetPanel({
   onWarp: (factor: number) => void
   onWarpReset: () => void
   onOverview: () => void
+  /** Fly the camera to a body picked in the navigation strip. */
+  onNavigate: (id: string) => void
   onBack: () => void
 }) {
   const warped = warp !== 1 || Math.abs(now - realNow) > 120_000
@@ -53,7 +70,12 @@ export function PlanetPanel({
     <div className="hud pointer-events-auto w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-          🪐 {focus === 'sun' ? 'The Sun' : (p?.name ?? 'Solar system · live')}
+          🪐{' '}
+          {focus === 'sun'
+            ? 'The Sun'
+            : focus === 'earth'
+              ? 'Earth'
+              : (p?.name ?? 'Solar system · live')}
         </h2>
         <div className="flex gap-2">
           {focus && (
@@ -73,6 +95,27 @@ export function PlanetPanel({
             ← Earth
           </button>
         </div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-1 gap-y-0.5 border-b border-white/10 pb-2">
+        {NAV.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            onClick={() => onNavigate(b.id)}
+            title={`fly to ${b.label}`}
+            className={`flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${
+              focus === b.id
+                ? 'bg-white/15 text-slate-100'
+                : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
+            }`}
+          >
+            <span
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{ background: b.color }}
+            />
+            {b.label}
+          </button>
+        ))}
       </div>
       {p && def ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
@@ -110,6 +153,11 @@ export function PlanetPanel({
       ) : focus === 'sun' ? (
         <p className="mt-1 text-xs text-slate-400">
           ⌀ 1,392,700 km · 99.86 % of the system's mass · light takes ~8 min to reach Earth
+        </p>
+      ) : focus === 'earth' ? (
+        <p className="mt-1 text-xs text-slate-400">
+          🏠 your home, still fully live — satellites, quakes and clouds keep running on the
+          mini-globe. Click it to fly back home.
         </p>
       ) : (
         <p className="mt-1 text-xs text-slate-500">

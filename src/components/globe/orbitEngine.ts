@@ -107,6 +107,12 @@ export function startOrbitEngine(
         Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
       }
     }
+    // solar mode: one frame call drives planets, moons, spin and the sky.
+    // MUST run before the chase block — pinning to a body's stale (previous
+    // frame) position makes the whole view tremble at high time-warp.
+    if (deps.solarModeRef.current && deps.solarGroupRef.current?.visible) {
+      deps.solarFrameRef.current(now)
+    }
     // bodies drift — keep the orbit pivot glued to whatever we're orbiting,
     // and CHASE it: the camera translates with the body, so a focused planet
     // stays framed even at full time-warp
@@ -122,10 +128,6 @@ export function startOrbitEngine(
       globe.controls().target.copy(pinWorld)
     } else {
       prevPinObj = null
-    }
-    // solar mode: one frame call drives planets, moons, spin and the sky
-    if (deps.solarModeRef.current && deps.solarGroupRef.current?.visible) {
-      deps.solarFrameRef.current(now)
     }
     // arrows ride their orbit rings in the direction of flight
     const cycle = now.getTime() / ARROW_LOOP_MS
