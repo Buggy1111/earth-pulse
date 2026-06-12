@@ -38,6 +38,10 @@ interface Props {
   locVersion: number
   /** Eco/performance mode: 4K textures, 1× pixel ratio, 30 Hz propagation. */
   eco: boolean
+  /** Camera restored from a shared link — overrides the default opening view. */
+  initialPov: { lat: number; lng: number; altitude: number } | null
+  /** Debounced camera reports for the share URL. */
+  onPovChange: (pov: { lat: number; lng: number; altitude: number }) => void
   /** Satellite picked in the search box — fly the camera to it. */
   focusSat: { id: string; v: number } | null
   /** Quake picked in the HUD — fly the camera there. */
@@ -133,6 +137,8 @@ export function GlobeView({
   eco,
   focusSat,
   flyTo,
+  initialPov,
+  onPovChange,
   followIss,
   onFollowBroken,
   onIssClick,
@@ -146,6 +152,7 @@ export function GlobeView({
   const onIssClickRef = useRef(onIssClick)
   const onSatClickRef = useRef(onSatClick)
   const onReadyRef = useRef(onReady)
+  const onPovChangeRef = useRef(onPovChange)
   const followRef = useRef(followIss)
   const layersRef = useRef(layers)
   useEffect(() => {
@@ -153,9 +160,11 @@ export function GlobeView({
     onIssClickRef.current = onIssClick
     onSatClickRef.current = onSatClick
     onReadyRef.current = onReady
+    onPovChangeRef.current = onPovChange
     followRef.current = followIss
     layersRef.current = layers
-  }, [onFollowBroken, onIssClick, onSatClick, onReady, followIss, layers])
+  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, followIss, layers])
+  const initialPovRef = useRef(initialPov)
 
   // the globe slowly spins as an opening showcase — first user touch stops it for good
   const userInteractedRef = useRef(false)
@@ -177,13 +186,16 @@ export function GlobeView({
   // one-time globe setup
   useEffect(() => {
     if (!containerRef.current) return
+    const fromLink = initialPovRef.current
     const globe = new Globe(containerRef.current)
       .backgroundImageUrl('night-sky.png')
       .atmosphereColor('#7dd3fc')
       .atmosphereAltitude(0.18)
-      .pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
+      .pointOfView(fromLink ?? { lat: 25, lng: 15, altitude: 2.2 }, 0)
 
-    globe.controls().autoRotate = true
+    // a shared link IS the view — don't auto-rotate away from it
+    userInteractedRef.current = !!fromLink
+    globe.controls().autoRotate = !fromLink
     globe.controls().autoRotateSpeed = 0.45
     const onDragStart = () => {
       userInteractedRef.current = true
@@ -241,6 +253,18 @@ export function GlobeView({
     globe.globeTileEngineMaxLevel(17)
     globe.controls().addEventListener('change', updateTileEngine)
     tileUpdateRef.current = updateTileEngine
+
+    // report the camera so the share URL follows the user around: instantly
+    // when an interaction ends, debounced otherwise (auto-rotate fires
+    // 'change' every frame and would starve a plain debounce)
+    let povTimer: ReturnType<typeof setTimeout> | undefined
+    const reportPov = () => onPovChangeRef.current(globe.pointOfView())
+    const onCamChange = () => {
+      clearTimeout(povTimer)
+      povTimer = setTimeout(reportPov, 600)
+    }
+    globe.controls().addEventListener('change', onCamChange)
+    globe.controls().addEventListener('end', reportPov)
 
     // slowly drifting cloud layer just above the surface, fading out at night
     let cloudsRaf = 0
@@ -332,6 +356,9 @@ export function GlobeView({
       }
       globe.controls().removeEventListener('start', onDragStart)
       globe.controls().removeEventListener('change', updateTileEngine)
+      globe.controls().removeEventListener('change', onCamChange)
+      globe.controls().removeEventListener('end', reportPov)
+      clearTimeout(povTimer)
       window.removeEventListener('resize', onResize)
       globe._destructor()
       globeRef.current = null

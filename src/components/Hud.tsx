@@ -134,6 +134,13 @@ export function SettingsPanel({
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [copied, setCopied] = useState(false)
+  const copyLink = () => {
+    void navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1_600)
+    })
+  }
   const matches =
     query.trim().length >= 2
       ? satList.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
@@ -237,18 +244,26 @@ export function SettingsPanel({
             )}
           </div>
 
-          <div className="border-t border-white/10 pt-2">
+          <div className="flex flex-col gap-1 border-t border-white/10 pt-2">
             <button
               type="button"
               onClick={onLocate}
               disabled={locating}
-              className="cursor-pointer text-xs text-sky-300 hover:text-sky-200 disabled:text-slate-500"
+              className="cursor-pointer text-left text-xs text-sky-300 hover:text-sky-200 disabled:text-slate-500"
             >
               📍 {locating ? 'locating…' : userLoc ? 'fly to my location' : 'where am I?'}
             </button>
             {userLoc && (
-              <p className="num mt-0.5 text-[11px] text-slate-400">{formatCoords(userLoc.lat, userLoc.lng)}</p>
+              <p className="num text-[11px] text-slate-400">{formatCoords(userLoc.lat, userLoc.lng)}</p>
             )}
+            <button
+              type="button"
+              onClick={copyLink}
+              title="share this exact view — camera, orbits and layers travel in the link"
+              className="cursor-pointer text-left text-xs text-sky-300 hover:text-sky-200"
+            >
+              🔗 {copied ? 'link copied!' : 'copy view link'}
+            </button>
           </div>
         </div>
       )}

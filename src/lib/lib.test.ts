@@ -24,6 +24,7 @@ import {
   propagateSats,
   toTrackedSats,
 } from './satellites'
+import { encodeView, parseView } from './share'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
 import { parseWikiEvent, pushEdit } from './wiki'
@@ -339,6 +340,35 @@ describe('diffNewQuakes + ping', () => {
     // extrémy se oříznou
     expect(pingFrequency(-5)).toBe(pingFrequency(0))
     expect(pingGain(99)).toBe(pingGain(8))
+  })
+})
+
+describe('share URL (view state v hashi)', () => {
+  it('round-trip: kamera + orbity + vypnuté vrstvy', () => {
+    const view = {
+      camera: { lat: 49.834, lng: 18.282, altitude: 1.204 },
+      orbitIds: ['25544', '20580'],
+      layersOff: ['quakes', 'aurora'],
+    }
+    const encoded = encodeView(view)
+    expect(encoded).toBe('c=49.83,18.28,1.20&o=25544.20580&off=quakes.aurora')
+    const parsed = parseView(`#${encoded}`)
+    expect(parsed?.camera?.lat).toBeCloseTo(49.83)
+    expect(parsed?.orbitIds).toEqual(['25544', '20580'])
+    expect(parsed?.layersOff).toEqual(['quakes', 'aurora'])
+  })
+
+  it('odmítne nesmysly: špatné souřadnice, cizí vrstvy, ne-číselné orbity', () => {
+    expect(parseView('#c=999,0,1')).toBeNull()
+    expect(parseView('')).toBeNull()
+    expect(parseView('#off=hacks')).toBeNull()
+    const p = parseView('#o=25544.DROP_TABLE.99')
+    expect(p?.orbitIds).toEqual(['25544', '99'])
+  })
+
+  it('prázdné části se vynechají', () => {
+    expect(encodeView({ orbitIds: [], layersOff: [] })).toBe('')
+    expect(encodeView({ orbitIds: ['1'], layersOff: [] })).toBe('o=1')
   })
 })
 

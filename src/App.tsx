@@ -19,8 +19,11 @@ import { useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } f
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass } from './lib/satellites'
+import { encodeView, parseView } from './lib/share'
 
 const ecoPreference = loadEcoPreference()
+// shared link? restore camera/orbits/layers from the URL hash
+const initialView = parseView(window.location.hash)
 
 export default function App() {
   const { quakes, newQuakes, flashes } = useQuakes()
@@ -35,14 +38,18 @@ export default function App() {
   const [soundOn, setSoundOn] = useState(false)
 
   // user customization: visible layers, chosen orbits, own location
-  const [layers, setLayers] = useState<LayerState>({
-    sats: true,
-    iss: true,
-    quakes: true,
-    aurora: true,
-    clouds: true,
-    borders: true,
-    detail: true,
+  const [layers, setLayers] = useState<LayerState>(() => {
+    const base: LayerState = {
+      sats: true,
+      iss: true,
+      quakes: true,
+      aurora: true,
+      clouds: true,
+      borders: true,
+      detail: true,
+    }
+    for (const k of initialView?.layersOff ?? []) base[k as keyof LayerState] = false
+    return base
   })
   const [orbits, setOrbits] = useState<OrbitEntry[]>([])
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null)
@@ -106,6 +113,44 @@ export default function App() {
     setSelected(q)
     setFlyTo((f) => ({ lat: q.lat, lng: q.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
+
+  // shared-link orbits: restore once the TLE catalog is in
+  const orbitsRestored = useRef(false)
+  useEffect(() => {
+    if (orbitsRestored.current || sats.length === 0 || !initialView?.orbitIds.length) return
+    orbitsRestored.current = true
+    const names = new Map(sats.map((s) => [s.id, s.name]))
+    setOrbits(
+      initialView.orbitIds
+        .filter((id) => names.has(id))
+        .map((id) => ({ id, name: names.get(id)! })),
+    )
+  }, [sats])
+
+  // keep the URL hash in sync — anyone can copy the address bar to share
+  const povRef = useRef(initialView?.camera ?? null)
+  const shareStateRef = useRef({ orbits, layers })
+  const writeHash = useCallback(() => {
+    const { orbits: o, layers: l } = shareStateRef.current
+    const layersOff = (Object.keys(l) as (keyof LayerState)[]).filter((k) => !l[k])
+    const hash = encodeView({
+      camera: povRef.current ?? undefined,
+      orbitIds: o.map((x) => x.id),
+      layersOff,
+    })
+    history.replaceState(null, '', hash ? `#${hash}` : window.location.pathname)
+  }, [])
+  useEffect(() => {
+    shareStateRef.current = { orbits, layers }
+    writeHash()
+  }, [orbits, layers, writeHash])
+  const onPovChange = useCallback(
+    (pov: { lat: number; lng: number; altitude: number }) => {
+      povRef.current = pov
+      writeHash()
+    },
+    [writeHash],
+  )
 
   const onLocate = useCallback(() => {
     if (!navigator.geolocation) return
@@ -178,6 +223,8 @@ export default function App() {
         eco={eco}
         focusSat={focusSat}
         flyTo={flyTo}
+        initialPov={initialView?.camera ?? null}
+        onPovChange={onPovChange}
         followIss={followIss}
         onFollowBroken={onFollowBroken}
         onIssClick={onIssClick}
