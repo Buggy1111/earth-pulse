@@ -13,7 +13,15 @@ import {
   type UsgsFeed,
 } from './quakes'
 import { auroraColatitude, auroraOpacity, auroraOvals, auroraWidth } from './aurora'
-import { globeAltitude, orbitTrack, parseTle, propagateSats, toTrackedSats } from './satellites'
+import {
+  globeAltitude,
+  isIss,
+  orbitalPeriodMin,
+  orbitTrack,
+  parseTle,
+  propagateSats,
+  toTrackedSats,
+} from './satellites'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
 import { parseWikiEvent, pushEdit } from './wiki'
@@ -83,6 +91,20 @@ describe('subsolarPoint', () => {
     const { lng } = subsolarPoint(new Date(Date.UTC(2026, 5, 12, 0)))
     expect(Math.abs(lng)).toBeGreaterThan(175)
   })
+
+  it('realita: Praha 12.6.2026 — ve 3:30 UTC po východu (osvětlená), v 1:00 UTC noc', () => {
+    // východ slunce v Praze 12.6.2026 ≈ 2:49 UTC (timeanddate)
+    const cos = (d: Date) => {
+      const s = subsolarPoint(d)
+      const RAD = Math.PI / 180
+      return (
+        Math.sin(s.lat * RAD) * Math.sin(50.08 * RAD) +
+        Math.cos(s.lat * RAD) * Math.cos(50.08 * RAD) * Math.cos((14.43 - s.lng) * RAD)
+      )
+    }
+    expect(cos(new Date(Date.UTC(2026, 5, 12, 3, 30)))).toBeGreaterThan(0) // slunce nad obzorem
+    expect(cos(new Date(Date.UTC(2026, 5, 12, 1, 0)))).toBeLessThan(-0.1) // hluboká noc
+  })
 })
 
 describe('nightPolygon', () => {
@@ -144,19 +166,22 @@ HST
     expect(parseTle('jen jeden řádek')).toHaveLength(0)
   })
 
-  it('toTrackedSats vynechá ISS (má vlastní live marker)', () => {
+  it('toTrackedSats drží i ISS (vizuál jede z SGP4) a isIss ji pozná', () => {
     const sats = toTrackedSats(parseTle(TLE))
-    expect(sats.map((s) => s.name)).toEqual(['HST'])
+    expect(sats.map((s) => s.name)).toEqual(['ISS (ZARYA)', 'HST'])
+    expect(isIss('ISS (ZARYA)')).toBe(true)
+    expect(isIss('HST')).toBe(false)
   })
 
-  it('propagace dá platnou pozici v LEO', () => {
+  it('propagace dá platné pozice v LEO', () => {
     const sats = toTrackedSats(parseTle(TLE))
     const pos = propagateSats(sats, new Date(Date.UTC(2026, 5, 12, 6)))
-    expect(pos).toHaveLength(1)
-    expect(pos[0].lat).toBeGreaterThanOrEqual(-90)
-    expect(pos[0].lat).toBeLessThanOrEqual(90)
-    expect(pos[0].altKm).toBeGreaterThan(200)
-    expect(pos[0].altKm).toBeLessThan(2000)
+    expect(pos).toHaveLength(2)
+    for (const p of pos) {
+      expect(Math.abs(p.lat)).toBeLessThanOrEqual(90)
+      expect(p.altKm).toBeGreaterThan(200)
+      expect(p.altKm).toBeLessThan(2000)
+    }
   })
 
   it('pozice se za minutu posune (živý pohyb)', () => {
@@ -165,6 +190,12 @@ HST
     const a = propagateSats(sats, t0)[0]
     const b = propagateSats(sats, new Date(t0.getTime() + 60_000))[0]
     expect(Math.abs(a.lat - b.lat) + Math.abs(a.lng - b.lng)).toBeGreaterThan(0.5)
+  })
+
+  it('orbitalPeriodMin čte periodu z mean motion (HST ~95,5 min)', () => {
+    const hst = toTrackedSats(parseTle(TLE))[1]
+    expect(orbitalPeriodMin(hst)).toBeGreaterThan(94)
+    expect(orbitalPeriodMin(hst)).toBeLessThan(97)
   })
 
   it('globeAltitude převádí km na poloměry Země', () => {
@@ -207,10 +238,10 @@ describe('orbitTrack', () => {
 1 20580U 90037B   26162.50000000  .00001000  00000+0  50000-4 0  9991
 2 20580  28.4690  80.0000 0002500 100.0000 260.0000 15.09700000 10002`
 
-  it('vrátí souvislou dráhu v LEO kolem zadaného času', () => {
+  it('vrátí UZAVŘENOU orbitu v LEO (konec = začátek)', () => {
     const [sat] = toTrackedSats(parseTle(TLE))
-    const track = orbitTrack(sat, new Date(Date.UTC(2026, 5, 12, 6)), 94, 60)
-    expect(track.length).toBe(95) // ±47 min po minutě
+    const track = orbitTrack(sat, new Date(Date.UTC(2026, 5, 12, 6)), 128)
+    expect(track.length).toBe(129) // 128 vzorků + uzavírací bod
     for (const p of track) {
       expect(p.altKm).toBeGreaterThan(200)
       expect(p.altKm).toBeLessThan(2000)
@@ -218,6 +249,12 @@ describe('orbitTrack', () => {
     }
     // HST inklinace 28.5° — dráha nikdy nad ~29° šířky
     expect(Math.max(...track.map((p) => Math.abs(p.lat)))).toBeLessThan(29.5)
+    // uzavřenost: poslední bod je přesně první
+    const [first, last] = [track[0], track[track.length - 1]]
+    expect(last).toEqual(first)
+    // a předposlední (skutečný konec periody) je blízko startu — žádný 23° skok
+    const prev = track[track.length - 2]
+    expect(Math.abs(prev.lat - first.lat)).toBeLessThan(2)
   })
 })
 

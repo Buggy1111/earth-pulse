@@ -6,6 +6,7 @@ import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
 import {
   globeAltitude,
+  isIss,
   orbitTrack,
   propagateSats,
   type SatPos,
@@ -34,9 +35,8 @@ interface Props {
 }
 
 const SUN_REFRESH_MS = 60_000
-const SAT_TICK_MS = 1_000
 const CLOUDS_ALTITUDE = 0.006
-const CLOUDS_DEG_PER_FRAME = -0.012
+const CLOUDS_DEG_PER_FRAME = -0.002
 
 /** One datum for the objects layer: a tracked satellite or the ISS itself. */
 interface OrbitObject extends SatPos {
@@ -114,10 +114,8 @@ export function GlobeView({
   // the globe slowly spins as an opening showcase — first user touch stops it for good
   const userInteractedRef = useRef(false)
 
-  // orbit-layer data lives outside React: the 1 Hz propagation loop mutates
-  // these stable objects and pushes them straight into the globe
-  const issDatumRef = useRef<OrbitObject>({ kind: 'iss', name: 'ISS', lat: 0, lng: 0, altKm: 420 })
-  const orbitObjectsRef = useRef<OrbitObject[]>([])
+  // live API telemetry for the ISS tooltip (visual position comes from SGP4)
+  const issStateRef = useRef<IssState | null>(null)
   const trailNameRef = useRef<string | null>(null)
 
   // one-time globe setup
@@ -289,19 +287,35 @@ export function GlobeView({
       .ringRepeatPeriod((d) => ((d as RingDatum).flash ? 600 : 1800))
   }, [quakes, flashes, onQuakeClick])
 
-  // orbit engine: SGP4-propagate all satellites every second and move their
-  // meshes directly — React never sees the 1 Hz churn
+  // orbit engine: SGP4-propagate everything (ISS included) EVERY FRAME and
+  // move the meshes directly — perfectly fluid motion, no React, no globe
+  // data digest, just position writes on stable Object3Ds
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || sats.length === 0) return
 
     const byName = new Map<string, OrbitObject>()
-    for (const s of sats) {
-      byName.set(s.name, { kind: 'sat', name: s.name, lat: 0, lng: 0, altKm: 0, sat: s })
+    const objects: OrbitObject[] = []
+    for (const p of propagateSats(sats, new Date())) {
+      const sat = sats.find((s) => s.name === p.name)
+      if (!sat) continue
+      const o: OrbitObject = {
+        kind: isIss(p.name) ? 'iss' : 'sat',
+        name: p.name,
+        lat: p.lat,
+        lng: p.lng,
+        altKm: p.altKm,
+        sat,
+      }
+      byName.set(p.name, o)
+      objects.push(o)
     }
 
-    const refresh = () => {
-      const objects: OrbitObject[] = []
+    // three-globe hangs each datum's Object3D off the datum itself
+    // (key __threeObjObject for the objects layer; older versions __threeObj)
+    type WithMesh = { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D }
+    let raf = 0
+    const frame = () => {
       const now = new Date()
       for (const p of propagateSats(sats, now)) {
         const o = byName.get(p.name)
@@ -309,11 +323,10 @@ export function GlobeView({
         o.lat = p.lat
         o.lng = p.lng
         o.altKm = p.altKm
-        objects.push(o)
+        const mesh = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
+        if (mesh) Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
       }
-      objects.push(issDatumRef.current)
-      orbitObjectsRef.current = objects
-      globe.objectsData(objects)
+      raf = requestAnimationFrame(frame)
     }
 
     globe
@@ -326,9 +339,8 @@ export function GlobeView({
       .objectLabel((d) => {
         const o = d as OrbitObject
         if (o.kind === 'iss') {
-          const speed = o.velocityKmh
-            ? ` · ${Math.round(o.velocityKmh).toLocaleString('en-US')} km/h`
-            : ''
+          const v = issStateRef.current?.velocityKmh
+          const speed = v ? ` · ${Math.round(v).toLocaleString('en-US')} km/h` : ''
           return tooltip(`🛰 <b>ISS</b> · ${Math.round(o.altKm)} km${speed} · click to follow`)
         }
         return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km · click for orbit`)
@@ -372,39 +384,18 @@ export function GlobeView({
           .pathTransitionDuration(600)
       })
 
-    refresh()
-    const timer = setInterval(refresh, SAT_TICK_MS)
+    globe.objectsData(objects)
+    raf = requestAnimationFrame(frame)
     return () => {
-      clearInterval(timer)
+      cancelAnimationFrame(raf)
       globe.pathsData([])
       trailNameRef.current = null
     }
   }, [sats])
 
-  // ISS live telemetry feeds its orbit-layer datum + floating name tag
+  // live API telemetry — the tooltip and follow camera read it
   useEffect(() => {
-    const globe = globeRef.current
-    if (!globe) return
-    if (iss) {
-      const d = issDatumRef.current
-      d.lat = iss.lat
-      d.lng = iss.lng
-      d.altKm = iss.altitudeKm
-      d.velocityKmh = iss.velocityKmh
-      if (orbitObjectsRef.current.length > 0) globe.objectsData(orbitObjectsRef.current)
-    }
-    globe
-      .htmlElementsData(iss ? [iss] : [])
-      .htmlLat((d) => (d as IssState).lat)
-      .htmlLng((d) => (d as IssState).lng)
-      .htmlAltitude((d) => globeAltitude((d as IssState).altitudeKm) + 0.035)
-      .htmlElement(() => {
-        const el = document.createElement('div')
-        el.textContent = 'ISS'
-        el.style.cssText =
-          'pointer-events:none;font:600 10px sans-serif;color:#e2e8f0;text-shadow:0 0 6px #000,0 0 12px rgba(125,211,252,.7)'
-        return el
-      })
+    issStateRef.current = iss
   }, [iss])
 
   // follow ISS: chase camera on every position update, pause auto-rotate meanwhile

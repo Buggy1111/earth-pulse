@@ -25,11 +25,15 @@ void main() {
   vec3 day = texture2D(dayTexture, vUv).rgb;
   vec3 night = texture2D(nightTexture, vUv).rgb;
   float cosAngle = dot(normalize(vWorldNormal), normalize(sunDirection));
-  // soft ~14 degree twilight band around the terminator
-  float blend = smoothstep(-0.12, 0.12, cosAngle);
-  vec3 dayLit = day * (0.7 + 0.4 * max(cosAngle, 0.0));
+  // real twilight: the surface starts brightening from ~ -10 deg sun
+  // elevation (civil/nautical twilight), full day from ~ +4 deg
+  float blend = smoothstep(-0.17, 0.07, cosAngle);
+  vec3 dayLit = day * (0.68 + 0.42 * max(cosAngle, 0.0));
   vec3 nightLit = night * 1.45 + vec3(0.012, 0.018, 0.035);
-  gl_FragColor = vec4(mix(nightLit, dayLit, blend), 1.0);
+  // warm dawn/dusk glow hugging the terminator, like the view from orbit
+  float tw = smoothstep(-0.22, 0.0, cosAngle) * (1.0 - smoothstep(0.0, 0.2, cosAngle));
+  vec3 color = mix(nightLit, dayLit, blend) + vec3(0.55, 0.26, 0.08) * tw * 0.4;
+  gl_FragColor = vec4(color, 1.0);
 }
 `
 
@@ -74,7 +78,7 @@ export function sunlitClouds(
       .replace(
         '#include <opaque_fragment>',
         '#include <opaque_fragment>\n' +
-          'float sunBlend = smoothstep(-0.12, 0.12, dot(normalize(vSunNormal), normalize(sunDirection)));\n' +
+          'float sunBlend = smoothstep(-0.17, 0.07, dot(normalize(vSunNormal), normalize(sunDirection)));\n' +
           'gl_FragColor.a *= 0.12 + 0.88 * sunBlend;',
       )
   }

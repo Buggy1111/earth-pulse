@@ -46,6 +46,30 @@ const ISS_ARRAY_MAT = new THREE.MeshLambertMaterial({ color: '#b45309', emissive
 const ISS_RADIATOR_GEO = new THREE.BoxGeometry(0.5, 0.02, 1.3)
 const ISS_RADIATOR_MAT = new THREE.MeshLambertMaterial({ color: '#f1f5f9', emissive: '#cbd5e1' })
 
+/** "ISS" name tag as a sprite glued to the model — moves perfectly with it. */
+function makeIssLabel(): THREE.Sprite {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 48
+  const ctx = canvas.getContext('2d')!
+  ctx.font = '600 30px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.shadowColor = 'rgba(125, 211, 252, 0.9)'
+  ctx.shadowBlur = 10
+  ctx.fillStyle = '#e2e8f0'
+  ctx.fillText('ISS', 64, 36)
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(canvas),
+      transparent: true,
+      depthWrite: false,
+    }),
+  )
+  sprite.scale.set(4.6, 1.7, 1)
+  sprite.position.y = 2.6
+  return sprite
+}
+
 /** Recognizable mini-ISS: main truss, pressurized module stack crossing it,
  * eight amber solar arrays in four pairs, plus white radiators. */
 export function makeIssObject(): THREE.Object3D {
@@ -74,5 +98,6 @@ export function makeIssObject(): THREE.Object3D {
     iss.add(radiator)
   }
 
+  iss.add(makeIssLabel())
   return iss
 }

@@ -6,7 +6,9 @@
 
 - 🌃 **Real day & night** — a custom globe shader blends NASA's Blue Marble into
   the night-lights map along the *actual* terminator: city lights switch on exactly
-  where the Sun has just set, and the cloud layer fades out with them
+  where the Sun has just set, the cloud layer fades out with them, and a warm
+  dawn/dusk glow hugs the terminator through real civil twilight (the surface
+  starts brightening from ~−10° sun elevation, just like the view from orbit)
 - 🌌 **Live aurora** — ovals around the geomagnetic poles that grow and brighten
   with the real-time Kp index; during a geomagnetic storm they visibly push toward
   the mid-latitudes
@@ -21,10 +23,12 @@
   magnitude — bigger quake, deeper bell)
 - 🛰 **~150 live satellites** — the brightest objects in orbit, propagated locally
   from real Celestrak TLEs with SGP4 ([satellite.js](https://github.com/shashwatak/satellite-js))
-  every second. Hover for name and altitude, **click any satellite to draw its
-  orbit** — a neon double-stroke trail (soft halo + bright energy pulse running
-  along the track). Zero runtime API calls
-- 🛰 **The ISS** — live position, speed and altitude every 3 seconds; click the
+  **every animation frame** — perfectly fluid, true orbital motion, zero runtime
+  API calls. Hover for name and altitude, **click any satellite to draw its
+  orbit** — a closed neon ring (the actual orbital plane, period taken from the
+  element set) with an energy pulse running along it
+- 🛰 **The ISS** — flies smoothly on its SGP4 track like everything else, while
+  live API telemetry (speed, altitude) feeds the HUD every 3 seconds; click the
   station or hit **follow ISS** for a chase camera (drag the globe to break away)
 - ☀️ **Space weather** — planetary Kp index (green calm → red geomagnetic storm) and
   solar wind speed, straight from NOAA SWPC
@@ -64,7 +68,11 @@ npm run fetch-tle  # refresh the bundled Celestrak TLE snapshot (do this every f
   component, mutating stable objects and bypassing React entirely; heavy HUD panels
   are memoized; the cloud texture ships as a 1.1 MB WebP (was a 5 MB PNG).
 - `src/lib/satellites.ts` parses the bundled TLE file and propagates all satellites
-  with SGP4 each second — real orbital motion, no server. Celestrak blocks browser
+  (ISS included) with SGP4 — real orbital motion, no server. The render loop calls
+  it every frame and writes mesh positions directly, bypassing both React and the
+  globe's data digest. Orbit rings sample one full period (from the element set's
+  mean motion) and freeze Earth's rotation at "now", so the ring closes exactly —
+  a ground track would spiral ~23° west per revolution. Celestrak blocks browser
   CORS, so `scripts/fetch-tle.mjs` snapshots the data at build time; TLEs stay
   accurate for days.
 - `src/lib/spaceWeather.ts` reads NOAA SWPC's Kp and solar-wind feeds (both send

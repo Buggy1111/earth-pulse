@@ -40,13 +40,17 @@ export interface TrackedSat {
   satrec: SatRec
 }
 
-/** ISS has its own live-telemetry marker — skip its TLE twin. */
-const ISS_NAME = /^ISS \(ZARYA\)/
+/** The ISS rides in the TLE set too — its visual position comes from SGP4
+ * (smooth, every frame) while live API telemetry feeds the HUD. */
+export const ISS_NAME = 'ISS (ZARYA)'
+
+export function isIss(name: string): boolean {
+  return name.startsWith(ISS_NAME)
+}
 
 export function toTrackedSats(sets: TleSet[]): TrackedSat[] {
   const out: TrackedSat[] = []
   for (const s of sets) {
-    if (ISS_NAME.test(s.name)) continue
     try {
       out.push({ name: s.name, satrec: twoline2satrec(s.line1, s.line2) })
     } catch {
@@ -92,22 +96,27 @@ export interface TrackPoint {
   altKm: number
 }
 
-/** Ground/orbit track for one satellite: ±`spanMin`/2 minutes around `date`,
- * one point per `stepSec`. Powers the click-to-show orbit trail. */
-export function orbitTrack(
-  sat: TrackedSat,
-  date: Date,
-  spanMin = 94,
-  stepSec = 60,
-): TrackPoint[] {
+/** Orbital period in minutes straight from the element set (mean motion). */
+export function orbitalPeriodMin(sat: TrackedSat): number {
+  return (2 * Math.PI) / sat.satrec.no
+}
+
+/** The satellite's current orbit as a CLOSED ring.
+ *
+ * Samples exactly one orbital period but converts every ECI sample with the
+ * single gmst of `date` — Earth's rotation is frozen, so the result is the
+ * actual orbital plane as it is right now, and the ring meets itself. (A
+ * ground track would spiral ~23° west per revolution and never close.) */
+export function orbitTrack(sat: TrackedSat, date: Date, points = 128): TrackPoint[] {
+  const gmst = gstime(date)
+  const periodMs = orbitalPeriodMin(sat) * 60_000
   const out: TrackPoint[] = []
-  const half = (spanMin * 60_000) / 2
-  for (let ms = -half; ms <= half; ms += stepSec * 1000) {
-    const t = new Date(date.getTime() + ms)
+  for (let i = 0; i < points; i++) {
+    const t = new Date(date.getTime() + (i / points) * periodMs)
     try {
       const pv = propagate(sat.satrec, t)
       if (!pv || typeof pv.position === 'boolean') continue
-      const geo = eciToGeodetic(pv.position, gstime(t))
+      const geo = eciToGeodetic(pv.position, gmst)
       if (!Number.isFinite(geo.height)) continue
       out.push({
         lat: degreesLat(geo.latitude),
@@ -118,6 +127,8 @@ export function orbitTrack(
       // skip points the propagator can't produce
     }
   }
+  // guarantee closure (J2 drift over one revolution is < 0.3°, invisible)
+  if (out.length > 1) out.push({ ...out[0] })
   return out
 }
 
