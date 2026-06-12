@@ -24,21 +24,29 @@ export function saveEcoPreference(eco: boolean): void {
   }
 }
 
-/** Heuristic: GPUs that are known to struggle with this scene. */
+/** Heuristic: GPUs that are known to struggle with this scene.
+ *
+ * Cached after the first call and the probe context is explicitly released —
+ * every WebGL context counts against the browser's ~16-context budget, and
+ * exceeding it kills the globe's context (visible as the globe blinking). */
+let weakGpuCache: boolean | null = null
 export function detectWeakGpu(): boolean {
+  if (weakGpuCache !== null) return weakGpuCache
   try {
     const canvas = document.createElement('canvas')
     const gl = canvas.getContext('webgl')
-    if (!gl) return true
+    if (!gl) return (weakGpuCache = true)
     const ext = gl.getExtension('WEBGL_debug_renderer_info')
     const renderer = ext
       ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
       : String(gl.getParameter(gl.RENDERER))
-    return /intel.*(uhd|hd graphics)|llvmpipe|swiftshader|angle.*intel|mali|adreno|videocore/i.test(
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    weakGpuCache = /intel.*(uhd|hd graphics)|llvmpipe|swiftshader|angle.*intel|mali|adreno|videocore/i.test(
       renderer,
     )
+    return weakGpuCache
   } catch {
-    return false
+    return (weakGpuCache = false)
   }
 }
 

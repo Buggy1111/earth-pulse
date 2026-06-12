@@ -52,8 +52,9 @@ export default function App() {
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
 
   // performance: saved preference > weak-GPU heuristic; FPS watchdog can
-  // still kick in after load if the machine turns out to struggle
-  const [eco, setEco] = useState(ecoPreference ?? detectWeakGpu())
+  // still kick in after load if the machine turns out to struggle.
+  // Lazy initializer — the GPU probe must run ONCE, not on every render.
+  const [eco, setEco] = useState(() => ecoPreference ?? detectWeakGpu())
   const onToggleEco = useCallback(() => {
     setEco((e) => {
       saveEcoPreference(!e)
