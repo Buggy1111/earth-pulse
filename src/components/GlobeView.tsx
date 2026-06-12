@@ -258,6 +258,9 @@ export function GlobeView({
         cloudsMaterial,
       )
       clouds.visible = layersRef.current.clouds
+      // explicit compositing order: clouds above the globe, below glow sprites —
+      // distance-sorted transparency ties can otherwise flip frame to frame
+      clouds.renderOrder = 2
       globe.scene().add(clouds)
       cloudsRef.current = clouds
       const rotate = () => {
@@ -292,6 +295,7 @@ export function GlobeView({
           new THREE.LineBasicMaterial({ color: '#9fb3c8', transparent: true, opacity: 0.38 }),
         )
         segments.visible = layersRef.current.borders
+        segments.renderOrder = 1
         globe.scene().add(segments)
         bordersRef.current = segments
       })
@@ -414,6 +418,7 @@ export function GlobeView({
         )
         const scale = glowScale(q.mag)
         sprite.scale.set(scale, scale, 1)
+        sprite.renderOrder = 3
         return sprite
       })
       .customThreeObjectUpdate((obj, d) => {
