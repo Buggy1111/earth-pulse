@@ -9,6 +9,7 @@ import {
   SettingsPanel,
   SoundToggle,
   SpaceWeatherPanel,
+  TimelinePanel,
   TitleCard,
   WikiPanel,
   type LayerState,
@@ -46,6 +47,7 @@ export default function App() {
       aurora: true,
       clouds: true,
       borders: true,
+      labels: true,
       detail: true,
     }
     for (const k of initialView?.layersOff ?? []) base[k as keyof LayerState] = false
@@ -73,6 +75,40 @@ export default function App() {
   const satList = useMemo(
     () => sats.filter((s) => !isIss(s.name)).map((s) => ({ id: s.id, name: s.name })),
     [sats],
+  )
+
+  // 24h earthquake timeline: offsetH −24…0, 0 = live; play replays the day
+  const [timeOffsetH, setTimeOffsetH] = useState(0)
+  const [timelinePlaying, setTimelinePlaying] = useState(false)
+  useEffect(() => {
+    if (!timelinePlaying) return
+    const id = setInterval(() => {
+      setTimeOffsetH((o) => {
+        const next = o + 0.25
+        if (next >= 0) {
+          setTimelinePlaying(false)
+          return 0
+        }
+        return next
+      })
+    }, 120)
+    return () => clearInterval(id)
+  }, [timelinePlaying])
+  const onTimelineToggle = useCallback(() => {
+    setTimelinePlaying((p) => {
+      if (!p && timeOffsetH >= 0) setTimeOffsetH(-24) // replay from the start
+      return !p
+    })
+  }, [timeOffsetH])
+  const onTimelineScrub = useCallback((h: number) => {
+    setTimelinePlaying(false)
+    setTimeOffsetH(h)
+  }, [])
+  const simNow = now + timeOffsetH * 3_600_000
+  const timelineActive = timeOffsetH < 0
+  const displayQuakes = useMemo(
+    () => (timelineActive ? quakes.filter((q) => q.time <= simNow) : quakes),
+    [quakes, timelineActive, simNow],
   )
 
   // next ISS pass over the user's location, re-checked once a minute
@@ -211,8 +247,8 @@ export default function App() {
   return (
     <>
       <GlobeView
-        quakes={quakes}
-        flashes={flashes}
+        quakes={displayQuakes}
+        flashes={timelineActive ? [] : flashes}
         iss={iss}
         sats={sats}
         kp={weather.kp?.kp ?? null}
@@ -223,6 +259,7 @@ export default function App() {
         eco={eco}
         focusSat={focusSat}
         flyTo={flyTo}
+        simNow={simNow}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
         followIss={followIss}
@@ -259,9 +296,20 @@ export default function App() {
         </div>
 
         <div className="flex items-end justify-between gap-4">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col items-start gap-3">
             <SoundToggle on={soundOn} onToggle={toggleSound} />
-            <QuakePanel quakes={quakes} flashes={flashes} now={now} onFocusQuake={onFocusQuake} />
+            <TimelinePanel
+              offsetH={timeOffsetH}
+              playing={timelinePlaying}
+              onScrub={onTimelineScrub}
+              onTogglePlay={onTimelineToggle}
+            />
+            <QuakePanel
+              quakes={displayQuakes}
+              flashes={timelineActive ? [] : flashes}
+              now={simNow}
+              onFocusQuake={onFocusQuake}
+            />
           </div>
           <div className="flex flex-col items-end gap-3">
             {selected && <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />}

@@ -24,6 +24,7 @@ import {
   propagateSats,
   toTrackedSats,
 } from './satellites'
+import { geometryLabelPoint, ringCentroid } from './labels'
 import { encodeView, parseView } from './share'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
@@ -340,6 +341,27 @@ describe('diffNewQuakes + ping', () => {
     // extrémy se oříznou
     expect(pingFrequency(-5)).toBe(pingFrequency(0))
     expect(pingGain(99)).toBe(pingGain(8))
+  })
+})
+
+describe('country label points', () => {
+  const square: [number, number][] = [[10, 40], [20, 40], [20, 50], [10, 50], [10, 40]]
+
+  it('ringCentroid: střed čtverce, uzavírací bod se nepočítá dvakrát', () => {
+    expect(ringCentroid(square)).toEqual({ lat: 45, lng: 15 })
+  })
+
+  it('geometryLabelPoint: MultiPolygon kotví na největší prstenec (pevninu)', () => {
+    const tiny: [number, number][] = [[-53, 4], [-52, 4], [-52, 5], [-53, 4]]
+    const point = geometryLabelPoint({
+      type: 'MultiPolygon',
+      coordinates: [[tiny], [square]],
+    })
+    expect(point).toEqual({ lat: 45, lng: 15 })
+    expect(geometryLabelPoint({ type: 'Polygon', coordinates: [square] })).toEqual({
+      lat: 45,
+      lng: 15,
+    })
   })
 })
 

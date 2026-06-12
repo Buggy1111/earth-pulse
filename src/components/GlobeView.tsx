@@ -1,8 +1,9 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { mesh as topoMesh } from 'topojson-client'
+import { feature as topoFeature, mesh as topoMesh } from 'topojson-client'
 import type { Topology, Objects } from 'topojson-specification'
+import { geometryLabelPoint } from '../lib/labels'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
@@ -15,7 +16,7 @@ import {
   type TrackedSat,
 } from '../lib/satellites'
 import { subsolarPoint } from '../lib/sun'
-import { makeDayNightMaterial, sunlitClouds } from './dayNightMaterial'
+import { makeDayNightMaterial, sunlitClouds, sunlitTiles } from './dayNightMaterial'
 import type { LayerState } from './Hud'
 import { makeIssObject, makeSatelliteObject } from './spaceObjects'
 
@@ -46,6 +47,8 @@ interface Props {
   focusSat: { id: string; v: number } | null
   /** Quake picked in the HUD — fly the camera there. */
   flyTo: { lat: number; lng: number; v: number } | null
+  /** Reference "now" for quake age/glow — the timeline slider rewinds it. */
+  simNow: number
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
@@ -116,6 +119,12 @@ interface Trail {
   phase: number
 }
 
+interface CountryLabel {
+  name: string
+  lat: number
+  lng: number
+}
+
 /** One datum for the rings layer: steady ripples on strong quakes + bright flashes on new ones. */
 interface RingDatum {
   lat: number
@@ -137,6 +146,7 @@ export function GlobeView({
   eco,
   focusSat,
   flyTo,
+  simNow,
   initialPov,
   onPovChange,
   followIss,
@@ -179,6 +189,8 @@ export function GlobeView({
   const bordersRef = useRef<THREE.LineSegments | null>(null)
   const orbitObjectsRef = useRef<Map<string, OrbitObject>>(new Map())
   const tileUpdateRef = useRef<() => void>(() => {})
+  const labelsUpdateRef = useRef<() => void>(() => {})
+  const countryLabelsRef = useRef<CountryLabel[]>([])
   const ecoRef = useRef(eco)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
@@ -240,14 +252,17 @@ export function GlobeView({
     const tileUrl = (x: number, y: number, l: number) =>
       `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
     let tilesOn = false
+    let tilePatchTimer: ReturnType<typeof setInterval> | undefined
     const updateTileEngine = () => {
       const alt = globe.pointOfView().altitude ?? 10
       if (layersRef.current.detail && alt < TILES_ON && !tilesOn) {
         tilesOn = true
         globe.globeTileEngineUrl(tileUrl)
+        tilePatchTimer = setInterval(patchTileMaterials, 1_200)
       } else if ((!layersRef.current.detail || alt > TILES_OFF) && tilesOn) {
         tilesOn = false
         globe.globeTileEngineUrl(null as unknown as Parameters<GlobeInstance['globeTileEngineUrl']>[0])
+        clearInterval(tilePatchTimer)
       }
     }
     globe.globeTileEngineMaxLevel(17)
@@ -295,7 +310,7 @@ export function GlobeView({
     })
 
     // country borders: Natural Earth 110m as one merged line-segment mesh,
-    // draped just above the surface
+    // draped just above the surface; the same file feeds the name labels
     void fetch('geo/countries-110m.json')
       .then((r) => r.json())
       .then((topo: Topology<Objects>) => {
@@ -322,10 +337,68 @@ export function GlobeView({
         segments.renderOrder = 1
         globe.scene().add(segments)
         bordersRef.current = segments
+
+        // country names, visible once you zoom in a bit
+        const fc = topoFeature(topo, topo.objects.countries)
+        const features = 'features' in fc ? fc.features : [fc]
+        countryLabelsRef.current = features.flatMap((f) => {
+          const name = (f.properties as { name?: string } | null)?.name
+          if (!name || !f.geometry) return []
+          const g = f.geometry
+          if (g.type !== 'Polygon' && g.type !== 'MultiPolygon') return []
+          const p = geometryLabelPoint(g as Parameters<typeof geometryLabelPoint>[0])
+          return [{ name, lat: p.lat, lng: p.lng }]
+        })
+        globe
+          .labelLat((d) => (d as CountryLabel).lat)
+          .labelLng((d) => (d as CountryLabel).lng)
+          .labelText((d) => (d as CountryLabel).name)
+          .labelSize(0.6)
+          .labelDotRadius(0)
+          .labelAltitude(0.008)
+          .labelColor(() => 'rgba(226, 232, 240, 0.72)')
+          .labelResolution(2)
+        updateLabels()
       })
       .catch(() => {
         // no borders file — the globe just stays border-less
       })
+
+    // labels fade in below this altitude (and out above, with hysteresis)
+    const LABELS_ON = 1.4
+    const LABELS_OFF = 1.7
+    let labelsShown = false
+    const updateLabels = () => {
+      const alt = globe.pointOfView().altitude ?? 10
+      const want = layersRef.current.labels && countryLabelsRef.current.length > 0 &&
+        (alt < (labelsShown ? LABELS_OFF : LABELS_ON))
+      if (want !== labelsShown) {
+        labelsShown = want
+        globe.labelsData(want ? countryLabelsRef.current : [])
+      }
+    }
+    globe.controls().addEventListener('change', updateLabels)
+    labelsUpdateRef.current = updateLabels
+
+    // night-side dimming for streamed Esri tiles: their Lambert materials are
+    // created lazily inside the tile engine, so patch new ones as they appear
+    const tilesRootRef = { current: null as THREE.Object3D | null }
+    const patchTileMaterials = () => {
+      if (!tilesRootRef.current) {
+        globe.scene().traverse((o) => {
+          if ((o as { __globeObjType?: string }).__globeObjType === 'globe')
+            tilesRootRef.current = o
+        })
+      }
+      tilesRootRef.current?.traverse((o) => {
+        const mesh = o as THREE.Mesh
+        const m = mesh.material as THREE.MeshLambertMaterial | undefined
+        if (mesh.isMesh && m?.type === 'MeshLambertMaterial' && !m.userData.sunPatched) {
+          m.userData.sunPatched = true
+          sunlitTiles(m, sunUniform)
+        }
+      })
+    }
 
     const onResize = () => {
       globe.width(window.innerWidth).height(window.innerHeight)
@@ -356,9 +429,11 @@ export function GlobeView({
       }
       globe.controls().removeEventListener('start', onDragStart)
       globe.controls().removeEventListener('change', updateTileEngine)
+      globe.controls().removeEventListener('change', updateLabels)
       globe.controls().removeEventListener('change', onCamChange)
       globe.controls().removeEventListener('end', reportPov)
       clearTimeout(povTimer)
+      clearInterval(tilePatchTimer)
       window.removeEventListener('resize', onResize)
       globe._destructor()
       globeRef.current = null
@@ -375,6 +450,9 @@ export function GlobeView({
   useEffect(() => {
     tileUpdateRef.current()
   }, [layers.detail])
+  useEffect(() => {
+    labelsUpdateRef.current()
+  }, [layers.labels])
 
   // eco/performance mode: pixel ratio + texture resolution swap on the fly
   useEffect(() => {
@@ -428,7 +506,7 @@ export function GlobeView({
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
-    const now = Date.now()
+    const now = simNow
     globe
       .customLayerData(layers.quakes ? quakes : [])
       .customThreeObject((d) => {
@@ -484,7 +562,7 @@ export function GlobeView({
       })
       .ringPropagationSpeed((d) => ((d as RingDatum).flash ? 4 : 1.4))
       .ringRepeatPeriod((d) => ((d as RingDatum).flash ? 600 : 1800))
-  }, [quakes, flashes, onQuakeClick, layers.quakes])
+  }, [quakes, flashes, onQuakeClick, layers.quakes, simNow])
 
   // orbit engine: SGP4-propagate everything (ISS included) EVERY FRAME and
   // move the meshes directly — perfectly fluid motion, no React, no globe

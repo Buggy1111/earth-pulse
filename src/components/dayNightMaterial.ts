@@ -84,3 +84,33 @@ export function sunlitClouds(
   }
   material.needsUpdate = true
 }
+
+/** Dim the Esri zoom tiles on the night side — daylight imagery glowing in
+ * the middle of the night breaks the illusion. Color dim (tiles stay opaque),
+ * sharing the same Sun uniform as the globe shader. */
+export function sunlitTiles(
+  material: THREE.MeshLambertMaterial,
+  sunDirection: { value: THREE.Vector3 },
+): void {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.sunDirection = sunDirection
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSunNormal;')
+      .replace(
+        '#include <defaultnormal_vertex>',
+        '#include <defaultnormal_vertex>\nvSunNormal = normalize(mat3(modelMatrix) * normal);',
+      )
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform vec3 sunDirection;\nvarying vec3 vSunNormal;',
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        '#include <opaque_fragment>\n' +
+          'float sunBlend = smoothstep(-0.17, 0.07, dot(normalize(vSunNormal), normalize(sunDirection)));\n' +
+          'gl_FragColor.rgb *= 0.08 + 0.92 * sunBlend;',
+      )
+  }
+  material.needsUpdate = true
+}

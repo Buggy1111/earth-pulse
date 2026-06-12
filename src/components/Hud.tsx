@@ -87,6 +87,7 @@ export interface LayerState {
   aurora: boolean
   clouds: boolean
   borders: boolean
+  labels: boolean
   detail: boolean
 }
 
@@ -102,6 +103,7 @@ const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
   { key: 'aurora', label: '🌌 aurora' },
   { key: 'clouds', label: '☁️ clouds' },
   { key: 'borders', label: '🗺 country borders' },
+  { key: 'labels', label: '🏷 country names (zoom in)' },
   { key: 'detail', label: '🔎 hi-res zoom imagery' },
 ]
 
@@ -298,6 +300,48 @@ export function FollowIssButton({ active, onToggle }: { active: boolean; onToggl
     >
       {active ? '🛰 following ISS — drag to stop' : '🛰 follow ISS'}
     </button>
+  )
+}
+
+/** 24h earthquake timeline: scrub or replay the day as a film. */
+export function TimelinePanel({
+  offsetH,
+  playing,
+  onScrub,
+  onTogglePlay,
+}: {
+  /** Hours relative to now, −24…0 (0 = live). */
+  offsetH: number
+  playing: boolean
+  onScrub: (offsetH: number) => void
+  onTogglePlay: () => void
+}) {
+  const live = offsetH >= 0
+  return (
+    <div className="hud pointer-events-auto flex items-center gap-3 px-4 py-2">
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        aria-label={playing ? 'Pause replay' : 'Replay last 24 h'}
+        title="replay the last 24 h of earthquakes"
+        className="cursor-pointer text-sm text-sky-300 hover:text-sky-200"
+      >
+        {playing ? '⏸' : '▶'}
+      </button>
+      <input
+        type="range"
+        min={-24}
+        max={0}
+        step={0.25}
+        value={offsetH}
+        onChange={(e) => onScrub(Number(e.target.value))}
+        aria-label="Earthquake timeline, hours before now"
+        className="h-1 w-40 cursor-pointer accent-amber-400 sm:w-56"
+      />
+      <span className={`num w-14 text-xs ${live ? 'text-emerald-300' : 'text-amber-300'}`}>
+        {live ? '● LIVE' : `−${Math.abs(offsetH).toFixed(1)} h`}
+      </span>
+    </div>
   )
 }
 
