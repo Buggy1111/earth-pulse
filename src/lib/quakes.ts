@@ -56,6 +56,11 @@ export function magRadius(mag: number): number {
   return Math.max(0.4, m * m * 0.18)
 }
 
+/** Quakes not yet in `seenIds` — the live "just happened" detection. */
+export function diffNewQuakes(seenIds: ReadonlySet<string>, quakes: Quake[]): Quake[] {
+  return quakes.filter((q) => !seenIds.has(q.id))
+}
+
 export interface QuakeStats {
   count: number
   strongest: Quake | null

@@ -1,30 +1,118 @@
-import { formatCoords, formatKm, formatKmh, formatMag, timeAgo } from '../lib/format'
+import { formatCoords, formatKm, formatKmh, formatMag, formatUtcClock, timeAgo } from '../lib/format'
 import type { IssState } from '../lib/iss'
 import { quakeStats, type Quake } from '../lib/quakes'
+import { kpColor, kpLabel } from '../lib/spaceWeather'
 import type { WikiEdit } from '../lib/wiki'
+import type { SpaceWeather } from '../hooks'
 
-export function TitleCard() {
+export function TitleCard({ now, satCount }: { now: number; satCount: number }) {
   return (
     <div className="hud fade-up pointer-events-auto px-5 py-4">
-      <h1 className="text-lg font-bold tracking-tight">
+      <h1 className="flex items-baseline gap-3 text-lg font-bold tracking-tight">
         🌍 Earth Pulse
+        <span className="num text-xs font-medium text-slate-400">{formatUtcClock(now)}</span>
       </h1>
       <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
         <span className="live-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
-        the planet, live — earthquakes · ISS · day &amp; night · Wikipedia
+        the planet, live — earthquakes · {satCount > 0 ? `${satCount} satellites` : 'ISS'} · space
+        weather · Wikipedia
       </p>
     </div>
   )
 }
 
-export function QuakePanel({ quakes, now }: { quakes: Quake[]; now: number }) {
+export function SpaceWeatherPanel({ weather }: { weather: SpaceWeather }) {
+  const { kp, wind } = weather
+  return (
+    <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '180ms' }}>
+      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+        ☀️ Space weather
+      </h2>
+      {kp ? (
+        <p className="mt-1 text-xs text-slate-400">
+          Kp{' '}
+          <span className="num text-xl font-bold" style={{ color: kpColor(kp.kp) }}>
+            {kp.kp.toFixed(1)}
+          </span>{' '}
+          <span style={{ color: kpColor(kp.kp) }}>{kpLabel(kp.kp)}</span>
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-slate-500">reading magnetometers…</p>
+      )}
+      {wind && (
+        <p className="num mt-0.5 text-xs text-slate-400">
+          solar wind {Math.round(wind.speedKms)} km/s
+          {Number.isFinite(wind.densityPerCm3) && <> · {wind.densityPerCm3.toFixed(1)} p/cm³</>}
+        </p>
+      )}
+      <p className="mt-2 text-[10px] text-slate-600">data: NOAA SWPC, refreshed every minute</p>
+    </div>
+  )
+}
+
+export function SoundToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={on}
+      className={`hud pointer-events-auto cursor-pointer px-4 py-2 text-xs transition-colors ${
+        on ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {on ? '🔔 quake ping on' : '🔕 quake ping off'}
+    </button>
+  )
+}
+
+export function FollowIssButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`hud pointer-events-auto cursor-pointer px-4 py-2 text-xs transition-colors ${
+        active ? 'text-sky-300' : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {active ? '🛰 following ISS — drag to stop' : '🛰 follow ISS'}
+    </button>
+  )
+}
+
+export function LoadingOverlay() {
+  return (
+    <div className="fixed inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#02030a]">
+      <span className="text-3xl">🌍</span>
+      <p className="live-dot text-sm text-slate-400">waking up the planet…</p>
+    </div>
+  )
+}
+
+export function QuakePanel({
+  quakes,
+  flashes,
+  now,
+}: {
+  quakes: Quake[]
+  flashes: Quake[]
+  now: number
+}) {
   const stats = quakeStats(quakes)
+  const fresh = flashes[flashes.length - 1]
   return (
     <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '120ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Earthquakes · last 24 h
       </h2>
       <div className="num mt-1 text-3xl font-bold text-amber-300">{stats.count}</div>
+      {fresh && (
+        <p className="slide-in mt-1 max-w-56 text-xs">
+          <span className="mr-1.5 rounded bg-rose-500/20 px-1 font-bold text-rose-300">NEW</span>
+          <span className="text-slate-200">{formatMag(fresh.mag)}</span>{' '}
+          <span className="text-slate-400">{fresh.place}</span>
+        </p>
+      )}
       {stats.latest && (
         <p className="mt-1 max-w-56 text-xs text-slate-400">
           latest: <span className="text-slate-200">{formatMag(stats.latest.mag)}</span>{' '}

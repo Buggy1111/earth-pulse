@@ -21,6 +21,12 @@ export function formatKmh(kmh: number): string {
   return `${Math.round(kmh).toLocaleString('en-US')} km/h`
 }
 
+export function formatUtcClock(ts: number): string {
+  const d = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} UTC`
+}
+
 export function formatCoords(lat: number, lng: number): string {
   const ns = lat >= 0 ? 'N' : 'S'
   const ew = lng >= 0 ? 'E' : 'W'

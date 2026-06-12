@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatCoords, formatKmh, timeAgo } from './format'
+import { formatCoords, formatKmh, formatUtcClock, timeAgo } from './format'
 import { parseIss } from './iss'
-import { magColor, magRadius, parseQuakes, quakeStats, type UsgsFeed } from './quakes'
+import { pingDuration, pingFrequency, pingGain } from './ping'
+import { diffNewQuakes, magColor, magRadius, parseQuakes, quakeStats, type UsgsFeed } from './quakes'
+import { globeAltitude, parseTle, propagateSats, toTrackedSats } from './satellites'
+import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, subsolarPoint } from './sun'
 import { parseWikiEvent, pushEdit } from './wiki'
 
@@ -104,6 +107,106 @@ describe('parseWikiEvent', () => {
   })
 })
 
+describe('satellites (TLE + SGP4)', () => {
+  // real ISS TLE (epoch June 2026) — propagation must land in LEO
+  const TLE = `ISS (ZARYA)
+1 25544U 98067A   26162.50000000  .00016717  00000+0  30200-3 0  9990
+2 25544  51.6400 208.9163 0006317  69.9862 290.2026 15.49815308 10000
+HST
+1 20580U 90037B   26162.50000000  .00001000  00000+0  50000-4 0  9991
+2 20580  28.4690  80.0000 0002500 100.0000 260.0000 15.09700000 10002`
+
+  it('parseTle čte 3řádkové sety a přeskočí rozbité', () => {
+    const sets = parseTle(TLE)
+    expect(sets).toHaveLength(2)
+    expect(sets[0].name).toBe('ISS (ZARYA)')
+    expect(sets[1].name).toBe('HST')
+    expect(parseTle('jen jeden řádek')).toHaveLength(0)
+  })
+
+  it('toTrackedSats vynechá ISS (má vlastní live marker)', () => {
+    const sats = toTrackedSats(parseTle(TLE))
+    expect(sats.map((s) => s.name)).toEqual(['HST'])
+  })
+
+  it('propagace dá platnou pozici v LEO', () => {
+    const sats = toTrackedSats(parseTle(TLE))
+    const pos = propagateSats(sats, new Date(Date.UTC(2026, 5, 12, 6)))
+    expect(pos).toHaveLength(1)
+    expect(pos[0].lat).toBeGreaterThanOrEqual(-90)
+    expect(pos[0].lat).toBeLessThanOrEqual(90)
+    expect(pos[0].altKm).toBeGreaterThan(200)
+    expect(pos[0].altKm).toBeLessThan(2000)
+  })
+
+  it('pozice se za minutu posune (živý pohyb)', () => {
+    const sats = toTrackedSats(parseTle(TLE))
+    const t0 = new Date(Date.UTC(2026, 5, 12, 6))
+    const a = propagateSats(sats, t0)[0]
+    const b = propagateSats(sats, new Date(t0.getTime() + 60_000))[0]
+    expect(Math.abs(a.lat - b.lat) + Math.abs(a.lng - b.lng)).toBeGreaterThan(0.5)
+  })
+
+  it('globeAltitude převádí km na poloměry Země', () => {
+    expect(globeAltitude(6371)).toBe(1)
+    expect(globeAltitude(420)).toBeCloseTo(0.0659, 3)
+  })
+})
+
+describe('space weather (NOAA SWPC)', () => {
+  it('parseKp bere poslední platný řádek', () => {
+    const rows = [
+      { time_tag: '2026-06-12T00:00:00', estimated_kp: 2.33 },
+      { time_tag: '2026-06-12T00:01:00', estimated_kp: 3.67 },
+    ]
+    expect(parseKp(rows)).toEqual({ kp: 3.67, time: '2026-06-12T00:01:00' })
+    expect(parseKp([])).toBeNull()
+  })
+
+  it('parseSolarWind čte products formát a přeskočí null buňky', () => {
+    const rows: (string | null)[][] = [
+      ['time_tag', 'density', 'speed', 'temperature'],
+      ['2026-06-12 00:00:00', '4.5', '412.3', '100000'],
+      ['2026-06-12 00:05:00', null, null, null],
+    ]
+    const r = parseSolarWind(rows)
+    expect(r?.speedKms).toBeCloseTo(412.3)
+    expect(r?.densityPerCm3).toBeCloseTo(4.5)
+    expect(parseSolarWind([['time_tag', 'speed']])).toBeNull()
+  })
+
+  it('kpColor/kpLabel: zelená klid, žlutá aktivní, červená bouře', () => {
+    expect(kpColor(2)).toBe('#34d399')
+    expect(kpColor(4.5)).toBe('#fbbf24')
+    expect(kpColor(6.1)).toBe('#ef4444')
+    expect(kpLabel(1)).toBe('quiet')
+    expect(kpLabel(5.2)).toBe('minor storm')
+    expect(kpLabel(7.5)).toBe('strong storm')
+  })
+})
+
+describe('diffNewQuakes + ping', () => {
+  it('vrátí jen quaky mimo seen set', () => {
+    const quakes = parseQuakes({
+      features: [
+        { id: 'x', properties: { mag: 3, place: 'A', time: 1 }, geometry: { coordinates: [0, 0, 0] } },
+        { id: 'y', properties: { mag: 5, place: 'B', time: 2 }, geometry: { coordinates: [1, 1, 1] } },
+      ],
+    })
+    expect(diffNewQuakes(new Set(['x']), quakes).map((q) => q.id)).toEqual(['y'])
+    expect(diffNewQuakes(new Set(['x', 'y']), quakes)).toEqual([])
+  })
+
+  it('větší magnituda = nižší tón, větší hlasitost, delší dozvuk', () => {
+    expect(pingFrequency(7)).toBeLessThan(pingFrequency(2))
+    expect(pingGain(7)).toBeGreaterThan(pingGain(2))
+    expect(pingDuration(7)).toBeGreaterThan(pingDuration(2))
+    // extrémy se oříznou
+    expect(pingFrequency(-5)).toBe(pingFrequency(0))
+    expect(pingGain(99)).toBe(pingGain(8))
+  })
+})
+
 describe('format + iss', () => {
   it('timeAgo, souřadnice, rychlost', () => {
     expect(timeAgo(0, 30_000)).toBe('30s ago')
@@ -111,6 +214,7 @@ describe('format + iss', () => {
     expect(timeAgo(0, 3_700_000)).toBe('1h 1m ago')
     expect(formatCoords(50.1, -14.3)).toBe('50.1°N 14.3°W')
     expect(formatKmh(27585.6)).toBe('27,586 km/h')
+    expect(formatUtcClock(Date.UTC(2026, 5, 12, 7, 4, 9))).toBe('07:04:09 UTC')
   })
 
   it('parseIss mapuje pole', () => {
