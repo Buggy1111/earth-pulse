@@ -19,7 +19,7 @@ import { setupPointer } from './globe/pointer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
 import { startOrbitEngine, syncTrails, type SolarAnimEntry } from './globe/orbitEngine'
-import { ensureSolarSystem, focusSolarBody } from './globe/solar'
+import { ensureSolarSystem, focusSolarBody, SUNLIT_LAYER } from './globe/solar'
 
 interface Props {
   quakes: Quake[]
@@ -131,6 +131,8 @@ export function GlobeView(props: Props) {
     globe.controls().autoRotate = !fromLink
     globe.controls().autoRotateSpeed = 0.45
     globe.renderer().setPixelRatio(ecoRef.current ? 1 : Math.min(window.devicePixelRatio, 2))
+    // solar-system bodies live on SUNLIT_LAYER (lit only by the Sun's light)
+    ;(globe.camera() as THREE.PerspectiveCamera).layers.enable(SUNLIT_LAYER)
 
     const simNowMs = () => {
       const t = solarTimeRef.current
@@ -311,7 +313,8 @@ export function GlobeView(props: Props) {
   // rAF drives all motion via solarFrameRef (smooth at any time-warp)
   useEffect(() => {
     const globe = globeRef.current
-    if (!globe || !solarMode) return
+    const sky = skyRef.current
+    if (!globe || !solarMode || !sky) return
     const group = ensureSolarSystem(globe, {
       solarGroupRef,
       sunMeshRef,
@@ -320,6 +323,7 @@ export function GlobeView(props: Props) {
       solarFrameRef,
       solarTimeRef,
       applySkyRef,
+      sunUniform: sky.sunUniform,
     })
     group.visible = true
     const t = solarTimeRef.current
@@ -349,11 +353,8 @@ export function GlobeView(props: Props) {
       surf?.volcanoesRef.current,
     ].filter((o): o is THREE.Object3D => !!o)
     shrink.forEach((o) => o.scale.setScalar(k))
-    const sky = skyRef.current
-    if (sky) {
-      sky.sunSprite.visible = false // the solar Sun has its own glow
-      sky.moonMesh.visible = false // would sit inside the mini-Earth
-    }
+    sky.sunSprite.visible = false // the solar Sun has its own glow
+    sky.moonMesh.visible = false // would sit inside the mini-Earth
 
     // widen the camera envelope: Pluto orbits ~39 AU out
     const cam = globe.camera() as THREE.PerspectiveCamera
@@ -370,10 +371,11 @@ export function GlobeView(props: Props) {
     return () => {
       group.visible = false
       shrink.forEach((o) => o.scale.setScalar(1))
-      if (sky) {
-        sky.sunSprite.visible = true
-        sky.moonMesh.visible = true
-      }
+      sky.sunSprite.visible = true
+      sky.moonMesh.visible = true
+      // solar mode re-aimed the shared sun uniform at the big Sun — restore
+      // the earth-frame terminator immediately (exit always returns to live)
+      sky.applySky(new Date())
       cam.far = prevFar
       cam.updateProjectionMatrix()
       controls.maxDistance = prevMax

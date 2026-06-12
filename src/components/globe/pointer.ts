@@ -36,6 +36,7 @@ export function setupPointer(globe: GlobeInstance, deps: PointerDeps): () => voi
 
   // click handling for the Moon, Apollo markers and planets (not globe.gl layers)
   const raycaster = new THREE.Raycaster()
+  raycaster.layers.enableAll() // solar bodies live on SUNLIT_LAYER
   let downX = 0
   let downY = 0
   const onPtrDown = (ev: PointerEvent) => {

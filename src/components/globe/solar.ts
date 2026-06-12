@@ -22,7 +22,13 @@ import {
 } from '../../lib/planets'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
+import { makeSunMaterial } from './sunMaterial'
 import type { SolarAnimEntry } from './orbitEngine'
+
+/** Bodies lit ONLY by the Sun live on this layer — globe.gl's own ambient +
+ * directional lights (layer 0) must not wash out their terminators. The
+ * camera and the pointer raycaster have to enable it too. */
+export const SUNLIT_LAYER = 1
 
 export interface SolarDeps {
   solarGroupRef: { current: THREE.Group | null }
@@ -33,6 +39,8 @@ export interface SolarDeps {
   solarFrameRef: { current: (now: Date) => void }
   solarTimeRef: { current: { realMs: number; simMs: number; warp: number } }
   applySkyRef: { current: (date: Date) => void }
+  /** Mini-Earth/clouds shader sun — re-aimed at the big Sun in solar mode. */
+  sunUniform: { value: THREE.Vector3 }
 }
 
 /** Concentric-ring UVs so the 1-D Saturn ring strip maps radially. */
@@ -52,24 +60,30 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
 
   const group = new THREE.Group()
   const loader = new THREE.TextureLoader()
+  // sun-lit bodies: the texture doubles as a faint emissive floor so the
+  // night side reads as a dim disc instead of vanishing into space
   const loadTex = (mesh: THREE.Mesh, url: string) => {
     if (!url) return
     loader.load(url, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace
-      const m = mesh.material as THREE.MeshBasicMaterial
+      const m = mesh.material as THREE.MeshLambertMaterial
       m.map = tex
+      m.emissiveMap = tex
       m.color.set('#ffffff')
+      m.emissive.set('#ffffff')
       m.needsUpdate = true
     })
   }
+  const litMaterial = (color: string) =>
+    new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.07 })
 
-  // ☀️ the Sun at the heliocentric origin — by far the biggest body
-  const sun = new THREE.Mesh(
-    new THREE.SphereGeometry(SUN_DISPLAY, 48, 48),
-    new THREE.MeshBasicMaterial({ color: '#ffd27a' }),
-  )
+  // ☀️ the Sun at the heliocentric origin — by far the biggest body.
+  // Procedural granulation shader + a point light that does ALL the lighting.
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_DISPLAY, 48, 48), makeSunMaterial())
   sun.userData.planetId = 'sun'
-  loadTex(sun, 'planets/sun.jpg')
+  const sunLight = new THREE.PointLight('#fff3da', 2.6, 0, 0)
+  sunLight.layers.set(SUNLIT_LAYER)
+  group.add(sunLight)
   const sunGlow = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: getGlowTexture(),
@@ -107,8 +121,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
 
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(p.displayRadius, 32, 32),
-      new THREE.MeshBasicMaterial({ color: p.id === 'pluto' ? '#c9b29b' : '#9aa3ae' }),
+      litMaterial(p.id === 'pluto' ? '#c9b29b' : '#9aa3ae'),
     )
+    mesh.layers.set(SUNLIT_LAYER)
     loadTex(mesh, p.texture)
     tilt.add(mesh)
     system.add(makeNameSprite(p.name, p.displayRadius, true))
@@ -147,10 +162,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.8),
         p.displayRadius * 0.5,
       )
-      const moonMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(rMoon, 12, 12),
-        new THREE.MeshBasicMaterial({ color: m.color }),
-      )
+      const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 12, 12), litMaterial(m.color))
+      moonMesh.layers.set(SUNLIT_LAYER)
       moonMesh.add(makeNameSprite(m.name, rMoon * 1.4, true))
       const rScene = p.displayRadius * 1.9 + (m.aKkm / aMax) * p.displayRadius * 3.4
       tilt.add(moonMesh)
@@ -219,7 +232,12 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         m.mesh.position.set(Math.cos(a) * m.rScene, 0, Math.sin(a) * m.rScene)
       }
     }
+    // granulation crawls in real time — a surface boil, not orbital motion
+    ;(sun.material as THREE.ShaderMaterial).uniforms.uTime.value = performance.now() / 1000
     deps.applySkyRef.current(now) // terminator/Moon follow the warped clock
+    // mini-Earth + clouds: light from where the big Sun actually is, so the
+    // lit side faces it (the earth-frame subsolar direction differs — frames)
+    deps.sunUniform.value.copy(group.position).normalize()
   }
   deps.solarFrameRef.current = frame
   frame(new Date())
