@@ -34,6 +34,7 @@ export interface SolarDeps {
   solarGroupRef: { current: THREE.Group | null }
   sunMeshRef: { current: THREE.Mesh | null }
   planetMeshesRef: { current: Map<string, THREE.Object3D> }
+  moonMeshesRef: { current: Map<string, THREE.Object3D> }
   solarAnimRef: { current: SolarAnimEntry[] }
   /** Called from the orbit engine's rAF — drives ALL solar motion. */
   solarFrameRef: { current: (now: Date) => void }
@@ -96,6 +97,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   )
   sunGlow.scale.set(SUN_DISPLAY * 4.4, SUN_DISPLAY * 4.4, 1)
   sun.add(sunGlow)
+  sun.userData.displayRadius = SUN_DISPLAY
   group.add(sun)
   deps.sunMeshRef.current = sun
 
@@ -106,6 +108,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.001, depthWrite: false }),
   )
   earthProxy.userData.planetId = 'earth'
+  earthProxy.userData.displayRadius = EARTH_DISPLAY
   earthProxy.add(makeNameSprite('Earth · you are here', EARTH_DISPLAY * 2.2, true))
   group.add(earthProxy)
   deps.planetMeshesRef.current.set('earth', earthProxy)
@@ -154,30 +157,41 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     if (p.id === 'neptune') addRing(1.45, 1.62, '#8898a8', 0.15)
 
     // major moons: REAL distances (planet radii) and real relative sizes —
-    // only a minimum radius keeps the small ones visible and clickable
+    // only a minimum radius keeps the small ones visible and clickable.
+    // Labels + orbit rings (the "decor") show only while this system is
+    // focused — from the overview, 20 moon labels would pile on the planets.
     const moons = PLANET_MOONS[p.id] ?? []
     const animMoons: SolarAnimEntry['moons'] = []
+    const decor: THREE.Object3D[] = []
     for (const m of moons) {
       const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.7)
       const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 24, 24), litMaterial(m.color))
       moonMesh.layers.set(SUNLIT_LAYER)
+      moonMesh.userData.moonId = m.id
+      moonMesh.userData.displayRadius = rMoon
       if (m.texture) loadTex(moonMesh, `planets/moons/${m.id}.webp`, m.tint)
-      moonMesh.add(makeNameSprite(m.name, rMoon * 1.4, true))
+      const label = makeNameSprite(m.name, rMoon * 1.4, true)
+      moonMesh.add(label)
+      decor.push(label)
       const rScene = p.displayRadius * ((m.aKkm * 1_000) / (p.diameterKm / 2))
       // a faint orbit ring makes each moon findable around its planet
       const ringPts = Array.from({ length: 97 }, (_, i) => {
         const a = (i / 96) * 2 * Math.PI
         return new THREE.Vector3(Math.cos(a) * rScene, 0, Math.sin(a) * rScene)
       })
-      tilt.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(ringPts),
-          new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.22 }),
-        ),
+      const orbitRing = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(ringPts),
+        new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.22 }),
       )
+      tilt.add(orbitRing)
+      decor.push(orbitRing)
       tilt.add(moonMesh)
       animMoons.push({ mesh: moonMesh, def: m, rScene })
+      deps.moonMeshesRef.current.set(m.id, moonMesh)
     }
+    decor.forEach((o) => (o.visible = false))
+    system.userData.decor = decor
+    system.userData.displayRadius = p.displayRadius
     deps.solarAnimRef.current.push({ mesh, rotationH: p.facts.rotationH, moons: animMoons })
 
     group.add(system)
@@ -260,13 +274,19 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 }
 
-/** Glide the camera to the Sun overview or a chosen body; returns a restore
- * fn. The flight tracks the body's LIVE position each frame (it keeps working
- * at full time-warp) and hands the body to the pin/chase system on arrival.
- * A user drag mid-flight cancels the glide and pins where we are. */
+/** Which planet a moon belongs to (moon ids are globally unique). */
+export const MOON_PARENT: Record<string, string> = Object.fromEntries(
+  Object.entries(PLANET_MOONS).flatMap(([pid, moons]) => moons.map((m) => [m.id, pid])),
+)
+
+/** Glide the camera to the Sun overview or a chosen body (planet OR moon);
+ * returns a restore fn. The flight tracks the body's LIVE position each frame
+ * (it keeps working at full time-warp) and hands the body to the pin/chase
+ * system on arrival. A user drag mid-flight cancels the glide and pins where
+ * we are. Moon labels + orbit rings show only for the focused system. */
 export function focusSolarBody(
   globe: GlobeInstance,
-  deps: Pick<SolarDeps, 'planetMeshesRef' | 'sunMeshRef'>,
+  deps: Pick<SolarDeps, 'planetMeshesRef' | 'moonMeshesRef' | 'sunMeshRef'>,
   pinTargetRef: { current: THREE.Object3D | null },
   focusPlanet: string | null,
 ): (() => void) | undefined {
@@ -274,16 +294,20 @@ export function focusSolarBody(
   const cam = globe.camera() as THREE.PerspectiveCamera
   const prevMin = controls.minDistance
   const focusMesh =
-    (focusPlanet && focusPlanet !== 'sun' ? deps.planetMeshesRef.current.get(focusPlanet) : null) ??
-    deps.sunMeshRef.current
+    (focusPlanet && focusPlanet !== 'sun'
+      ? (deps.planetMeshesRef.current.get(focusPlanet) ??
+        deps.moonMeshesRef.current.get(focusPlanet))
+      : null) ?? deps.sunMeshRef.current
   if (!focusMesh) return undefined
-  const radius =
-    focusPlanet === 'earth'
-      ? EARTH_DISPLAY
-      : focusPlanet && focusPlanet !== 'sun'
-        ? (PLANETS.find((p) => p.id === focusPlanet)?.displayRadius ?? 20)
-        : SUN_DISPLAY
-  controls.minDistance = Math.max(radius * 2.2, 6)
+  const radius = (focusMesh.userData.displayRadius as number | undefined) ?? 20
+  controls.minDistance = Math.max(radius * 2.2, 2)
+
+  // reveal this system's moon labels + orbit rings, hide everyone else's
+  const focusedSystem = focusPlanet ? (MOON_PARENT[focusPlanet] ?? focusPlanet) : null
+  for (const [pid, system] of deps.planetMeshesRef.current) {
+    const decor = system.userData.decor as THREE.Object3D[] | undefined
+    decor?.forEach((o) => (o.visible = pid === focusedSystem))
+  }
 
   // the flight is camera-offset interpolation around the moving body: keep
   // the approach direction, shrink the distance — no path through the body

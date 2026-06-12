@@ -14,6 +14,7 @@ import { SettingsPanel } from './components/hud/SettingsPanel'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { MoonPanel } from './components/MoonPanel'
 import { PlanetPanel } from './components/PlanetPanel'
+import { SolarNavTree } from './components/hud/SolarNavTree'
 import { useEmsc, useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
 import { useEcoMode, useGeolocate, useSolarTime, useTimeline } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
@@ -62,7 +63,6 @@ export default function App() {
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   const { eco, onToggleEco } = useEcoMode(ready)
-
   const orbitIds = useMemo(() => orbits.map((o) => o.id), [orbits])
   const satList = useMemo(
     () => sats.filter((s) => !isIss(s.name)).map((s) => ({ id: s.id, name: s.name })),
@@ -106,7 +106,6 @@ export default function App() {
     })
   }, [])
   const onTourBroken = useCallback(() => setTourOn(false), [])
-
   // 🌙 moon mode: click the Moon (or the HUD line) → orbit IT instead of Earth
   const [moonMode, setMoonMode] = useState(false)
   const [apolloSite, setApolloSite] = useState<ApolloSite | null>(null)
@@ -253,7 +252,6 @@ export default function App() {
       return !on
     })
   }, [])
-
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
   const onIssClick = useCallback(() => setFollowIss((f) => !f), [])
@@ -325,7 +323,6 @@ export default function App() {
                 onWarp={onWarp}
                 onWarpReset={onWarpReset}
                 onOverview={onSolarOverview}
-                onNavigate={setFocusPlanet}
                 onBack={onSolarExit}
               />
             )}
@@ -348,6 +345,9 @@ export default function App() {
             {mode === 'earth' && userLoc && <AbovePanel overhead={overhead} onPickSat={onPickSat} />}
           </div>
           {mode === 'earth' && <WikiPanel edits={edits} totalSeen={totalSeen} />}
+          {mode === 'solar' && (
+            <SolarNavTree focus={focusPlanet} onNavigate={setFocusPlanet} onOverview={onSolarOverview} />
+          )}
         </div>
 
         <div className="flex items-end justify-between gap-4">

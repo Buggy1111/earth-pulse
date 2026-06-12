@@ -105,6 +105,7 @@ export function GlobeView(props: Props) {
   const pinTargetRef = useRef<THREE.Object3D | null>(null)
   const solarGroupRef = useRef<THREE.Group | null>(null)
   const planetMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
+  const moonMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const sunMeshRef = useRef<THREE.Mesh | null>(null)
   const solarAnimRef = useRef<SolarAnimEntry[]>([])
   const solarFrameRef = useRef<(now: Date) => void>(() => {})
@@ -319,6 +320,7 @@ export function GlobeView(props: Props) {
       solarGroupRef,
       sunMeshRef,
       planetMeshesRef,
+      moonMeshesRef,
       solarAnimRef,
       solarFrameRef,
       solarTimeRef,
@@ -390,7 +392,7 @@ export function GlobeView(props: Props) {
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || !solarMode) return
-    return focusSolarBody(globe, { planetMeshesRef, sunMeshRef }, pinTargetRef, focusPlanet)
+    return focusSolarBody(globe, { planetMeshesRef, moonMeshesRef, sunMeshRef }, pinTargetRef, focusPlanet)
   }, [solarMode, focusPlanet])
 
   // 🌙 moon mode: re-target the orbit controls from Earth to the Moon

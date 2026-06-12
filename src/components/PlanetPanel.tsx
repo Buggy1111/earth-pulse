@@ -22,19 +22,10 @@ const WARPS: { label: string; factor: number }[] = [
   { label: '1 w/s', factor: 604_800 },
 ]
 
-/** One-click navigation: every body in the scene, camera glides to it. */
-const NAV: { id: string; label: string; color: string }[] = [
-  { id: 'sun', label: 'Sun', color: '#ffd27a' },
-  { id: 'mercury', label: 'Mercury', color: '#9aa3ae' },
-  { id: 'venus', label: 'Venus', color: '#e8c47a' },
-  { id: 'earth', label: 'Earth', color: '#38bdf8' },
-  { id: 'mars', label: 'Mars', color: '#e07a5f' },
-  { id: 'jupiter', label: 'Jupiter', color: '#d9b38c' },
-  { id: 'saturn', label: 'Saturn', color: '#d8c9a3' },
-  { id: 'uranus', label: 'Uranus', color: '#9fd3dd' },
-  { id: 'neptune', label: 'Neptune', color: '#6f8fd8' },
-  { id: 'pluto', label: 'Pluto', color: '#c9b29b' },
-]
+/** Flat moon lookup + its parent planet (moon ids are globally unique). */
+const MOON_INFO = Object.entries(PLANET_MOONS).flatMap(([pid, moons]) =>
+  moons.map((m) => ({ ...m, planet: PLANETS.find((p) => p.id === pid)! })),
+)
 
 export function PlanetPanel({
   focus,
@@ -44,10 +35,9 @@ export function PlanetPanel({
   onWarp,
   onWarpReset,
   onOverview,
-  onNavigate,
   onBack,
 }: {
-  /** Planet id, 'sun', 'earth', or null for the system overview. */
+  /** Planet id, moon id, 'sun', 'earth', or null for the system overview. */
   focus: string | null
   /** Simulated time (warped). */
   now: number
@@ -57,8 +47,6 @@ export function PlanetPanel({
   onWarp: (factor: number) => void
   onWarpReset: () => void
   onOverview: () => void
-  /** Fly the camera to a body picked in the navigation strip. */
-  onNavigate: (id: string) => void
   onBack: () => void
 }) {
   const warped = warp !== 1 || Math.abs(now - realNow) > 120_000
@@ -66,16 +54,17 @@ export function PlanetPanel({
   const p = focus && focus !== 'sun' ? positions.find((x) => x.id === focus) : null
   const def = p ? PLANETS.find((x) => x.id === p.id) : null
   const moons = p ? (PLANET_MOONS[p.id] ?? []) : []
+  const moon = focus && !p ? MOON_INFO.find((m) => m.id === focus) : null
   return (
     <div className="hud pointer-events-auto w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-          🪐{' '}
+          {moon ? '🌑' : '🪐'}{' '}
           {focus === 'sun'
             ? 'The Sun'
             : focus === 'earth'
               ? 'Earth'
-              : (p?.name ?? 'Solar system · live')}
+              : (moon?.name ?? p?.name ?? 'Solar system · live')}
         </h2>
         <div className="flex gap-2">
           {focus && (
@@ -96,28 +85,20 @@ export function PlanetPanel({
           </button>
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-1 gap-y-0.5 border-b border-white/10 pb-2">
-        {NAV.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => onNavigate(b.id)}
-            title={`fly to ${b.label}`}
-            className={`flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${
-              focus === b.id
-                ? 'bg-white/15 text-slate-100'
-                : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
-            }`}
-          >
-            <span
-              className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{ background: b.color }}
-            />
-            {b.label}
-          </button>
-        ))}
-      </div>
-      {p && def ? (
+      {moon ? (
+        <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
+          <span className="num">
+            🪐 moon of {moon.planet.name} · {Math.round(moon.aKkm * 1_000).toLocaleString('en-US')}{' '}
+            km out
+          </span>
+          <span className="num">
+            ⌀ {(moon.radiusKm * 2).toLocaleString('en-US')} km · 🔄 orbits in{' '}
+            {moon.periodD < 2 ? `${(moon.periodD * 24).toFixed(0)} h` : `${moon.periodD.toFixed(1)} days`}
+            {moon.retrograde ? ' ↺ retrograde' : ''}
+          </span>
+          {moon.fact && <span className="text-slate-300">✨ {moon.fact}</span>}
+        </div>
+      ) : p && def ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
           <span className="num">
             ☀️ {p.distSunAu.toFixed(2)} AU from the Sun · 🌍 {p.distEarthAu.toFixed(2)} AU (

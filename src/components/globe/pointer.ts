@@ -56,10 +56,11 @@ export function setupPointer(globe: GlobeInstance, deps: PointerDeps): () => voi
       if (deps.sunMeshRef.current) bodies.push(deps.sunMeshRef.current)
       const hit = raycaster.intersectObjects(bodies, true)[0]
       if (hit) {
-        // the hit may be a moon/ring/label — walk up to the system group
+        // moons are focusable themselves; otherwise walk up to the system
         let o: THREE.Object3D | null = hit.object
-        while (o && !o.userData.planetId) o = o.parent
-        if (o?.userData.planetId) deps.onPlanetPick(o.userData.planetId as string)
+        while (o && !o.userData.moonId && !o.userData.planetId) o = o.parent
+        const id = (o?.userData.moonId ?? o?.userData.planetId) as string | undefined
+        if (id) deps.onPlanetPick(id)
       }
     } else if (deps.moonModeRef.current) {
       const hit = raycaster.intersectObjects(deps.apolloMarkers, false)[0]
