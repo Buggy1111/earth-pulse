@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { feature as topoFeature, mesh as topoMesh } from 'topojson-client'
 import type { Topology, Objects } from 'topojson-specification'
 import { geometryLabelPoint } from '../lib/labels'
+import { subLunarPoint } from '../lib/moon'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
@@ -49,6 +50,10 @@ interface Props {
   flyTo: { lat: number; lng: number; v: number } | null
   /** Reference "now" for quake age/glow — the timeline slider rewinds it. */
   simNow: number
+  /** Cinematic tour: the camera glides between live points of interest. */
+  tour: boolean
+  /** User grabbed the globe during the tour — parent should stop it. */
+  onTourBroken: () => void
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
@@ -85,6 +90,24 @@ function escapeHtml(s: string): string {
 
 function tooltip(html: string): string {
   return `<div style="font-family:sans-serif;font-size:12px;background:rgba(7,9,15,.9);padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15)">${html}</div>`
+}
+
+/** Small ▲ texture for the volcano points cloud. */
+let triangleTexture: THREE.CanvasTexture | null = null
+function getTriangleTexture(): THREE.CanvasTexture {
+  if (triangleTexture) return triangleTexture
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 32
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#fff'
+  ctx.beginPath()
+  ctx.moveTo(16, 3)
+  ctx.lineTo(29, 29)
+  ctx.lineTo(3, 29)
+  ctx.closePath()
+  ctx.fill()
+  triangleTexture = new THREE.CanvasTexture(canvas)
+  return triangleTexture
 }
 
 /** Soft radial glow, tinted per quake by the sprite material color. */
@@ -147,6 +170,8 @@ export function GlobeView({
   focusSat,
   flyTo,
   simNow,
+  tour,
+  onTourBroken,
   initialPov,
   onPovChange,
   followIss,
@@ -163,17 +188,23 @@ export function GlobeView({
   const onSatClickRef = useRef(onSatClick)
   const onReadyRef = useRef(onReady)
   const onPovChangeRef = useRef(onPovChange)
+  const onTourBrokenRef = useRef(onTourBroken)
   const followRef = useRef(followIss)
+  const tourRef = useRef(tour)
   const layersRef = useRef(layers)
+  const quakesRef = useRef(quakes)
   useEffect(() => {
     onFollowBrokenRef.current = onFollowBroken
     onIssClickRef.current = onIssClick
     onSatClickRef.current = onSatClick
     onReadyRef.current = onReady
     onPovChangeRef.current = onPovChange
+    onTourBrokenRef.current = onTourBroken
     followRef.current = followIss
+    tourRef.current = tour
     layersRef.current = layers
-  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, followIss, layers])
+    quakesRef.current = quakes
+  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, onTourBroken, followIss, tour, layers, quakes])
   const initialPovRef = useRef(initialPov)
 
   // the globe slowly spins as an opening showcase — first user touch stops it for good
@@ -191,6 +222,7 @@ export function GlobeView({
   const tileUpdateRef = useRef<() => void>(() => {})
   const labelsUpdateRef = useRef<() => void>(() => {})
   const countryLabelsRef = useRef<CountryLabel[]>([])
+  const volcanoesRef = useRef<THREE.Points | null>(null)
   const ecoRef = useRef(eco)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
@@ -213,16 +245,53 @@ export function GlobeView({
       userInteractedRef.current = true
       globe.controls().autoRotate = false
       if (followRef.current) onFollowBrokenRef.current()
+      if (tourRef.current) onTourBrokenRef.current()
     }
     globe.controls().addEventListener('start', onDragStart)
 
-    // one Sun for everything: the globe shader and the cloud layer share this
-    // uniform, refreshed from the real subsolar point once a minute
+    // one Sun for everything: the globe shader, the cloud layer, plus a real
+    // Sun glow and Moon in the sky — refreshed from real ephemerides per minute
     const sunUniform = { value: new THREE.Vector3(1, 0, 0) }
+    const sunSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: getGlowTexture(),
+        color: '#fff3c2',
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    )
+    sunSprite.scale.set(160, 160, 1)
+    globe.scene().add(sunSprite)
+    const moonMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(5, 16, 16),
+      new THREE.MeshBasicMaterial({ color: '#c9d1dc' }),
+    )
+    const moonGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: getGlowTexture(),
+        color: '#dfe7f2',
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    )
+    moonGlow.scale.set(22, 22, 1)
+    moonMesh.add(moonGlow)
+    globe.scene().add(moonMesh)
+
     const applySun = () => {
-      const sun = subsolarPoint(new Date())
+      const now = new Date()
+      const sun = subsolarPoint(now)
       const { x, y, z } = globe.getCoords(sun.lat, sun.lng, 0)
       sunUniform.value.set(x, y, z).normalize()
+      sunSprite.position.copy(sunUniform.value).multiplyScalar(900)
+      const moon = subLunarPoint(now)
+      const mc = globe.getCoords(moon.lat, moon.lng, 0)
+      moonMesh.position.set(mc.x, mc.y, mc.z).normalize().multiplyScalar(480)
+      // brighter glow around fuller moon
+      ;(moonGlow.material as THREE.SpriteMaterial).opacity = 0.25 + 0.5 * moon.illumination
     }
     applySun()
     const sunTimer = setInterval(applySun, SUN_REFRESH_MS)
@@ -400,6 +469,38 @@ export function GlobeView({
       })
     }
 
+    // 1215 Holocene volcanoes (Smithsonian GVP snapshot) as one Points cloud
+    void fetch('geo/volcanoes.json')
+      .then((r) => r.json())
+      .then((volcanoes: { n: string; la: number; lo: number }[]) => {
+        if (!globeRef.current) return
+        const positions: number[] = []
+        for (const v of volcanoes) {
+          const { x, y, z } = globe.getCoords(v.la, v.lo, 0.005)
+          positions.push(x, y, z)
+        }
+        const geometry = new THREE.BufferGeometry()
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+        const points = new THREE.Points(
+          geometry,
+          new THREE.PointsMaterial({
+            map: getTriangleTexture(),
+            color: '#ff7a50',
+            size: 2.4,
+            transparent: true,
+            depthWrite: false,
+            alphaTest: 0.15,
+          }),
+        )
+        points.visible = layersRef.current.volcanoes
+        points.renderOrder = 1
+        globe.scene().add(points)
+        volcanoesRef.current = points
+      })
+      .catch(() => {
+        // no volcano file — layer simply unavailable
+      })
+
     const onResize = () => {
       globe.width(window.innerWidth).height(window.innerHeight)
     }
@@ -427,6 +528,19 @@ export function GlobeView({
         ;(borders.material as THREE.LineBasicMaterial).dispose()
         bordersRef.current = null
       }
+      const volcanoes = volcanoesRef.current
+      if (volcanoes) {
+        globe.scene().remove(volcanoes)
+        volcanoes.geometry.dispose()
+        ;(volcanoes.material as THREE.PointsMaterial).dispose()
+        volcanoesRef.current = null
+      }
+      globe.scene().remove(sunSprite)
+      sunSprite.material.dispose()
+      globe.scene().remove(moonMesh)
+      moonMesh.geometry.dispose()
+      ;(moonMesh.material as THREE.MeshBasicMaterial).dispose()
+      moonGlow.material.dispose()
       globe.controls().removeEventListener('start', onDragStart)
       globe.controls().removeEventListener('change', updateTileEngine)
       globe.controls().removeEventListener('change', updateLabels)
@@ -447,6 +561,9 @@ export function GlobeView({
   useEffect(() => {
     if (bordersRef.current) bordersRef.current.visible = layers.borders
   }, [layers.borders])
+  useEffect(() => {
+    if (volcanoesRef.current) volcanoesRef.current.visible = layers.volcanoes
+  }, [layers.volcanoes])
   useEffect(() => {
     tileUpdateRef.current()
   }, [layers.detail])
@@ -746,6 +863,41 @@ export function GlobeView({
       userInteractedRef.current = true
     }
   }, [userLoc, locVersion])
+
+  // 🎬 cinematic tour: glide between live points of interest every 8 s
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !tour) return
+    globe.controls().autoRotate = false
+    userInteractedRef.current = true
+    let step = 0
+    const next = () => {
+      const stops: { lat: number; lng: number; altitude: number }[] = []
+      const qs = quakesRef.current
+      if (qs.length > 0) {
+        const strongest = [...qs].sort((a, b) => b.mag - a.mag)[0]
+        stops.push({ lat: strongest.lat, lng: strongest.lng, altitude: 0.8 })
+      }
+      const orbitObjs = [...orbitObjectsRef.current.values()]
+      const issObj = orbitObjs.find((o) => o.kind === 'iss')
+      if (issObj) stops.push({ lat: issObj.lat, lng: issObj.lng, altitude: 1.0 })
+      stops.push({ lat: 78, lng: -70, altitude: 1.5 }) // northern aurora oval
+      const sun = subsolarPoint(new Date())
+      stops.push({ lat: 15, lng: ((sun.lng + 95 + 540) % 360) - 180, altitude: 1.3 }) // dusk line
+      const satsOnly = orbitObjs.filter((o) => o.kind === 'sat')
+      if (satsOnly.length > 0) {
+        const pick = satsOnly[(step * 37) % satsOnly.length]
+        stops.push({ lat: pick.lat, lng: pick.lng, altitude: 0.9 })
+      }
+      if (qs.length > 0) stops.push({ lat: qs[0].lat, lng: qs[0].lng, altitude: 0.9 }) // latest quake
+      const target = stops[step % stops.length]
+      step++
+      globe.pointOfView(target, 4_000)
+    }
+    next()
+    const id = setInterval(next, 8_000)
+    return () => clearInterval(id)
+  }, [tour])
 
   // search pick: fly the camera to the chosen satellite
   useEffect(() => {

@@ -22,9 +22,12 @@ import {
   orbitTrack,
   parseTle,
   propagateSats,
+  satsAbove,
   toTrackedSats,
 } from './satellites'
+import { isSameEvent, mergeQuakes, parseEmscEvent } from './emsc'
 import { geometryLabelPoint, ringCentroid } from './labels'
+import { moonPhaseLabel, subLunarPoint } from './moon'
 import { encodeView, parseView } from './share'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
@@ -341,6 +344,78 @@ describe('diffNewQuakes + ping', () => {
     // extrémy se oříznou
     expect(pingFrequency(-5)).toBe(pingFrequency(0))
     expect(pingGain(99)).toBe(pingGain(8))
+  })
+})
+
+describe('EMSC live stream', () => {
+  const event = JSON.stringify({
+    action: 'create',
+    data: {
+      geometry: { coordinates: [142.3, 38.1, -25] },
+      properties: { mag: 5.4, time: '2026-06-12T10:00:00.0Z', depth: 25, flynn_region: 'NEAR EAST COAST OF HONSHU', unid: '20260612_0001' },
+    },
+  })
+
+  it('parseEmscEvent mapuje event, odmítá nesmysly', () => {
+    const q = parseEmscEvent(event)
+    expect(q).toMatchObject({ id: 'emsc:20260612_0001', lat: 38.1, lng: 142.3, mag: 5.4, depthKm: 25 })
+    expect(q!.time).toBe(Date.parse('2026-06-12T10:00:00.0Z'))
+    expect(parseEmscEvent('{nevalidni')).toBeNull()
+    expect(parseEmscEvent(JSON.stringify({ action: 'heartbeat' }))).toBeNull()
+  })
+
+  it('isSameEvent: stejný otřes od dvou agentur, jiný otřes ne', () => {
+    const usgs = { id: 'us1', lat: 38.2, lng: 142.5, mag: 5.6, depthKm: 30, place: 'x', time: Date.parse('2026-06-12T10:00:40Z') }
+    const emsc = parseEmscEvent(event)!
+    expect(isSameEvent(usgs, emsc)).toBe(true)
+    expect(isSameEvent({ ...usgs, lat: 10 }, emsc)).toBe(false)
+    expect(isSameEvent({ ...usgs, time: usgs.time + 600_000 }, emsc)).toBe(false)
+  })
+
+  it('mergeQuakes: EMSC navíc se přidá, duplikát ne, řazení dle času', () => {
+    const usgs = [{ id: 'us1', lat: 38.2, lng: 142.5, mag: 5.6, depthKm: 30, place: 'x', time: Date.parse('2026-06-12T10:00:40Z') }]
+    const dup = parseEmscEvent(event)!
+    const fresh = { ...dup, id: 'emsc:fresh', lat: -20, lng: -70, time: Date.parse('2026-06-12T10:30:00Z') }
+    const merged = mergeQuakes(usgs, [dup, fresh])
+    expect(merged.map((q) => q.id)).toEqual(['emsc:fresh', 'us1'])
+    expect(mergeQuakes(usgs, [dup])).toBe(usgs) // čistý duplikát = beze změny
+  })
+})
+
+describe('Měsíc', () => {
+  it('sublunární bod v rozsahu, fáze 0–1', () => {
+    const m = subLunarPoint(new Date(Date.UTC(2026, 5, 12, 12)))
+    expect(Math.abs(m.lat)).toBeLessThan(29) // deklinace max ~28.6°
+    expect(Math.abs(m.lng)).toBeLessThanOrEqual(180)
+    expect(m.illumination).toBeGreaterThanOrEqual(0)
+    expect(m.illumination).toBeLessThanOrEqual(1)
+  })
+
+  it('za půl lunace se fáze obrátí', () => {
+    const a = subLunarPoint(new Date(Date.UTC(2026, 5, 12)))
+    const b = subLunarPoint(new Date(Date.UTC(2026, 5, 12 + 14, 18))) // +14.77 dne
+    expect(Math.abs(a.illumination - b.illumination)).toBeGreaterThan(0.6)
+  })
+
+  it('moonPhaseLabel formátuje', () => {
+    expect(moonPhaseLabel({ lat: 0, lng: 0, illumination: 0.62, waxing: true })).toBe('waxing 62 %')
+    expect(moonPhaseLabel({ lat: 0, lng: 0, illumination: 0.01, waxing: true })).toBe('new moon')
+  })
+})
+
+describe('satsAbove (co letí nade mnou)', () => {
+  const TLE = `ISS (ZARYA)
+1 25544U 98067A   26162.50000000  .00016717  00000+0  30200-3 0  9990
+2 25544  51.6400 208.9163 0006317  69.9862 290.2026 15.49815308 10000`
+
+  it('pozorovatel přímo pod satelitem ho vidí v ~90°, protinožec ne', () => {
+    const sats = toTrackedSats(parseTle(TLE))
+    const t = new Date(Date.UTC(2026, 5, 12, 6))
+    const pos = propagateSats(sats, t)[0]
+    const above = satsAbove(sats, { lat: pos.lat, lng: pos.lng }, t)
+    expect(above).toHaveLength(1)
+    expect(above[0].elevationDeg).toBeGreaterThan(85)
+    expect(satsAbove(sats, { lat: -pos.lat, lng: pos.lng + 180 }, t)).toHaveLength(0)
   })
 })
 

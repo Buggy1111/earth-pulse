@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import {
+  AbovePanel,
   FollowIssButton,
   IssPanel,
   LoadingOverlay,
@@ -11,15 +12,18 @@ import {
   SpaceWeatherPanel,
   TimelinePanel,
   TitleCard,
+  TourButton,
   WikiPanel,
   type LayerState,
   type OrbitEntry,
 } from './components/Hud'
 import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
-import { useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
+import { useEmsc, useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
+import { mergeQuakes } from './lib/emsc'
+import { moonPhaseLabel, subLunarPoint } from './lib/moon'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
-import { isIss, nextPass } from './lib/satellites'
+import { isIss, nextPass, satsAbove } from './lib/satellites'
 import { encodeView, parseView } from './lib/share'
 
 const ecoPreference = loadEcoPreference()
@@ -27,7 +31,11 @@ const ecoPreference = loadEcoPreference()
 const initialView = parseView(window.location.hash)
 
 export default function App() {
-  const { quakes, newQuakes, flashes } = useQuakes()
+  const { quakes: usgsQuakes, newQuakes, flashes: usgsFlashes } = useQuakes()
+  const { quakes: emscQuakes, fresh: emscFresh } = useEmsc()
+  // USGS catalog + EMSC websocket extras (deduped) — quakes within a minute
+  const quakes = useMemo(() => mergeQuakes(usgsQuakes, emscQuakes), [usgsQuakes, emscQuakes])
+  const flashes = useMemo(() => [...usgsFlashes, ...emscFresh], [usgsFlashes, emscFresh])
   const iss = useIss()
   const sats = useTleSats()
   const weather = useSpaceWeather()
@@ -48,6 +56,7 @@ export default function App() {
       clouds: true,
       borders: true,
       labels: true,
+      volcanoes: false,
       detail: true,
     }
     for (const k of initialView?.layersOff ?? []) base[k as keyof LayerState] = false
@@ -119,6 +128,26 @@ export default function App() {
     if (!issSat) return null
     return nextPass(issSat, userLoc, new Date(minuteNow * 60_000))
   }, [userLoc, sats, minuteNow])
+
+  // satellites above the user's horizon, refreshed every 5 s
+  const tick5 = Math.floor(now / 5_000)
+  const overhead = useMemo(
+    () => (userLoc && sats.length > 0 ? satsAbove(sats, userLoc, new Date(tick5 * 5_000)) : []),
+    [userLoc, sats, tick5],
+  )
+
+  // moon phase for the HUD, recomputed per minute
+  const moonLabel = useMemo(() => moonPhaseLabel(subLunarPoint(new Date(minuteNow * 60_000))), [minuteNow])
+
+  // 🎬 cinematic tour
+  const [tourOn, setTourOn] = useState(false)
+  const onTourToggle = useCallback(() => {
+    setTourOn((t) => {
+      if (!t) setFollowIss(false)
+      return !t
+    })
+  }, [])
+  const onTourBroken = useCallback(() => setTourOn(false), [])
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
@@ -213,6 +242,17 @@ export default function App() {
     audioRef.current ??= new AudioContext()
     for (const q of newQuakes) playPing(audioRef.current, q.mag)
   }, [newQuakes])
+  // EMSC live events ping too (these are the truly "right now" ones)
+  const pingedEmsc = useRef(new Set<string>())
+  useEffect(() => {
+    if (emscFresh.length === 0 || !soundOnRef.current) return
+    audioRef.current ??= new AudioContext()
+    for (const q of emscFresh) {
+      if (pingedEmsc.current.has(q.id)) continue
+      pingedEmsc.current.add(q.id)
+      playPing(audioRef.current, q.mag)
+    }
+  }, [emscFresh])
 
   const toggleSound = useCallback(() => {
     setSoundOn((on) => {
@@ -260,6 +300,8 @@ export default function App() {
         focusSat={focusSat}
         flyTo={flyTo}
         simNow={simNow}
+        tour={tourOn}
+        onTourBroken={onTourBroken}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
         followIss={followIss}
@@ -276,7 +318,7 @@ export default function App() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col items-start gap-3">
             <TitleCard now={now} satCount={sats.length} />
-            <SpaceWeatherPanel weather={weather} />
+            <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} />
             <SettingsPanel
               layers={layers}
               onToggleLayer={onToggleLayer}
@@ -291,6 +333,7 @@ export default function App() {
               locating={locating}
               onLocate={onLocate}
             />
+            {userLoc && <AbovePanel overhead={overhead} onPickSat={onPickSat} />}
           </div>
           <WikiPanel edits={edits} totalSeen={totalSeen} />
         </div>
@@ -313,6 +356,7 @@ export default function App() {
           </div>
           <div className="flex flex-col items-end gap-3">
             {selected && <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />}
+            <TourButton active={tourOn} onToggle={onTourToggle} />
             {layers.iss && <FollowIssButton active={followIss} onToggle={() => setFollowIss((f) => !f)} />}
             <IssPanel iss={iss} pass={issPass} now={now} />
           </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { EMSC_WS_URL, parseEmscEvent } from './lib/emsc'
 import { parseIss, ISS_URL, type IssState } from './lib/iss'
 import { diffNewQuakes, parseQuakes, USGS_FEED_URL, type Quake, type UsgsFeed } from './lib/quakes'
 import { parseTle, toTrackedSats, TLE_LOCAL_URL, type TrackedSat } from './lib/satellites'
@@ -77,6 +78,56 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
     }
   }, [intervalMs, flashMs])
   return { quakes, newQuakes, flashes }
+}
+
+/** EMSC SeismicPortal WebSocket — quakes within ~a minute of the shaking,
+ * minutes before they reach the USGS feed. Auto-reconnects; `fresh` holds
+ * events younger than ~20 s (they drive the flash ring + ping). */
+export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[] } {
+  const [quakes, setQuakes] = useState<Quake[]>([])
+  const [fresh, setFresh] = useState<Quake[]>([])
+  useEffect(() => {
+    let cancelled = false
+    let ws: WebSocket | null = null
+    let reconnect: ReturnType<typeof setTimeout> | undefined
+    const freshTimers = new Set<ReturnType<typeof setTimeout>>()
+    const connect = () => {
+      if (cancelled) return
+      try {
+        ws = new WebSocket(EMSC_WS_URL)
+      } catch {
+        return // no WebSocket support — USGS poll still covers us
+      }
+      ws.onmessage = (event) => {
+        const q = parseEmscEvent(String(event.data))
+        if (!q || cancelled) return
+        const cutoff = Date.now() - maxAgeMs
+        setQuakes((list) => [q, ...list.filter((x) => x.id !== q.id && x.time > cutoff)])
+        setFresh((list) => [...list.filter((x) => x.id !== q.id), q])
+        const t = setTimeout(() => {
+          freshTimers.delete(t)
+          if (!cancelled) setFresh((list) => list.filter((x) => x.id !== q.id))
+        }, 20_000)
+        freshTimers.add(t)
+      }
+      ws.onclose = () => {
+        if (!cancelled) reconnect = setTimeout(connect, 8_000)
+      }
+    }
+    connect()
+    const prune = setInterval(
+      () => setQuakes((list) => list.filter((x) => x.time > Date.now() - maxAgeMs)),
+      60_000,
+    )
+    return () => {
+      cancelled = true
+      clearTimeout(reconnect)
+      clearInterval(prune)
+      for (const t of freshTimers) clearTimeout(t)
+      ws?.close()
+    }
+  }, [maxAgeMs])
+  return { quakes, fresh }
 }
 
 /** Parsed TLE element sets, loaded once. Propagation itself runs inside

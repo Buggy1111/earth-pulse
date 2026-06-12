@@ -8,7 +8,7 @@ import {
   formatUtcClock,
   timeAgo,
 } from '../lib/format'
-import type { IssPass } from '../lib/satellites'
+import type { IssPass, OverheadSat } from '../lib/satellites'
 import type { IssState } from '../lib/iss'
 import { quakeStats, type Quake } from '../lib/quakes'
 import { kpColor, kpLabel } from '../lib/spaceWeather'
@@ -47,8 +47,10 @@ export function TitleCard({ now, satCount }: { now: number; satCount: number }) 
 
 export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
   weather,
+  moonLabel,
 }: {
   weather: SpaceWeather
+  moonLabel: string
 }) {
   const { kp, wind } = weather
   return (
@@ -73,6 +75,7 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
           {Number.isFinite(wind.densityPerCm3) && <> · {wind.densityPerCm3.toFixed(1)} p/cm³</>}
         </p>
       )}
+      <p className="mt-0.5 text-xs text-slate-400">🌙 moon: {moonLabel}</p>
       <p className="mt-2 text-[10px] text-slate-600">
         data: NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
       </p>
@@ -88,6 +91,7 @@ export interface LayerState {
   clouds: boolean
   borders: boolean
   labels: boolean
+  volcanoes: boolean
   detail: boolean
 }
 
@@ -104,6 +108,7 @@ const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
   { key: 'clouds', label: '☁️ clouds' },
   { key: 'borders', label: '🗺 country borders' },
   { key: 'labels', label: '🏷 country names (zoom in)' },
+  { key: 'volcanoes', label: '🌋 volcanoes (1215, Holocene)' },
   { key: 'detail', label: '🔎 hi-res zoom imagery' },
 ]
 
@@ -299,6 +304,57 @@ export function FollowIssButton({ active, onToggle }: { active: boolean; onToggl
       }`}
     >
       {active ? '🛰 following ISS — drag to stop' : '🛰 follow ISS'}
+    </button>
+  )
+}
+
+/** Satellites above the user's horizon right now — "step outside and look up". */
+export function AbovePanel({
+  overhead,
+  onPickSat,
+}: {
+  overhead: OverheadSat[]
+  onPickSat: (id: string, name: string) => void
+}) {
+  return (
+    <div className="hud fade-up pointer-events-auto hidden max-w-64 px-4 py-3 sm:block">
+      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+        📡 Above you now
+      </h2>
+      {overhead.length === 0 ? (
+        <p className="mt-1 text-xs text-slate-500">nothing above 10° right now</p>
+      ) : (
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {overhead.slice(0, 5).map((s) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                onClick={() => onPickSat(s.id, s.name)}
+                title="show orbit & fly to it"
+                className="flex w-full cursor-pointer items-baseline justify-between gap-2 text-left text-xs text-slate-300 hover:text-sky-300"
+              >
+                <span className="truncate">{s.name}</span>
+                <span className="num text-slate-500">{Math.round(s.elevationDeg)}°</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export function TourButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`hud pointer-events-auto cursor-pointer px-4 py-2 text-xs transition-colors ${
+        active ? 'text-amber-300' : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {active ? '🎬 touring — drag to stop' : '🎬 cinematic tour'}
     </button>
   )
 }

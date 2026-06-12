@@ -167,6 +167,31 @@ export function elevationDeg(
   return Math.asin(Math.min(Math.max(dot, -1), 1)) / RAD
 }
 
+export interface OverheadSat {
+  id: string
+  name: string
+  elevationDeg: number
+  altKm: number
+}
+
+/** Satellites currently above the observer's horizon, highest first —
+ * "step outside and this is what's over your head". */
+export function satsAbove(
+  sats: TrackedSat[],
+  observer: { lat: number; lng: number },
+  date: Date,
+  minElevation = 10,
+): OverheadSat[] {
+  const out: OverheadSat[] = []
+  for (const p of propagateSats(sats, date)) {
+    const el = elevationDeg(observer, p)
+    if (el >= minElevation) {
+      out.push({ id: p.id, name: p.name, elevationDeg: el, altKm: p.altKm })
+    }
+  }
+  return out.sort((a, b) => b.elevationDeg - a.elevationDeg)
+}
+
 export interface IssPass {
   /** When the pass starts (sat climbs above `minElevation`), epoch ms. */
   startMs: number
