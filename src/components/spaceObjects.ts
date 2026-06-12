@@ -74,6 +74,31 @@ const ISS_CROSS_GEO = new THREE.CylinderGeometry(0.22, 0.22, 1.6, 8)
 const ISS_RADIATOR_GEO = new THREE.BoxGeometry(0.55, 0.02, 1.5)
 const ISS_RADIATOR_MAT = new THREE.MeshLambertMaterial({ color: '#f4f7fa', emissive: '#b7c1cc' })
 
+/** Name tag sprite for celestial bodies (planets in solar mode). */
+export function makeNameSprite(text: string, bodyRadius: number): THREE.Sprite {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')!
+  ctx.font = '600 34px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.shadowColor = 'rgba(0,0,0,0.9)'
+  ctx.shadowBlur = 8
+  ctx.fillStyle = '#dbe5f0'
+  ctx.fillText(text, 128, 44)
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(canvas),
+      transparent: true,
+      depthWrite: false,
+    }),
+  )
+  const s = Math.max(bodyRadius * 2.6, 40)
+  sprite.scale.set(s, s / 4, 1)
+  sprite.position.y = bodyRadius * 1.9
+  return sprite
+}
+
 /** "ISS" name tag as a sprite glued to the model — moves perfectly with it. */
 function makeIssLabel(): THREE.Sprite {
   const canvas = document.createElement('canvas')

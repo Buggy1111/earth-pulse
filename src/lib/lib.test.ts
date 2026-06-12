@@ -28,6 +28,7 @@ import {
 import { isSameEvent, mergeQuakes, parseEmscEvent } from './emsc'
 import { geometryLabelPoint, ringCentroid } from './labels'
 import { APOLLO_SITES, moonPhaseLabel, nextMoonPhases, subLunarPoint } from './moon'
+import { planetPositions, PLANETS, sceneDistance } from './planets'
 import { encodeView, parseView } from './share'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
@@ -426,6 +427,54 @@ describe('Měsíc', () => {
       expect(Math.abs(s.lat)).toBeLessThan(45)
       expect(Math.abs(s.lng)).toBeLessThan(90) // všechna přistání na přivrácené straně
     }
+  })
+})
+
+describe('planety (JPL approximace)', () => {
+  const t = new Date(Date.UTC(2026, 5, 12, 12))
+  const pos = planetPositions(t)
+  const get = (id: string) => pos.find((p) => p.id === id)!
+
+  it('vzdálenosti od Slunce v reálných mezích oběžných drah', () => {
+    const ranges: Record<string, [number, number]> = {
+      mercury: [0.30, 0.47], venus: [0.71, 0.73], mars: [1.38, 1.67],
+      jupiter: [4.9, 5.5], saturn: [9.0, 10.1], uranus: [18.2, 20.1], neptune: [29.7, 30.4],
+    }
+    for (const [id, [lo, hi]] of Object.entries(ranges)) {
+      const p = get(id)
+      expect(p.distSunAu, id).toBeGreaterThan(lo)
+      expect(p.distSunAu, id).toBeLessThan(hi)
+    }
+  })
+
+  it('vzdálenosti od Země geometricky konzistentní (|sun±planet| meze)', () => {
+    for (const p of pos) {
+      expect(p.distEarthAu).toBeGreaterThan(Math.abs(p.distSunAu - 1.03))
+      expect(p.distEarthAu).toBeLessThan(p.distSunAu + 1.03)
+    }
+  })
+
+  it('vnitřní planety drží maximální elongaci od Slunce', () => {
+    // sun RA from the same frame: use a fictitious planet at earth->sun vector? jednodušší:
+    // elongace = úhel Slunce–Země–planeta z kosinové věty (vše v AU)
+    const elong = (id: string) => {
+      const p = get(id)
+      const cosE = (1 ** 2 + p.distEarthAu ** 2 - p.distSunAu ** 2) / (2 * 1 * p.distEarthAu)
+      return Math.acos(Math.min(Math.max(cosE, -1), 1)) * (180 / Math.PI)
+    }
+    expect(elong('mercury')).toBeLessThan(29)
+    expect(elong('venus')).toBeLessThan(48.5)
+  })
+
+  it('deklinace v pásu ±30° (planety se drží ekliptiky)', () => {
+    for (const p of pos) expect(Math.abs(p.decDeg), p.id).toBeLessThan(30)
+  })
+
+  it('sceneDistance: 1 AU = 900 jednotek, monotónně roste, Neptun se vejde', () => {
+    expect(sceneDistance(1)).toBeCloseTo(900)
+    expect(sceneDistance(30)).toBeLessThan(7000)
+    expect(sceneDistance(30)).toBeGreaterThan(sceneDistance(9.5))
+    expect(PLANETS).toHaveLength(7)
   })
 })
 

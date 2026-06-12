@@ -8,6 +8,7 @@ import {
   QuakeDetail,
   QuakePanel,
   SettingsPanel,
+  SolarButton,
   SoundToggle,
   SpaceWeatherPanel,
   TimelinePanel,
@@ -18,6 +19,7 @@ import {
   type OrbitEntry,
 } from './components/Hud'
 import { MoonPanel } from './components/MoonPanel'
+import { PlanetPanel } from './components/PlanetPanel'
 import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
 import { useEmsc, useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
 import { mergeQuakes } from './lib/emsc'
@@ -154,8 +156,12 @@ export default function App() {
   // 🌙 moon mode: click the Moon (or the HUD line) → orbit IT instead of Earth
   const [moonMode, setMoonMode] = useState(false)
   const [apolloSite, setApolloSite] = useState<ApolloSite | null>(null)
+  // 🪐 solar system mode
+  const [solarMode, setSolarMode] = useState(false)
+  const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
   const onMoonEnter = useCallback(() => {
     setMoonMode(true)
+    setSolarMode(false)
     setFollowIss(false)
     setTourOn(false)
     setApolloSite(null)
@@ -165,6 +171,23 @@ export default function App() {
     setApolloSite(null)
   }, [])
   const onApolloPick = useCallback((site: ApolloSite | null) => setApolloSite(site), [])
+  const onSolarToggle = useCallback(() => {
+    setSolarMode((s) => {
+      if (!s) {
+        setMoonMode(false)
+        setFollowIss(false)
+        setTourOn(false)
+      }
+      setFocusPlanet(null)
+      return !s
+    })
+  }, [])
+  const onPlanetPick = useCallback((id: string) => setFocusPlanet(id), [])
+  const onSolarOverview = useCallback(() => setFocusPlanet(null), [])
+  const onSolarExit = useCallback(() => {
+    setSolarMode(false)
+    setFocusPlanet(null)
+  }, [])
 
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
@@ -323,6 +346,9 @@ export default function App() {
         moonMode={moonMode}
         onMoonEnter={onMoonEnter}
         onApolloPick={onApolloPick}
+        solarMode={solarMode}
+        focusPlanet={focusPlanet}
+        onPlanetPick={onPlanetPick}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
         followIss={followIss}
@@ -341,6 +367,14 @@ export default function App() {
             <TitleCard now={now} satCount={sats.length} />
             <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} onOpenMoon={onMoonEnter} />
             {moonMode && <MoonPanel moon={moonState} picked={apolloSite} onBack={onMoonExit} />}
+            {solarMode && (
+              <PlanetPanel
+                focus={focusPlanet}
+                now={minuteNow * 60_000}
+                onOverview={onSolarOverview}
+                onBack={onSolarExit}
+              />
+            )}
             <SettingsPanel
               layers={layers}
               onToggleLayer={onToggleLayer}
@@ -378,6 +412,7 @@ export default function App() {
           </div>
           <div className="flex flex-col items-end gap-3">
             {selected && <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />}
+            <SolarButton active={solarMode} onToggle={onSolarToggle} />
             <TourButton active={tourOn} onToggle={onTourToggle} />
             {layers.iss && <FollowIssButton active={followIss} onToggle={() => setFollowIss((f) => !f)} />}
             <IssPanel iss={iss} pass={issPass} now={now} />

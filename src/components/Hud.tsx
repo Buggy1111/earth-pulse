@@ -353,6 +353,21 @@ export function AbovePanel({
   )
 }
 
+export function SolarButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`hud pointer-events-auto cursor-pointer px-4 py-2 text-xs transition-colors ${
+        active ? 'text-violet-300' : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {active ? '🪐 solar system — back to Earth' : '🪐 solar system'}
+    </button>
+  )
+}
+
 export function TourButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
     <button

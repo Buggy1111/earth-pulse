@@ -5,6 +5,7 @@ import { feature as topoFeature, mesh as topoMesh } from 'topojson-client'
 import type { Topology, Objects } from 'topojson-specification'
 import { geometryLabelPoint } from '../lib/labels'
 import { APOLLO_SITES, subLunarPoint, type ApolloSite } from '../lib/moon'
+import { PLANETS, planetPositions, sceneDistance, subPlanetPoint } from '../lib/planets'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
@@ -19,7 +20,7 @@ import {
 import { subsolarPoint } from '../lib/sun'
 import { makeDayNightMaterial, sunlitClouds, sunlitTiles } from './dayNightMaterial'
 import type { LayerState } from './Hud'
-import { makeIssObject, makeSatelliteObject } from './spaceObjects'
+import { makeIssObject, makeNameSprite, makeSatelliteObject } from './spaceObjects'
 
 interface Props {
   quakes: Quake[]
@@ -60,6 +61,12 @@ interface Props {
   onMoonEnter: () => void
   /** An Apollo site marker was clicked (null = clicked elsewhere on the Moon). */
   onApolloPick: (site: ApolloSite | null) => void
+  /** 🪐 Solar system mode: Sun + 8 planets at today's real positions. */
+  solarMode: boolean
+  /** Which planet the camera orbits in solar mode (null = Sun overview). */
+  focusPlanet: string | null
+  /** A planet (or the Sun = 'sun') was clicked in solar mode. */
+  onPlanetPick: (id: string) => void
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
@@ -181,6 +188,9 @@ export function GlobeView({
   moonMode,
   onMoonEnter,
   onApolloPick,
+  solarMode,
+  focusPlanet,
+  onPlanetPick,
   initialPov,
   onPovChange,
   followIss,
@@ -200,9 +210,11 @@ export function GlobeView({
   const onTourBrokenRef = useRef(onTourBroken)
   const onMoonEnterRef = useRef(onMoonEnter)
   const onApolloPickRef = useRef(onApolloPick)
+  const onPlanetPickRef = useRef(onPlanetPick)
   const followRef = useRef(followIss)
   const tourRef = useRef(tour)
   const moonModeRef = useRef(moonMode)
+  const solarModeRef = useRef(solarMode)
   const layersRef = useRef(layers)
   const quakesRef = useRef(quakes)
   useEffect(() => {
@@ -214,12 +226,14 @@ export function GlobeView({
     onTourBrokenRef.current = onTourBroken
     onMoonEnterRef.current = onMoonEnter
     onApolloPickRef.current = onApolloPick
+    onPlanetPickRef.current = onPlanetPick
     followRef.current = followIss
     tourRef.current = tour
     moonModeRef.current = moonMode
+    solarModeRef.current = solarMode
     layersRef.current = layers
     quakesRef.current = quakes
-  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, onTourBroken, onMoonEnter, onApolloPick, followIss, tour, moonMode, layers, quakes])
+  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, onTourBroken, onMoonEnter, onApolloPick, onPlanetPick, followIss, tour, moonMode, solarMode, layers, quakes])
   const initialPovRef = useRef(initialPov)
 
   // the globe slowly spins as an opening showcase — first user touch stops it for good
@@ -240,6 +254,12 @@ export function GlobeView({
   const volcanoesRef = useRef<THREE.Points | null>(null)
   const moonMeshRef = useRef<THREE.Mesh | null>(null)
   const apolloMarkersRef = useRef<THREE.Mesh[]>([])
+  /** Whatever the orbit controls should stay pinned to (Moon, Sun, a planet). */
+  const pinTargetRef = useRef<THREE.Object3D | null>(null)
+  const solarGroupRef = useRef<THREE.Group | null>(null)
+  const planetMeshesRef = useRef<Map<string, THREE.Mesh>>(new Map())
+  const sunMeshRef = useRef<THREE.Mesh | null>(null)
+  const updateSolarRef = useRef<() => void>(() => {})
   const ecoRef = useRef(eco)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
@@ -325,7 +345,12 @@ export function GlobeView({
         -((ev.clientY - rect.top) / rect.height) * 2 + 1,
       )
       raycaster.setFromCamera(ndc, globe.camera() as THREE.PerspectiveCamera)
-      if (moonModeRef.current) {
+      if (solarModeRef.current) {
+        const bodies = [...planetMeshesRef.current.values()]
+        if (sunMeshRef.current) bodies.push(sunMeshRef.current)
+        const hit = raycaster.intersectObjects(bodies, false)[0]
+        if (hit) onPlanetPickRef.current(hit.object.userData.planetId as string)
+      } else if (moonModeRef.current) {
         const hit = raycaster.intersectObjects(apolloMarkersRef.current, false)[0]
         onApolloPickRef.current((hit?.object.userData.site as ApolloSite) ?? null)
       } else {
@@ -338,13 +363,12 @@ export function GlobeView({
 
     // globe.gl pins controls.target to (0,0,0) in its own 'change' listener —
     // ours registers later, so per event we get the last word and re-pin to
-    // the Moon while in moon mode
-    const keepMoonTarget = () => {
-      if (moonModeRef.current && moonMeshRef.current) {
-        globe.controls().target.copy(moonMeshRef.current.position)
-      }
+    // whatever body we're orbiting (Moon, Sun, a planet)
+    const keepPinnedTarget = () => {
+      const pin = pinTargetRef.current
+      if (pin) globe.controls().target.copy(pin.position)
     }
-    globe.controls().addEventListener('change', keepMoonTarget)
+    globe.controls().addEventListener('change', keepPinnedTarget)
     const moonGlow = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: getGlowTexture(),
@@ -421,7 +445,8 @@ export function GlobeView({
     // 'change' every frame and would starve a plain debounce)
     let povTimer: ReturnType<typeof setTimeout> | undefined
     const reportPov = () => {
-      if (moonModeRef.current) return // lunar camera doesn't map to an Earth view
+      // lunar/solar cameras don't map to a shareable Earth view
+      if (moonModeRef.current || solarModeRef.current) return
       onPovChangeRef.current(globe.pointOfView())
     }
     const onCamChange = () => {
@@ -618,7 +643,7 @@ export function GlobeView({
       }
       globe.renderer().domElement.removeEventListener('pointerdown', onPtrDown)
       globe.renderer().domElement.removeEventListener('click', onCanvasClick)
-      globe.controls().removeEventListener('change', keepMoonTarget)
+      globe.controls().removeEventListener('change', keepPinnedTarget)
       globe.scene().remove(sunSprite)
       sunSprite.material.dispose()
       globe.scene().remove(moonMesh)
@@ -823,9 +848,9 @@ export function GlobeView({
           Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
         }
       }
-      // moon drifts ~13°/day — keep the orbit pivot glued to it in moon mode
-      if (moonModeRef.current && moonMeshRef.current) {
-        globe.controls().target.copy(moonMeshRef.current.position)
+      // bodies drift — keep the orbit pivot glued to whatever we're orbiting
+      if (pinTargetRef.current) {
+        globe.controls().target.copy(pinTargetRef.current.position)
       }
       // arrows ride their orbit rings in the direction of flight
       const cycle = now.getTime() / ARROW_LOOP_MS
@@ -991,6 +1016,183 @@ export function GlobeView({
     return () => clearInterval(id)
   }, [tour])
 
+  // 🪐 Solar System mode: Sun + 7 planets at today's real geocentric
+  // positions, distances compressed (sceneDistance) so Neptune fits the
+  // camera. Built lazily on first entry; textures stream in then.
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !solarMode) return
+
+    if (!solarGroupRef.current) {
+      const group = new THREE.Group()
+      const loader = new THREE.TextureLoader()
+      const loadTex = (mesh: THREE.Mesh, url: string) =>
+        loader.load(url, (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace
+          const m = mesh.material as THREE.MeshBasicMaterial
+          m.map = tex
+          m.color.set('#ffffff')
+          m.needsUpdate = true
+        })
+
+      // the Sun: textured ball inside the existing glow sprite
+      const sun = new THREE.Mesh(
+        new THREE.SphereGeometry(48, 32, 32),
+        new THREE.MeshBasicMaterial({ color: '#ffd27a' }),
+      )
+      sun.userData.planetId = 'sun'
+      loadTex(sun, 'planets/sun.jpg')
+      group.add(sun)
+      sunMeshRef.current = sun
+
+      for (const p of PLANETS) {
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(p.displayRadius, 24, 24),
+          new THREE.MeshBasicMaterial({ color: '#9aa3ae' }),
+        )
+        mesh.userData.planetId = p.id
+        loadTex(mesh, p.texture)
+        mesh.add(makeNameSprite(p.name, p.displayRadius))
+        if (p.id === 'saturn') {
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(p.displayRadius * 1.3, p.displayRadius * 2.2, 48),
+            new THREE.MeshBasicMaterial({
+              color: '#d8c9a3',
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.8,
+            }),
+          )
+          loader.load('planets/saturn_ring.png', (tex) => {
+            const m = ring.material as THREE.MeshBasicMaterial
+            m.map = tex
+            m.color.set('#ffffff')
+            m.needsUpdate = true
+          })
+          ring.rotation.x = Math.PI / 2 - 0.46 // Saturn's 26.7° tilt
+          mesh.add(ring)
+        }
+        group.add(mesh)
+        planetMeshesRef.current.set(p.id, mesh)
+      }
+
+      // orbit guide rings, rebuilt on every position update
+      const orbitLines = new THREE.Group()
+      group.add(orbitLines)
+
+      const updateSolar = () => {
+        const now = new Date()
+        const positions = planetPositions(now)
+        // sun sits where applySun already puts the glow (900 units ≈ 1 AU)
+        const sunSub = subsolarPoint(now)
+        const sc = globe.getCoords(sunSub.lat, sunSub.lng, 0)
+        const sunPos = new THREE.Vector3(sc.x, sc.y, sc.z).normalize().multiplyScalar(900)
+        sun.position.copy(sunPos)
+        // ecliptic pole in scene coordinates (RA 270°, Dec +66.56°)
+        const polePt = subPlanetPoint({ raDeg: 270, decDeg: 66.56 }, now)
+        const pc = globe.getCoords(polePt.lat, polePt.lng, 0)
+        const pole = new THREE.Vector3(pc.x, pc.y, pc.z).normalize()
+
+        orbitLines.clear()
+        for (const pos of positions) {
+          const mesh = planetMeshesRef.current.get(pos.id)
+          if (!mesh) continue
+          const pt = subPlanetPoint(pos, now)
+          const c = globe.getCoords(pt.lat, pt.lng, 0)
+          mesh.position
+            .set(c.x, c.y, c.z)
+            .normalize()
+            .multiplyScalar(sceneDistance(pos.distEarthAu))
+          // guide ring: circle around the Sun through the planet, in the ecliptic
+          const radius = mesh.position.clone().sub(sunPos).length()
+          const u = mesh.position.clone().sub(sunPos).normalize()
+          const v = new THREE.Vector3().crossVectors(pole, u).normalize()
+          const pts: THREE.Vector3[] = []
+          for (let i = 0; i <= 128; i++) {
+            const a = (i / 128) * Math.PI * 2
+            pts.push(
+              sunPos
+                .clone()
+                .addScaledVector(u, Math.cos(a) * radius)
+                .addScaledVector(v, Math.sin(a) * radius),
+            )
+          }
+          orbitLines.add(
+            new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints(pts),
+              new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.25 }),
+            ),
+          )
+        }
+      }
+      updateSolarRef.current = updateSolar
+      globe.scene().add(group)
+      solarGroupRef.current = group
+    }
+
+    const group = solarGroupRef.current
+    group.visible = true
+    updateSolarRef.current()
+    const timer = setInterval(updateSolarRef.current, 60_000)
+
+    // widen the camera envelope for the outer system
+    const cam = globe.camera() as THREE.PerspectiveCamera
+    const controls = globe.controls()
+    const prevFar = cam.far
+    const prevMax = controls.maxDistance
+    cam.far = 60_000
+    cam.updateProjectionMatrix()
+    controls.maxDistance = 25_000
+    globe.controls().autoRotate = false
+    userInteractedRef.current = true
+
+    return () => {
+      clearInterval(timer)
+      group.visible = false
+      cam.far = prevFar
+      cam.updateProjectionMatrix()
+      controls.maxDistance = prevMax
+      pinTargetRef.current = null
+      controls.target.set(0, 0, 0)
+      controls.update()
+      globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
+    }
+  }, [solarMode])
+
+  // camera focus within solar mode: Sun overview or a chosen planet
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !solarMode) return
+    const controls = globe.controls()
+    const cam = globe.camera() as THREE.PerspectiveCamera
+    const prevMin = controls.minDistance
+    const focusMesh =
+      (focusPlanet && focusPlanet !== 'sun' ? planetMeshesRef.current.get(focusPlanet) : null) ??
+      sunMeshRef.current
+    if (!focusMesh) return
+    const radius =
+      focusPlanet && focusPlanet !== 'sun'
+        ? (PLANETS.find((p) => p.id === focusPlanet)?.displayRadius ?? 20)
+        : 48
+    pinTargetRef.current = focusMesh
+    controls.minDistance = radius * 1.6
+    controls.target.copy(focusMesh.position)
+    if (focusPlanet) {
+      // close-up of the chosen body
+      const dir = cam.position.clone().sub(focusMesh.position).normalize()
+      cam.position.copy(focusMesh.position).addScaledVector(dir, radius * 4.5)
+    } else {
+      // overview: above the ecliptic, the whole system in frame
+      cam.position
+        .copy(focusMesh.position)
+        .add(new THREE.Vector3(0, 5_200, 7_800))
+    }
+    controls.update()
+    return () => {
+      controls.minDistance = prevMin
+    }
+  }, [solarMode, focusPlanet])
+
   // 🌙 Moon mode: re-target the orbit controls from Earth to the Moon —
   // you orbit the Moon exactly like Earth, with Earth hanging in its sky
   useEffect(() => {
@@ -1007,9 +1209,11 @@ export function GlobeView({
       const dir = moon.position.clone().normalize()
       const cam = globe.camera() as THREE.PerspectiveCamera
       cam.position.copy(moon.position).addScaledVector(dir, -22).add(new THREE.Vector3(0, 6, 0))
+      pinTargetRef.current = moon
       controls.target.copy(moon.position)
       controls.update()
       return () => {
+        pinTargetRef.current = null
         controls.minDistance = prevMin
         controls.target.set(0, 0, 0)
         controls.update()
