@@ -9,6 +9,7 @@ import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import type { Quake } from '../lib/quakes'
 import type { ApolloSite } from '../lib/moon'
+import { EARTH_DISPLAY } from '../lib/planets'
 import { globeAltitude, type TrackedSat } from '../lib/satellites'
 import type { LayerState } from './hud/types'
 import { enterMoonMode, startTour } from './globe/cameraModes'
@@ -106,8 +107,10 @@ export function GlobeView(props: Props) {
   const planetMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const sunMeshRef = useRef<THREE.Mesh | null>(null)
   const solarAnimRef = useRef<SolarAnimEntry[]>([])
-  const updateSolarRef = useRef<() => void>(() => {})
+  const solarFrameRef = useRef<(now: Date) => void>(() => {})
   const applySkyRef = useRef<(date: Date) => void>(() => {})
+  const skyRef = useRef<ReturnType<typeof setupSky> | null>(null)
+  const earthRootRef = useRef<THREE.Object3D | null>(null)
   const moonMeshRef = useRef<THREE.Mesh | null>(null)
   const surfaceRef = useRef<ReturnType<typeof setupSurface> | null>(null)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
@@ -134,8 +137,10 @@ export function GlobeView(props: Props) {
       return t.simMs + (Date.now() - t.realMs) * t.warp
     }
     const sky = setupSky(globe, simNowMs)
+    skyRef.current = sky
     applySkyRef.current = sky.applySky
     moonMeshRef.current = sky.moonMesh
+
 
     const surface = setupSurface(globe, {
       sunUniform: sky.sunUniform,
@@ -254,7 +259,7 @@ export function GlobeView(props: Props) {
       solarTimeRef,
       solarModeRef,
       solarGroupRef,
-      solarAnimRef,
+      solarFrameRef,
       pinTargetRef,
       trailsRef,
       issStateRef,
@@ -303,7 +308,8 @@ export function GlobeView(props: Props) {
     return startTour(globe, quakesRef, orbitObjectsRef)
   }, [tour])
 
-  // 🪐 solar system mode: build lazily, run the 1 Hz updater, widen the camera
+  // 🪐 solar system mode: heliocentric season-2 scene; the orbit engine's
+  // rAF drives all motion via solarFrameRef (smooth at any time-warp)
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || !solarMode) return
@@ -312,27 +318,61 @@ export function GlobeView(props: Props) {
       sunMeshRef,
       planetMeshesRef,
       solarAnimRef,
-      updateSolarRef,
+      solarFrameRef,
       solarTimeRef,
       applySkyRef,
     })
     group.visible = true
-    updateSolarRef.current()
-    // 1 Hz so time-warp visibly moves planets along their orbits
-    const timer = setInterval(() => updateSolarRef.current(), 1_000)
+    const t = solarTimeRef.current
+    solarFrameRef.current(new Date(t.simMs + (Date.now() - t.realMs) * t.warp))
 
+    // Earth shrinks to its TRUE relative size (with satellites, clouds, all).
+    // The three-globe root attaches to the scene after our setup ran, so we
+    // resolve it here, lazily.
+    if (!earthRootRef.current) {
+      for (const child of globe.scene().children) {
+        let found = false
+        child.traverse((o) => {
+          if ((o as { __globeObjType?: string }).__globeObjType === 'globe') found = true
+        })
+        if (found) {
+          earthRootRef.current = child
+          break
+        }
+      }
+    }
+    const k = EARTH_DISPLAY / 100
+    const surf = surfaceRef.current
+    const shrink = [
+      earthRootRef.current,
+      surf?.cloudsRef.current,
+      surf?.bordersRef.current,
+      surf?.volcanoesRef.current,
+    ].filter((o): o is THREE.Object3D => !!o)
+    shrink.forEach((o) => o.scale.setScalar(k))
+    const sky = skyRef.current
+    if (sky) {
+      sky.sunSprite.visible = false // the solar Sun has its own glow
+      sky.moonMesh.visible = false // would sit inside the mini-Earth
+    }
+
+    // widen the camera envelope: Pluto orbits ~39 AU out
     const cam = globe.camera() as THREE.PerspectiveCamera
     const controls = globe.controls()
     const prevFar = cam.far
     const prevMax = controls.maxDistance
-    cam.far = 60_000
+    cam.far = 220_000
     cam.updateProjectionMatrix()
-    controls.maxDistance = 25_000
+    controls.maxDistance = 130_000
     controls.autoRotate = false
     userInteractedRef.current = true
     return () => {
-      clearInterval(timer)
       group.visible = false
+      shrink.forEach((o) => o.scale.setScalar(1))
+      if (sky) {
+        sky.sunSprite.visible = true
+        sky.moonMesh.visible = true
+      }
       cam.far = prevFar
       cam.updateProjectionMatrix()
       controls.maxDistance = prevMax

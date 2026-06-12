@@ -5,7 +5,7 @@
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { IssState } from '../../lib/iss'
-import { moonAngle, planetSpin, type MoonDef } from '../../lib/planets'
+import type { MoonDef } from '../../lib/planets'
 import {
   globeAltitude,
   isIss,
@@ -38,7 +38,7 @@ export interface OrbitEngineDeps {
   solarTimeRef: { current: { realMs: number; simMs: number; warp: number } }
   solarModeRef: { current: boolean }
   solarGroupRef: { current: THREE.Group | null }
-  solarAnimRef: { current: SolarAnimEntry[] }
+  solarFrameRef: { current: (now: Date) => void }
   pinTargetRef: { current: THREE.Object3D | null }
   trailsRef: { current: Map<string, Trail> }
   issStateRef: { current: IssState | null }
@@ -81,6 +81,7 @@ export function startOrbitEngine(
   let raf = 0
   let frameNo = 0
   const dir = new THREE.Vector3()
+  const pinWorld = new THREE.Vector3()
   const frame = () => {
     // eco mode: propagate at half the frame rate — still fluid, half the CPU
     if (deps.ecoRef.current && ++frameNo % 2 === 1) {
@@ -105,18 +106,11 @@ export function startOrbitEngine(
     }
     // bodies drift — keep the orbit pivot glued to whatever we're orbiting
     if (deps.pinTargetRef.current) {
-      globe.controls().target.copy(deps.pinTargetRef.current.position)
+      globe.controls().target.copy(deps.pinTargetRef.current.getWorldPosition(pinWorld))
     }
-    // solar mode: planets spin and moons revolve at their TRUE rates
+    // solar mode: one frame call drives planets, moons, spin and the sky
     if (deps.solarModeRef.current && deps.solarGroupRef.current?.visible) {
-      const ms = now.getTime()
-      for (const entry of deps.solarAnimRef.current) {
-        entry.mesh.rotation.y = planetSpin(entry.rotationH, ms)
-        for (const m of entry.moons) {
-          const a = moonAngle(m.def, ms)
-          m.mesh.position.set(Math.cos(a) * m.rScene, 0, Math.sin(a) * m.rScene)
-        }
-      }
+      deps.solarFrameRef.current(now)
     }
     // arrows ride their orbit rings in the direction of flight
     const cycle = now.getTime() / ARROW_LOOP_MS

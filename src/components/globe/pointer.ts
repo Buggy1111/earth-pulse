@@ -74,9 +74,10 @@ export function setupPointer(globe: GlobeInstance, deps: PointerDeps): () => voi
   // globe.gl pins controls.target to (0,0,0) in its own 'change' listener —
   // ours registers later, so per event we get the last word and re-pin to
   // whatever body we're orbiting (Moon, Sun, a planet)
+  const pinWorld = new THREE.Vector3()
   const keepPinnedTarget = () => {
     const pin = deps.pinTargetRef.current
-    if (pin) globe.controls().target.copy(pin.position)
+    if (pin) globe.controls().target.copy(pin.getWorldPosition(pinWorld))
   }
   globe.controls().addEventListener('change', keepPinnedTarget)
 

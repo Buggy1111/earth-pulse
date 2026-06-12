@@ -113,9 +113,9 @@ export function PlanetPanel({
         </p>
       ) : (
         <p className="mt-1 text-xs text-slate-500">
-          all 7 planets at their real positions for right now (Earth is the big one you came
-          from) — real axial tilts, real spin rates, major moons revolving at true speed. Click
-          any body to orbit it.
+          the Sun and all 8 planets (Pluto included 💙) at their real positions for right
+          now, true orbit ellipses, real relative sizes — Earth is the small blue one, still
+          live. Click any body to orbit it; click Earth to come home.
         </p>
       )}
 

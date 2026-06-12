@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { APOLLO_SITES, moonPhaseLabel, nextMoonPhases, subLunarPoint } from './moon'
-import { moonAngle, PLANET_MOONS, planetPositions, PLANETS, planetSpin, sceneDistance } from './planets'
+import { AU_SCENE, earthHelio, helioEllipse, moonAngle, PLANET_MOONS, planetPositions, PLANETS, planetSpin } from './planets'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
 import { auroraColatitude, auroraOpacity, auroraOvals, auroraWidth } from './aurora'
 
@@ -166,15 +166,42 @@ describe('planety (JPL approximace)', () => {
     expect(elong('venus')).toBeLessThan(48.5)
   })
 
-  it('deklinace v pásu ±30° (planety se drží ekliptiky)', () => {
-    for (const p of pos) expect(Math.abs(p.decDeg), p.id).toBeLessThan(30)
+  it('deklinace v pásu ±30° (planety se drží ekliptiky; Pluto má 17° sklon — vyňato)', () => {
+    for (const p of pos.filter((x) => x.id !== 'pluto')) expect(Math.abs(p.decDeg), p.id).toBeLessThan(30)
   })
 
-  it('sceneDistance: 1 AU = 900 jednotek, monotónně roste, Neptun se vejde', () => {
-    expect(sceneDistance(1)).toBeCloseTo(900)
-    expect(sceneDistance(30)).toBeLessThan(7000)
-    expect(sceneDistance(30)).toBeGreaterThan(sceneDistance(9.5))
-    expect(PLANETS).toHaveLength(7)
+  it('season 2: 8 planet vč. Pluta, reálné poměry velikostí, helio Země ~1 AU', () => {
+    expect(PLANETS).toHaveLength(8)
+    const r = (id: string) => PLANETS.find((p) => p.id === id)!.displayRadius
+    // pořadí velikostí dle reality (Země v solar módu = 8 jednotek)
+    expect(r('jupiter')).toBeGreaterThan(r('saturn'))
+    expect(r('saturn')).toBeGreaterThan(r('uranus'))
+    expect(r('uranus')).toBeGreaterThan(8) // větší než Země
+    expect(r('venus')).toBeLessThan(8)
+    expect(r('mercury')).toBeLessThan(r('mars'))
+    expect(r('pluto')).toBeLessThan(r('mercury'))
+    expect(AU_SCENE).toBeGreaterThan(1000)
+    const [x, y, z] = earthHelio(new Date(Date.UTC(2026, 5, 12)))
+    const rE = Math.hypot(x, y, z)
+    expect(rE).toBeGreaterThan(0.98)
+    expect(rE).toBeLessThan(1.02)
+  })
+
+  it('helioEllipse: uzavřená, správný rozsah vzdáleností (Mars perihel–afel)', () => {
+    const pts = helioEllipse('mars', new Date(Date.UTC(2026, 5, 12)), 90)
+    expect(pts).toHaveLength(91)
+    const [f, l] = [pts[0], pts[pts.length - 1]]
+    expect(Math.hypot(f[0] - l[0], f[1] - l[1], f[2] - l[2])).toBeLessThan(1e-9)
+    const dists = pts.map(([x, y, z]) => Math.hypot(x, y, z))
+    expect(Math.min(...dists)).toBeGreaterThan(1.35) // perihel 1.381
+    expect(Math.max(...dists)).toBeLessThan(1.7) // afel 1.666
+  })
+
+  it('Pluto: vzdálenost od Slunce v reálném rozsahu dráhy', () => {
+    const pluto = planetPositions(new Date(Date.UTC(2026, 5, 12))).find((p) => p.id === 'pluto')!
+    expect(pluto.distSunAu).toBeGreaterThan(29.5)
+    expect(pluto.distSunAu).toBeLessThan(49.5)
+    expect(PLANET_MOONS.pluto[0].name).toBe('Charon')
   })
 
   it('měsíce: reálné periody, Triton retrográdní, řazení dle vzdálenosti', () => {

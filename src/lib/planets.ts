@@ -36,34 +36,38 @@ interface PlanetDef {
 }
 
 export const PLANETS: PlanetDef[] = [
-  { id: 'mercury', name: 'Mercury', diameterKm: 4_879, displayRadius: 9, texture: 'planets/mercury.jpg',
+  { id: 'mercury', name: 'Mercury', diameterKm: 4_879, displayRadius: 3.1, texture: 'planets/mercury.jpg',
     facts: { rotationH: 1407.6, yearDays: 88, tiltDeg: 0.03, tempC: 167, moonCount: 0, atmosphere: 'practically none (exosphere)', fact: 'a single solar day lasts 176 Earth days — longer than its year' },
     el: [0.38709927, 0.20563593, 7.00497902, 252.2503235, 77.45779628, 48.33076593],
     rate: [0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081] },
-  { id: 'venus', name: 'Venus', diameterKm: 12_104, displayRadius: 15, texture: 'planets/venus_atmosphere.jpg',
+  { id: 'venus', name: 'Venus', diameterKm: 12_104, displayRadius: 7.6, texture: 'planets/venus_atmosphere.jpg',
     facts: { rotationH: -5832.5, yearDays: 224.7, tiltDeg: 177.4, tempC: 464, moonCount: 0, atmosphere: 'dense CO₂, sulfuric-acid clouds', fact: 'spins backwards, hotter than Mercury — runaway greenhouse' },
     el: [0.72333566, 0.00677672, 3.39467605, 181.9790995, 131.60246718, 76.67984255],
     rate: [0.0000039, -0.00004107, -0.0007889, 58517.81538729, 0.00268329, -0.27769418] },
-  { id: 'mars', name: 'Mars', diameterKm: 6_779, displayRadius: 12, texture: 'planets/mars.jpg',
+  { id: 'mars', name: 'Mars', diameterKm: 6_779, displayRadius: 4.3, texture: 'planets/mars.jpg',
     facts: { rotationH: 24.6, yearDays: 687, tiltDeg: 25.2, tempC: -63, moonCount: 2, atmosphere: 'thin CO₂', fact: 'Olympus Mons is the tallest volcano in the solar system (~22 km)' },
     el: [1.52371034, 0.0933941, 1.84969142, -4.55343205, -23.94362959, 49.55953891],
     rate: [0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343] },
-  { id: 'jupiter', name: 'Jupiter', diameterKm: 139_820, displayRadius: 42, texture: 'planets/jupiter.jpg',
+  { id: 'jupiter', name: 'Jupiter', diameterKm: 139_820, displayRadius: 88, texture: 'planets/jupiter.jpg',
     facts: { rotationH: 9.9, yearDays: 4333, tiltDeg: 3.1, tempC: -108, moonCount: 95, atmosphere: 'hydrogen + helium', fact: 'the Great Red Spot is a storm wider than Earth, raging for centuries' },
     el: [5.202887, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909],
     rate: [-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106] },
-  { id: 'saturn', name: 'Saturn', diameterKm: 116_460, displayRadius: 36, texture: 'planets/saturn.jpg',
+  { id: 'saturn', name: 'Saturn', diameterKm: 116_460, displayRadius: 75, texture: 'planets/saturn.jpg',
     facts: { rotationH: 10.7, yearDays: 10759, tiltDeg: 26.7, tempC: -139, moonCount: 146, atmosphere: 'hydrogen + helium', fact: 'less dense than water — it would float in a big enough bathtub' },
     el: [9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448],
     rate: [-0.0012506, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794] },
-  { id: 'uranus', name: 'Uranus', diameterKm: 50_724, displayRadius: 24, texture: 'planets/uranus.jpg',
+  { id: 'uranus', name: 'Uranus', diameterKm: 50_724, displayRadius: 32, texture: 'planets/uranus.jpg',
     facts: { rotationH: -17.2, yearDays: 30687, tiltDeg: 97.8, tempC: -197, moonCount: 28, atmosphere: 'hydrogen, helium, methane (the cyan tint)', fact: 'rolls on its side — seasons last 21 years each' },
     el: [19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.9542763, 74.01692503],
     rate: [-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589] },
-  { id: 'neptune', name: 'Neptune', diameterKm: 49_244, displayRadius: 23, texture: 'planets/neptune.jpg',
+  { id: 'neptune', name: 'Neptune', diameterKm: 49_244, displayRadius: 31, texture: 'planets/neptune.jpg',
     facts: { rotationH: 16.1, yearDays: 60190, tiltDeg: 28.3, tempC: -201, moonCount: 16, atmosphere: 'hydrogen, helium, methane', fact: 'fastest winds in the solar system — up to 2,100 km/h' },
     el: [30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574],
     rate: [0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664] },
+  { id: 'pluto', name: 'Pluto', diameterKm: 2_377, displayRadius: 1.6, texture: '',
+    facts: { rotationH: -153.3, yearDays: 90_560, tiltDeg: 122.5, tempC: -229, moonCount: 5, atmosphere: 'thin nitrogen (when near the Sun)', fact: 'demoted to dwarf planet in 2006 — New Horizons revealed a heart-shaped glacier' },
+    el: [39.48211675, 0.2488273, 17.14001206, 238.92903833, 224.06891629, 110.30393684],
+    rate: [-0.00031596, 0.0000517, 0.00004818, 145.20780515, -0.04062942, -0.01183482] },
 ]
 
 const EARTH: { el: Elements; rate: Elements } = {
@@ -154,10 +158,53 @@ export function subPlanetPoint(
   return { lat: p.decDeg, lng }
 }
 
-/** Compressed scene distance: 1 AU = 900 units (where the Sun already sits),
- * outer planets pulled in by a power law so Neptune still fits the camera. */
-export function sceneDistance(au: number): number {
-  return 900 * Math.pow(au, 0.55)
+/** Season 2 scene scale: heliocentric, UNIFORM — 1 AU in scene units.
+ * No per-planet compression, so orbit geometry stays true. */
+export const AU_SCENE = 2_200
+/** Earth's display radius in solar mode (the globe shrinks to this). */
+export const EARTH_DISPLAY = 8
+export const SUN_DISPLAY = 350
+
+/** Heliocentric ecliptic position of Earth in AU. */
+export function earthHelio(date: Date): [number, number, number] {
+  return helio(EARTH.el, EARTH.rate, centuriesSinceJ2000(date))
+}
+
+/** Heliocentric ecliptic position of one planet in AU. */
+export function planetHelio(id: string, date: Date): [number, number, number] {
+  const p = PLANETS.find((x) => x.id === id)
+  if (!p) return [0, 0, 0]
+  return helio(p.el, p.rate, centuriesSinceJ2000(date))
+}
+
+/** The full orbit ellipse of a planet in heliocentric ecliptic AU —
+ * sampled by eccentric anomaly, so it is the exact instantaneous ellipse. */
+export function helioEllipse(id: string, date: Date, samples = 180): [number, number, number][] {
+  const p = PLANETS.find((x) => x.id === id)
+  if (!p) return []
+  const T = centuriesSinceJ2000(date)
+  const a = p.el[0] + p.rate[0] * T
+  const e = p.el[1] + p.rate[1] * T
+  const I = (p.el[2] + p.rate[2] * T) * RAD
+  const lp = p.el[4] + p.rate[4] * T
+  const ln = p.el[5] + p.rate[5] * T
+  const omega = (lp - ln) * RAD
+  const node = ln * RAD
+  const [cw, sw] = [Math.cos(omega), Math.sin(omega)]
+  const [cn, sn] = [Math.cos(node), Math.sin(node)]
+  const [ci, si] = [Math.cos(I), Math.sin(I)]
+  const out: [number, number, number][] = []
+  for (let i = 0; i <= samples; i++) {
+    const E = (i / samples) * 2 * Math.PI
+    const xp = a * (Math.cos(E) - e)
+    const yp = a * Math.sqrt(1 - e * e) * Math.sin(E)
+    out.push([
+      (cw * cn - sw * sn * ci) * xp + (-sw * cn - cw * sn * ci) * yp,
+      (cw * sn + sw * cn * ci) * xp + (-sw * sn + cw * cn * ci) * yp,
+      sw * si * xp + cw * si * yp,
+    ])
+  }
+  return out
 }
 
 export interface MoonDef {
@@ -196,6 +243,9 @@ export const PLANET_MOONS: Record<string, MoonDef[]> = {
   ],
   neptune: [
     { name: 'Triton', aKkm: 354.8, periodD: 5.877, radiusKm: 1353, retrograde: true, color: '#d9cfc6', fact: 'orbits BACKWARDS — a captured Kuiper-belt world with nitrogen geysers' },
+  ],
+  pluto: [
+    { name: 'Charon', aKkm: 19.6, periodD: 6.387, radiusKm: 606, color: '#a9a29c', fact: 'half Pluto\'s size — they orbit a point between them, a true double world' },
   ],
 }
 

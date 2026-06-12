@@ -11,6 +11,7 @@ import { getGlowTexture, SUN_REFRESH_MS } from './helpers'
 
 export interface Sky {
   sunUniform: { value: THREE.Vector3 }
+  sunSprite: THREE.Sprite
   moonMesh: THREE.Mesh
   apolloMarkers: THREE.Mesh[]
   applySky: (date: Date) => void
@@ -90,6 +91,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
 
   return {
     sunUniform,
+    sunSprite,
     moonMesh,
     apolloMarkers,
     applySky,

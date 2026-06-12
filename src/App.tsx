@@ -29,7 +29,6 @@ const initialView = parseView(window.location.hash)
 export default function App() {
   const { quakes: usgsQuakes, newQuakes, flashes: usgsFlashes } = useQuakes()
   const { quakes: emscQuakes, fresh: emscFresh } = useEmsc()
-  // USGS catalog + EMSC websocket extras (deduped) — quakes within a minute
   const quakes = useMemo(() => mergeQuakes(usgsQuakes, emscQuakes), [usgsQuakes, emscQuakes])
   const flashes = useMemo(() => [...usgsFlashes, ...emscFresh], [usgsFlashes, emscFresh])
   const iss = useIss()
@@ -143,13 +142,16 @@ export default function App() {
       return !s
     })
   }, [])
-  const onPlanetPick = useCallback((id: string) => setFocusPlanet(id), [])
   const onSolarOverview = useCallback(() => setFocusPlanet(null), [])
   const onSolarExit = useCallback(() => {
     setSolarMode(false)
     setFocusPlanet(null)
     onWarpReset() // Earth always comes back live
   }, [onWarpReset])
+  const onPlanetPick = useCallback(
+    (id: string) => (id === 'earth' ? onSolarExit() : setFocusPlanet(id)),
+    [onSolarExit],
+  )
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
@@ -219,7 +221,6 @@ export default function App() {
     [writeHash],
   )
 
-
   // audible ping for just-detected quakes (opt-in via the 🔔 toggle)
   const soundOnRef = useRef(soundOn)
   useEffect(() => {
@@ -257,7 +258,6 @@ export default function App() {
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
   const onIssClick = useCallback(() => setFollowIss((f) => !f), [])
-
   return (
     <>
       <GlobeView
