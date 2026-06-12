@@ -2,26 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import {
   AbovePanel,
-  FollowIssButton,
   IssPanel,
-  LoadingOverlay,
   QuakeDetail,
   QuakePanel,
-  SettingsPanel,
+  SpaceWeatherPanel,
+  TitleCard,
+  WikiPanel,
+} from './components/hud/panels'
+import {
+  FollowIssButton,
+  LoadingOverlay,
   SolarButton,
   SoundToggle,
-  SpaceWeatherPanel,
   TimelinePanel,
-  TitleCard,
   TourButton,
-  WikiPanel,
-  type LayerState,
-  type OrbitEntry,
-} from './components/Hud'
+} from './components/hud/controls'
+import { SettingsPanel } from './components/hud/SettingsPanel'
+import type { LayerState, OrbitEntry } from './components/hud/types'
 import { MoonPanel } from './components/MoonPanel'
 import { PlanetPanel } from './components/PlanetPanel'
-import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
 import { useEmsc, useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
+import { useEcoMode, useGeolocate, useSolarTime, useTimeline } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
 import { playPing } from './lib/ping'
@@ -29,7 +30,6 @@ import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove } from './lib/satellites'
 import { encodeView, parseView } from './lib/share'
 
-const ecoPreference = loadEcoPreference()
 // shared link? restore camera/orbits/layers from the URL hash
 const initialView = parseView(window.location.hash)
 
@@ -66,22 +66,11 @@ export default function App() {
     return base
   })
   const [orbits, setOrbits] = useState<OrbitEntry[]>([])
-  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null)
-  const [locating, setLocating] = useState(false)
-  const [locVersion, setLocVersion] = useState(0)
+  const { userLoc, locating, locVersion, onLocate } = useGeolocate()
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
 
-  // performance: saved preference > weak-GPU heuristic; FPS watchdog can
-  // still kick in after load if the machine turns out to struggle.
-  // Lazy initializer — the GPU probe must run ONCE, not on every render.
-  const [eco, setEco] = useState(() => ecoPreference ?? detectWeakGpu())
-  const onToggleEco = useCallback(() => {
-    setEco((e) => {
-      saveEcoPreference(!e)
-      return !e
-    })
-  }, [])
+  const { eco, onToggleEco } = useEcoMode(ready)
 
   const orbitIds = useMemo(() => orbits.map((o) => o.id), [orbits])
   const satList = useMemo(
@@ -89,33 +78,12 @@ export default function App() {
     [sats],
   )
 
-  // 24h earthquake timeline: offsetH −24…0, 0 = live; play replays the day
-  const [timeOffsetH, setTimeOffsetH] = useState(0)
-  const [timelinePlaying, setTimelinePlaying] = useState(false)
-  useEffect(() => {
-    if (!timelinePlaying) return
-    const id = setInterval(() => {
-      setTimeOffsetH((o) => {
-        const next = o + 0.25
-        if (next >= 0) {
-          setTimelinePlaying(false)
-          return 0
-        }
-        return next
-      })
-    }, 120)
-    return () => clearInterval(id)
-  }, [timelinePlaying])
-  const onTimelineToggle = useCallback(() => {
-    setTimelinePlaying((p) => {
-      if (!p && timeOffsetH >= 0) setTimeOffsetH(-24) // replay from the start
-      return !p
-    })
-  }, [timeOffsetH])
-  const onTimelineScrub = useCallback((h: number) => {
-    setTimelinePlaying(false)
-    setTimeOffsetH(h)
-  }, [])
+  const {
+    timeOffsetH,
+    playing: timelinePlaying,
+    onToggle: onTimelineToggle,
+    onScrub: onTimelineScrub,
+  } = useTimeline()
   const simNow = now + timeOffsetH * 3_600_000
   const timelineActive = timeOffsetH < 0
   const displayQuakes = useMemo(
@@ -159,22 +127,8 @@ export default function App() {
   // 🪐 solar system mode + ⏩ time-warp (simMs runs warp× faster than real)
   const [solarMode, setSolarMode] = useState(false)
   const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
-  const [solarTime, setSolarTime] = useState(() => {
-    const t = Date.now()
-    return { realMs: t, simMs: t, warp: 1 }
-  })
+  const { solarTime, onWarp, onWarpReset } = useSolarTime()
   const solarSimNow = solarTime.simMs + (now - solarTime.realMs) * solarTime.warp
-  const onWarp = useCallback((warp: number) => {
-    // keep the simulated moment continuous; ×1 = pause at that moment
-    setSolarTime((prev) => {
-      const real = Date.now()
-      return { realMs: real, simMs: prev.simMs + (real - prev.realMs) * prev.warp, warp }
-    })
-  }, [])
-  const onWarpReset = useCallback(() => {
-    const t = Date.now()
-    setSolarTime({ realMs: t, simMs: t, warp: 1 })
-  }, [])
   const onMoonEnter = useCallback(() => {
     setMoonMode(true)
     setSolarMode(false)
@@ -275,19 +229,6 @@ export default function App() {
     [writeHash],
   )
 
-  const onLocate = useCallback(() => {
-    if (!navigator.geolocation) return
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setLocVersion((v) => v + 1) // re-fly even to the same place
-        setLocating(false)
-      },
-      () => setLocating(false),
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
-    )
-  }, [])
 
   // audible ping for just-detected quakes (opt-in via the 🔔 toggle)
   const soundOnRef = useRef(soundOn)
@@ -323,20 +264,6 @@ export default function App() {
     })
   }, [])
 
-  // FPS watchdog: no saved preference + not already eco → sample a few
-  // seconds after load and drop to eco automatically when it stutters
-  const watchdogRan = useRef(false)
-  useEffect(() => {
-    if (!ready || watchdogRan.current || ecoPreference !== null) return
-    watchdogRan.current = true
-    let cancelled = false
-    void sampleFps(4_000).then((fps) => {
-      if (!cancelled && fps < 36) setEco(true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [ready])
 
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
