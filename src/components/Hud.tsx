@@ -22,7 +22,7 @@ function toggleFullscreen() {
 
 export function TitleCard({ now, satCount }: { now: number; satCount: number }) {
   return (
-    <div className="hud fade-up pointer-events-auto px-5 py-4">
+    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4">
       <h1 className="flex items-baseline gap-3 text-lg font-bold tracking-tight">
         🌍 Earth Pulse
         <span className="num text-xs font-medium text-slate-400">{formatUtcClock(now)}</span>
@@ -52,7 +52,7 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
 }) {
   const { kp, wind } = weather
   return (
-    <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '180ms' }}>
+    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '180ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         ☀️ Space weather
       </h2>
@@ -320,7 +320,7 @@ export function QuakePanel({
     </button>
   )
   return (
-    <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '120ms' }}>
+    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '120ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Earthquakes · last 24 h
       </h2>
@@ -357,7 +357,7 @@ export function IssPanel({
   now: number
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '240ms' }}>
+    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '240ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         🛰 ISS right now
       </h2>
@@ -397,7 +397,10 @@ export const WikiPanel = memo(function WikiPanel({
   totalSeen: number
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-5 py-4" style={{ animationDelay: '360ms' }}>
+    <div
+      className="hud fade-up pointer-events-auto hidden w-72 px-5 py-4 md:block"
+      style={{ animationDelay: '360ms' }}
+    >
       <h2 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Wikipedia, live
         <span className="num text-[10px] font-normal text-slate-500 normal-case">
@@ -429,7 +432,7 @@ export const WikiPanel = memo(function WikiPanel({
 
 export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number; onClose: () => void }) {
   return (
-    <div className="hud pointer-events-auto px-5 py-4">
+    <div className="hud pointer-events-auto px-4 py-3 sm:px-5 sm:py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="num text-2xl font-bold text-amber-300">{formatMag(quake.mag)}</div>
