@@ -115,11 +115,14 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
 
   // planets: real relative sizes, real tilts, rings, moons, fixed-size labels
   deps.solarAnimRef.current = []
+  // Group space is heliocentric-ECLIPTIC: orbits in XY, north = +Z. A
+  // planet's equator/rings/moons therefore live in the tilt group's XY plane
+  // and its pole is tilt-local +Z (the node direction is approximated).
   for (const p of PLANETS) {
     const system = new THREE.Group()
     system.userData.planetId = p.id
     const tilt = new THREE.Group()
-    tilt.rotation.z = p.facts.tiltDeg * (Math.PI / 180)
+    tilt.rotation.x = p.facts.tiltDeg * (Math.PI / 180)
     system.add(tilt)
 
     const mesh = new THREE.Mesh(
@@ -128,7 +131,12 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     )
     mesh.layers.set(SUNLIT_LAYER)
     loadTex(mesh, p.texture)
-    tilt.add(mesh)
+    // sphere poles are ±Y — the carrier points them at tilt +Z (north) while
+    // the mesh keeps spinning around its own Y in the frame loop
+    const pole = new THREE.Group()
+    pole.rotation.x = Math.PI / 2
+    pole.add(mesh)
+    tilt.add(pole)
     system.add(makeNameSprite(p.name, p.displayRadius, true))
 
     // ring systems with proper radial texture mapping
@@ -149,8 +157,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
           m.color.set('#ffffff')
           m.needsUpdate = true
         })
-      ring.rotation.x = Math.PI / 2 // equatorial; the tilt group does the rest
-      tilt.add(ring)
+      tilt.add(ring) // RingGeometry is XY-native = equatorial in tilt space
     }
     if (p.id === 'saturn') addRing(1.24, 2.27, '#d8c9a3', 1, 'planets/saturn_ring.png')
     if (p.id === 'uranus') addRing(1.6, 1.95, '#9fb6c0', 0.25)
@@ -166,6 +173,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     for (const m of moons) {
       const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.7)
       const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 24, 24), litMaterial(m.color))
+      moonMesh.rotation.x = Math.PI / 2 // pole to tilt +Z, like the planet
       moonMesh.layers.set(SUNLIT_LAYER)
       moonMesh.userData.moonId = m.id
       moonMesh.userData.displayRadius = rMoon
@@ -177,7 +185,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       // a faint orbit ring makes each moon findable around its planet
       const ringPts = Array.from({ length: 97 }, (_, i) => {
         const a = (i / 96) * 2 * Math.PI
-        return new THREE.Vector3(Math.cos(a) * rScene, 0, Math.sin(a) * rScene)
+        return new THREE.Vector3(Math.cos(a) * rScene, Math.sin(a) * rScene, 0)
       })
       const orbitRing = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(ringPts),
@@ -186,13 +194,41 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       tilt.add(orbitRing)
       decor.push(orbitRing)
       tilt.add(moonMesh)
-      animMoons.push({ mesh: moonMesh, def: m, rScene })
+      // transit shadow discs (umbra + soft penumbra), parked invisible on the
+      // system group — the frame loop projects them onto the planet sphere
+      const shadowDisc = (r: number, opacity: number) => {
+        const disc = new THREE.Mesh(
+          new THREE.CircleGeometry(r, 24),
+          new THREE.MeshBasicMaterial({
+            color: '#000000',
+            transparent: true,
+            opacity,
+            depthWrite: false,
+          }),
+        )
+        disc.visible = false
+        system.add(disc)
+        return disc
+      }
+      animMoons.push({
+        mesh: moonMesh,
+        def: m,
+        rScene,
+        umbra: shadowDisc(rMoon * 0.9, 0.55),
+        penumbra: shadowDisc(rMoon * 1.5, 0.18),
+      })
       deps.moonMeshesRef.current.set(m.id, moonMesh)
     }
     decor.forEach((o) => (o.visible = false))
     system.userData.decor = decor
     system.userData.displayRadius = p.displayRadius
-    deps.solarAnimRef.current.push({ mesh, rotationH: p.facts.rotationH, moons: animMoons })
+    deps.solarAnimRef.current.push({
+      mesh,
+      rotationH: p.facts.rotationH,
+      system,
+      planetRadius: p.displayRadius,
+      moons: animMoons,
+    })
 
     group.add(system)
     deps.planetMeshesRef.current.set(p.id, system)
@@ -235,6 +271,11 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   // everything whirl under time-warp. Fixed mapping instead: ecliptic plane →
   // scene XZ, ecliptic north → +Y. Earth still lands exactly at the origin.
   group.rotation.x = -Math.PI / 2
+  // scratch vectors for the per-frame shadow-transit solve
+  const mv = new THREE.Vector3()
+  const dv = new THREE.Vector3()
+  const hv = new THREE.Vector3()
+  const Z_AXIS = new THREE.Vector3(0, 0, 1)
   const frame = (now: Date) => {
     const eh = earthHelio(now)
     // group.position = Rx(-90°) · (−eh·AU):  (x,y,z) → (x, z, −y)
@@ -252,7 +293,25 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       entry.mesh.rotation.y = planetSpin(entry.rotationH, ms)
       for (const m of entry.moons) {
         const a = moonAngle(m.def, ms)
-        m.mesh.position.set(Math.cos(a) * m.rScene, 0, Math.sin(a) * m.rScene)
+        m.mesh.position.set(Math.cos(a) * m.rScene, Math.sin(a) * m.rScene, 0)
+        // ☀️→moon ray vs the planet sphere — a hit means the moon's shadow
+        // transits the disc (Galilean shadows are real observable events)
+        m.mesh.getWorldPosition(mv)
+        group.worldToLocal(mv) // heliocentric group space: the Sun is at 0
+        const c = entry.system.position
+        dv.copy(mv).normalize()
+        const b = dv.dot(c)
+        const det = b * b - (c.lengthSq() - entry.planetRadius ** 2)
+        const t = det > 0 ? b - Math.sqrt(det) : 0
+        const transit = det > 0 && t > mv.length()
+        m.umbra.visible = m.penumbra.visible = transit
+        if (transit) {
+          hv.copy(dv).multiplyScalar(t).sub(c) // hit point, planet-centered
+          m.penumbra.position.copy(hv).multiplyScalar(1.01)
+          m.umbra.position.copy(hv).multiplyScalar(1.014)
+          m.umbra.quaternion.setFromUnitVectors(Z_AXIS, hv.normalize())
+          m.penumbra.quaternion.copy(m.umbra.quaternion)
+        }
       }
     }
     // granulation crawls in real time — a surface boil, not orbital motion

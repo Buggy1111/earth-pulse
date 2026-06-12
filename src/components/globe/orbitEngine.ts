@@ -29,7 +29,18 @@ import {
 export interface SolarAnimEntry {
   mesh: THREE.Mesh
   rotationH: number
-  moons: { mesh: THREE.Mesh; def: MoonDef; rScene: number }[]
+  /** The planet's system group + display radius — the moon-shadow transits
+   * are solved against this sphere every frame (see solar.ts). */
+  system: THREE.Group
+  planetRadius: number
+  moons: {
+    mesh: THREE.Mesh
+    def: MoonDef
+    rScene: number
+    /** Shadow discs cast onto the planet during a transit. */
+    umbra: THREE.Mesh
+    penumbra: THREE.Mesh
+  }[]
 }
 
 export interface OrbitEngineDeps {
