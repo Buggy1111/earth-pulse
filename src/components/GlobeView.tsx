@@ -41,7 +41,6 @@ const CLOUDS_DEG_PER_FRAME = -0.002
 /** One datum for the objects layer: a tracked satellite or the ISS itself. */
 interface OrbitObject extends SatPos {
   kind: 'sat' | 'iss'
-  velocityKmh?: number
   sat?: TrackedSat
 }
 
@@ -116,7 +115,6 @@ export function GlobeView({
 
   // live API telemetry for the ISS tooltip (visual position comes from SGP4)
   const issStateRef = useRef<IssState | null>(null)
-  const trailNameRef = useRef<string | null>(null)
 
   // one-time globe setup
   useEffect(() => {
@@ -294,37 +292,105 @@ export function GlobeView({
     const globe = globeRef.current
     if (!globe || sats.length === 0) return
 
-    const byName = new Map<string, OrbitObject>()
+    const satById = new Map(sats.map((s) => [s.id, s]))
+    const byId = new Map<string, OrbitObject>()
     const objects: OrbitObject[] = []
     for (const p of propagateSats(sats, new Date())) {
-      const sat = sats.find((s) => s.name === p.name)
+      const sat = satById.get(p.id)
       if (!sat) continue
       const o: OrbitObject = {
         kind: isIss(p.name) ? 'iss' : 'sat',
+        id: p.id,
         name: p.name,
         lat: p.lat,
         lng: p.lng,
         altKm: p.altKm,
         sat,
       }
-      byName.set(p.name, o)
+      byId.set(p.id, o)
       objects.push(o)
+    }
+
+    // clicked orbits: any number at once, each with an arrow flying along it
+    interface Trail {
+      paths: TrailPath[]
+      arrow: THREE.Mesh
+      vectors: THREE.Vector3[] // precomputed scene positions along the ring
+      phase: number
+    }
+    const trails = new Map<string, Trail>()
+    const ARROW_GEO = new THREE.ConeGeometry(0.8, 2.4, 8)
+    const ARROW_MAT = new THREE.MeshBasicMaterial({
+      color: '#bdf0ff',
+      transparent: true,
+      opacity: 0.95,
+    })
+    const ARROW_LOOP_MS = 22_000
+    const UP = new THREE.Vector3(0, 1, 0)
+
+    const syncPaths = () => {
+      globe.pathsData([...trails.values()].flatMap((t) => t.paths))
+    }
+
+    const removeTrail = (id: string) => {
+      const t = trails.get(id)
+      if (!t) return
+      globe.scene().remove(t.arrow)
+      trails.delete(id)
+      syncPaths()
+    }
+
+    const addTrail = (o: OrbitObject) => {
+      if (!o.sat) return
+      const track = orbitTrack(o.sat, new Date()).map(
+        (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
+      )
+      const vectors = track.map((p) => {
+        const { x, y, z } = globe.getCoords(p[0], p[1], p[2])
+        return new THREE.Vector3(x, y, z)
+      })
+      const arrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
+      globe.scene().add(arrow)
+      trails.set(o.id, {
+        paths: [
+          { points: track, kind: 'halo' },
+          { points: track, kind: 'core' },
+        ],
+        arrow,
+        vectors,
+        phase: trails.size * 0.37, // spread arrows so several orbits don't sync up
+      })
+      syncPaths()
     }
 
     // three-globe hangs each datum's Object3D off the datum itself
     // (key __threeObjObject for the objects layer; older versions __threeObj)
     type WithMesh = { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D }
     let raf = 0
+    const dir = new THREE.Vector3()
     const frame = () => {
       const now = new Date()
       for (const p of propagateSats(sats, now)) {
-        const o = byName.get(p.name)
+        const o = byId.get(p.id)
         if (!o) continue
         o.lat = p.lat
         o.lng = p.lng
         o.altKm = p.altKm
         const mesh = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
         if (mesh) Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
+      }
+      // arrows ride their orbit rings in the direction of flight
+      const cycle = now.getTime() / ARROW_LOOP_MS
+      for (const t of trails.values()) {
+        const n = t.vectors.length
+        if (n < 2) continue
+        const u = ((cycle + t.phase) % 1) * (n - 1)
+        const i = Math.floor(u)
+        const a = t.vectors[i]
+        const b = t.vectors[Math.min(i + 1, n - 1)]
+        t.arrow.position.lerpVectors(a, b, u - i)
+        dir.subVectors(b, a).normalize()
+        t.arrow.quaternion.setFromUnitVectors(UP, dir)
       }
       raf = requestAnimationFrame(frame)
     }
@@ -351,45 +417,37 @@ export function GlobeView({
           onIssClickRef.current()
           return
         }
-        // toggle a one-orbit trail for the clicked satellite
-        if (trailNameRef.current === o.name || !o.sat) {
-          trailNameRef.current = null
-          globe.pathsData([])
-          return
-        }
-        trailNameRef.current = o.name
-        const track = orbitTrack(o.sat, new Date()).map(
-          (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
-        )
-        // sci-fi neon: wide soft halo underneath, bright energy pulse running on top
-        const trail: TrailPath[] = [
-          { points: track, kind: 'halo' },
-          { points: track, kind: 'core' },
-        ]
-        globe
-          .pathsData(trail)
-          .pathPoints((d) => (d as TrailPath).points)
-          .pathPointLat((p) => (p as number[])[0])
-          .pathPointLng((p) => (p as number[])[1])
-          .pathPointAlt((p) => (p as number[])[2])
-          .pathColor((d: object) =>
-            (d as TrailPath).kind === 'halo'
-              ? ['rgba(56, 189, 248, 0.05)', 'rgba(56, 189, 248, 0.4)', 'rgba(56, 189, 248, 0.05)']
-              : ['rgba(240, 253, 255, 0.95)', 'rgba(125, 211, 252, 0.9)', 'rgba(240, 253, 255, 0.95)'],
-          )
-          .pathStroke((d) => ((d as TrailPath).kind === 'halo' ? 5 : 1.3))
-          .pathDashLength((d) => ((d as TrailPath).kind === 'halo' ? 1 : 0.06))
-          .pathDashGap((d) => ((d as TrailPath).kind === 'halo' ? 0 : 0.025))
-          .pathDashAnimateTime((d) => ((d as TrailPath).kind === 'halo' ? 0 : 4_000))
-          .pathTransitionDuration(600)
+        // toggle this satellite's orbit — any number can be shown at once
+        if (trails.has(o.id)) removeTrail(o.id)
+        else addTrail(o)
       })
+
+    // sci-fi neon trails: wide soft halo underneath, bright energy pulse on top
+    globe
+      .pathPoints((d) => (d as TrailPath).points)
+      .pathPointLat((p) => (p as number[])[0])
+      .pathPointLng((p) => (p as number[])[1])
+      .pathPointAlt((p) => (p as number[])[2])
+      .pathColor((d: object) =>
+        (d as TrailPath).kind === 'halo'
+          ? ['rgba(56, 189, 248, 0.05)', 'rgba(56, 189, 248, 0.4)', 'rgba(56, 189, 248, 0.05)']
+          : ['rgba(240, 253, 255, 0.95)', 'rgba(125, 211, 252, 0.9)', 'rgba(240, 253, 255, 0.95)'],
+      )
+      .pathStroke((d) => ((d as TrailPath).kind === 'halo' ? 5 : 1.3))
+      .pathDashLength((d) => ((d as TrailPath).kind === 'halo' ? 1 : 0.06))
+      .pathDashGap((d) => ((d as TrailPath).kind === 'halo' ? 0 : 0.025))
+      .pathDashAnimateTime((d) => ((d as TrailPath).kind === 'halo' ? 0 : 4_000))
+      .pathTransitionDuration(600)
 
     globe.objectsData(objects)
     raf = requestAnimationFrame(frame)
     return () => {
       cancelAnimationFrame(raf)
+      for (const t of trails.values()) globe.scene().remove(t.arrow)
+      trails.clear()
       globe.pathsData([])
-      trailNameRef.current = null
+      ARROW_GEO.dispose()
+      ARROW_MAT.dispose()
     }
   }, [sats])
 

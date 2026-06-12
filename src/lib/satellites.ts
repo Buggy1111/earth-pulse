@@ -36,6 +36,8 @@ export function parseTle(text: string): TleSet[] {
 }
 
 export interface TrackedSat {
+  /** NORAD catalog number — the ONLY unique key (names repeat: 8× "SL-8 R/B"…). */
+  id: string
   name: string
   satrec: SatRec
 }
@@ -52,7 +54,8 @@ export function toTrackedSats(sets: TleSet[]): TrackedSat[] {
   const out: TrackedSat[] = []
   for (const s of sets) {
     try {
-      out.push({ name: s.name, satrec: twoline2satrec(s.line1, s.line2) })
+      const satrec = twoline2satrec(s.line1, s.line2)
+      out.push({ id: String(satrec.satnum), name: s.name, satrec })
     } catch {
       // malformed element set — skip
     }
@@ -61,6 +64,7 @@ export function toTrackedSats(sets: TleSet[]): TrackedSat[] {
 }
 
 export interface SatPos {
+  id: string
   name: string
   lat: number
   lng: number
@@ -78,6 +82,7 @@ export function propagateSats(sats: TrackedSat[], date: Date): SatPos[] {
       const geo = eciToGeodetic(pv.position, gmst)
       if (!Number.isFinite(geo.height) || geo.height < 80) continue
       out.push({
+        id: s.id,
         name: s.name,
         lat: degreesLat(geo.latitude),
         lng: degreesLong(geo.longitude),

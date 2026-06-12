@@ -173,6 +173,13 @@ HST
     expect(isIss('HST')).toBe(false)
   })
 
+  it('id = NORAD číslo (jména se v TLE opakují, id nikdy)', () => {
+    const sats = toTrackedSats(parseTle(TLE))
+    expect(sats.map((s) => s.id)).toEqual(['25544', '20580'])
+    const pos = propagateSats(sats, new Date(Date.UTC(2026, 5, 12, 6)))
+    expect(pos.map((p) => p.id)).toEqual(['25544', '20580'])
+  })
+
   it('propagace dá platné pozice v LEO', () => {
     const sats = toTrackedSats(parseTle(TLE))
     const pos = propagateSats(sats, new Date(Date.UTC(2026, 5, 12, 6)))
