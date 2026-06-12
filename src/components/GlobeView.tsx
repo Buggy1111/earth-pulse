@@ -36,6 +36,8 @@ interface Props {
   userLoc: { lat: number; lng: number } | null
   /** Bumped on every locate click so we re-fly even to an unchanged position. */
   locVersion: number
+  /** Eco/performance mode: 4K textures, 1× pixel ratio, 30 Hz propagation. */
+  eco: boolean
   /** Satellite picked in the search box — fly the camera to it. */
   focusSat: { id: string; v: number } | null
   /** Quake picked in the HUD — fly the camera there. */
@@ -128,6 +130,7 @@ export function GlobeView({
   selectedOrbitIds,
   userLoc,
   locVersion,
+  eco,
   focusSat,
   flyTo,
   followIss,
@@ -167,6 +170,9 @@ export function GlobeView({
   const bordersRef = useRef<THREE.LineSegments | null>(null)
   const orbitObjectsRef = useRef<Map<string, OrbitObject>>(new Map())
   const tileUpdateRef = useRef<() => void>(() => {})
+  const ecoRef = useRef(eco)
+  const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
+  const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
 
   // one-time globe setup
   useEffect(() => {
@@ -197,15 +203,20 @@ export function GlobeView({
     applySun()
     const sunTimer = setInterval(applySun, SUN_REFRESH_MS)
 
-    // real day & night: 8K day texture blended into 8K city lights along the
-    // live terminator (textures © Solar System Scope, CC BY 4.0)
+    // real day & night: day texture blended into city lights along the live
+    // terminator (textures © Solar System Scope, CC BY 4.0). Eco mode starts
+    // straight on 4K so weak GPUs never even download the 8K files.
+    globe.renderer().setPixelRatio(ecoRef.current ? 1 : Math.min(window.devicePixelRatio, 2))
+    const res = textureResRef.current
     const loader = new THREE.TextureLoader()
     void Promise.all([
-      loader.loadAsync('earth-day-8k.jpg'),
-      loader.loadAsync('earth-night-8k.jpg'),
+      loader.loadAsync(`earth-day-${res}.jpg`),
+      loader.loadAsync(`earth-night-${res}.jpg`),
     ]).then(([day, night]) => {
       if (!globeRef.current) return // unmounted while loading
-      globe.globeMaterial(makeDayNightMaterial(day, night, sunUniform))
+      const material = makeDayNightMaterial(day, night, sunUniform)
+      globeMaterialRef.current = material
+      globe.globeMaterial(material)
       onReadyRef.current()
     })
 
@@ -334,6 +345,35 @@ export function GlobeView({
     tileUpdateRef.current()
   }, [layers.detail])
 
+  // eco/performance mode: pixel ratio + texture resolution swap on the fly
+  useEffect(() => {
+    ecoRef.current = eco
+    const globe = globeRef.current
+    if (!globe) return
+    globe.renderer().setPixelRatio(eco ? 1 : Math.min(window.devicePixelRatio, 2))
+    const wanted: '4k' | '8k' = eco ? '4k' : '8k'
+    const material = globeMaterialRef.current
+    if (!material || textureResRef.current === wanted) return
+    textureResRef.current = wanted
+    const loader = new THREE.TextureLoader()
+    void Promise.all([
+      loader.loadAsync(`earth-day-${wanted}.jpg`),
+      loader.loadAsync(`earth-night-${wanted}.jpg`),
+    ]).then(([day, night]) => {
+      if (textureResRef.current !== wanted || !globeRef.current) return
+      day.colorSpace = THREE.SRGBColorSpace
+      night.colorSpace = THREE.SRGBColorSpace
+      for (const [key, tex] of [
+        ['dayTexture', day],
+        ['nightTexture', night],
+      ] as const) {
+        const old = material.uniforms[key].value as THREE.Texture
+        material.uniforms[key].value = tex
+        old.dispose()
+      }
+    })
+  }, [eco])
+
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
   useEffect(() => {
     const globe = globeRef.current
@@ -446,8 +486,14 @@ export function GlobeView({
     // (key __threeObjObject for the objects layer; older versions __threeObj)
     type WithMesh = { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D }
     let raf = 0
+    let frameNo = 0
     const dir = new THREE.Vector3()
     const frame = () => {
+      // eco mode: propagate at half the frame rate — still fluid, half the CPU
+      if (ecoRef.current && ++frameNo % 2 === 1) {
+        raf = requestAnimationFrame(frame)
+        return
+      }
       const now = new Date()
       const show = layersRef.current
       for (const p of propagateSats(sats, now)) {

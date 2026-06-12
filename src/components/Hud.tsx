@@ -113,6 +113,8 @@ export function SettingsPanel({
   onClearOrbits,
   satList,
   onPickSat,
+  eco,
+  onToggleEco,
   userLoc,
   locating,
   onLocate,
@@ -124,6 +126,8 @@ export function SettingsPanel({
   onClearOrbits: () => void
   satList: OrbitEntry[]
   onPickSat: (id: string, name: string) => void
+  eco: boolean
+  onToggleEco: () => void
   userLoc: { lat: number; lng: number } | null
   locating: boolean
   onLocate: () => void
@@ -188,6 +192,13 @@ export function SettingsPanel({
                 {label}
               </label>
             ))}
+            <label
+              className="mt-1 flex cursor-pointer items-center gap-2 border-t border-white/10 pt-2 text-xs text-slate-300"
+              title="4K textures, lower render resolution, half-rate propagation — for laptops and integrated GPUs"
+            >
+              <input type="checkbox" checked={eco} onChange={onToggleEco} className="accent-emerald-400" />
+              ⚡ smooth performance mode
+            </label>
           </div>
 
           <div className="border-t border-white/10 pt-2">

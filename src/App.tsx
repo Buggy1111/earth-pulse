@@ -14,10 +14,13 @@ import {
   type LayerState,
   type OrbitEntry,
 } from './components/Hud'
+import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
 import { useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass } from './lib/satellites'
+
+const ecoPreference = loadEcoPreference()
 
 export default function App() {
   const { quakes, newQuakes, flashes } = useQuakes()
@@ -47,6 +50,16 @@ export default function App() {
   const [locVersion, setLocVersion] = useState(0)
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
+
+  // performance: saved preference > weak-GPU heuristic; FPS watchdog can
+  // still kick in after load if the machine turns out to struggle
+  const [eco, setEco] = useState(ecoPreference ?? detectWeakGpu())
+  const onToggleEco = useCallback(() => {
+    setEco((e) => {
+      saveEcoPreference(!e)
+      return !e
+    })
+  }, [])
 
   const orbitIds = useMemo(() => orbits.map((o) => o.id), [orbits])
   const satList = useMemo(
@@ -130,6 +143,21 @@ export default function App() {
     })
   }, [])
 
+  // FPS watchdog: no saved preference + not already eco → sample a few
+  // seconds after load and drop to eco automatically when it stutters
+  const watchdogRan = useRef(false)
+  useEffect(() => {
+    if (!ready || watchdogRan.current || ecoPreference !== null) return
+    watchdogRan.current = true
+    let cancelled = false
+    void sampleFps(4_000).then((fps) => {
+      if (!cancelled && fps < 36) setEco(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [ready])
+
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
   const onIssClick = useCallback(() => setFollowIss((f) => !f), [])
@@ -146,6 +174,7 @@ export default function App() {
         selectedOrbitIds={orbitIds}
         userLoc={userLoc}
         locVersion={locVersion}
+        eco={eco}
         focusSat={focusSat}
         flyTo={flyTo}
         followIss={followIss}
@@ -171,6 +200,8 @@ export default function App() {
               onClearOrbits={onClearOrbits}
               satList={satList}
               onPickSat={onPickSat}
+              eco={eco}
+              onToggleEco={onToggleEco}
               userLoc={userLoc}
               locating={locating}
               onLocate={onLocate}
