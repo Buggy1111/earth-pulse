@@ -27,7 +27,7 @@ import {
 } from './satellites'
 import { isSameEvent, mergeQuakes, parseEmscEvent } from './emsc'
 import { geometryLabelPoint, ringCentroid } from './labels'
-import { moonPhaseLabel, subLunarPoint } from './moon'
+import { APOLLO_SITES, moonPhaseLabel, nextMoonPhases, subLunarPoint } from './moon'
 import { encodeView, parseView } from './share'
 import { kpColor, kpLabel, parseKp, parseSolarWind } from './spaceWeather'
 import { nightPolygon, sphericalCircle, subsolarPoint } from './sun'
@@ -398,8 +398,34 @@ describe('Měsíc', () => {
   })
 
   it('moonPhaseLabel formátuje', () => {
-    expect(moonPhaseLabel({ lat: 0, lng: 0, illumination: 0.62, waxing: true })).toBe('waxing 62 %')
-    expect(moonPhaseLabel({ lat: 0, lng: 0, illumination: 0.01, waxing: true })).toBe('new moon')
+    const base = { lat: 0, lng: 0, distanceKm: 384_000, elongationRad: 0 }
+    expect(moonPhaseLabel({ ...base, illumination: 0.62, waxing: true })).toBe('waxing 62 %')
+    expect(moonPhaseLabel({ ...base, illumination: 0.01, waxing: true })).toBe('new moon')
+  })
+
+  it('vzdálenost v reálném rozsahu perigeum–apogeum', () => {
+    const m = subLunarPoint(new Date(Date.UTC(2026, 5, 12)))
+    expect(m.distanceKm).toBeGreaterThan(356_000)
+    expect(m.distanceKm).toBeLessThan(407_000)
+  })
+
+  it('nextMoonPhases: nov před úplňkem (12.6.2026, nov je 14.6.)', () => {
+    const from = new Date(Date.UTC(2026, 5, 12))
+    const { nextFullMs, nextNewMs } = nextMoonPhases(from)
+    expect(nextNewMs).toBeGreaterThan(from.getTime())
+    expect(nextFullMs).toBeGreaterThan(nextNewMs) // nejdřív nov, pak úplněk
+    const newInDays = (nextNewMs - from.getTime()) / 86_400_000
+    expect(newInDays).toBeGreaterThan(1)
+    expect(newInDays).toBeLessThan(5) // realita: 14.6.2026
+  })
+
+  it('Apollo: 6 misí, selenografické souřadnice v rozsahu', () => {
+    expect(APOLLO_SITES).toHaveLength(6)
+    expect(APOLLO_SITES[0]).toMatchObject({ mission: 'Apollo 11', year: 1969 })
+    for (const s of APOLLO_SITES) {
+      expect(Math.abs(s.lat)).toBeLessThan(45)
+      expect(Math.abs(s.lng)).toBeLessThan(90) // všechna přistání na přivrácené straně
+    }
   })
 })
 

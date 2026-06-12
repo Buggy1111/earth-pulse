@@ -48,9 +48,11 @@ export function TitleCard({ now, satCount }: { now: number; satCount: number }) 
 export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
   weather,
   moonLabel,
+  onOpenMoon,
 }: {
   weather: SpaceWeather
   moonLabel: string
+  onOpenMoon: () => void
 }) {
   const { kp, wind } = weather
   return (
@@ -75,7 +77,14 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
           {Number.isFinite(wind.densityPerCm3) && <> · {wind.densityPerCm3.toFixed(1)} p/cm³</>}
         </p>
       )}
-      <p className="mt-0.5 text-xs text-slate-400">🌙 moon: {moonLabel}</p>
+      <button
+        type="button"
+        onClick={onOpenMoon}
+        title="open the interactive Moon — Apollo landing sites & live phase"
+        className="mt-0.5 block cursor-pointer text-left text-xs text-slate-400 hover:text-sky-300"
+      >
+        🌙 moon: {moonLabel} <span className="text-slate-600">· explore ▸</span>
+      </button>
       <p className="mt-2 text-[10px] text-slate-600">
         data: NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
       </p>

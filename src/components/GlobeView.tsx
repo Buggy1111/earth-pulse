@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { feature as topoFeature, mesh as topoMesh } from 'topojson-client'
 import type { Topology, Objects } from 'topojson-specification'
 import { geometryLabelPoint } from '../lib/labels'
-import { subLunarPoint } from '../lib/moon'
+import { APOLLO_SITES, subLunarPoint, type ApolloSite } from '../lib/moon'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
@@ -54,6 +54,12 @@ interface Props {
   tour: boolean
   /** User grabbed the globe during the tour — parent should stop it. */
   onTourBroken: () => void
+  /** Orbit the Moon instead of Earth (entered by clicking the Moon). */
+  moonMode: boolean
+  /** The Moon was clicked while orbiting Earth. */
+  onMoonEnter: () => void
+  /** An Apollo site marker was clicked (null = clicked elsewhere on the Moon). */
+  onApolloPick: (site: ApolloSite | null) => void
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
@@ -172,6 +178,9 @@ export function GlobeView({
   simNow,
   tour,
   onTourBroken,
+  moonMode,
+  onMoonEnter,
+  onApolloPick,
   initialPov,
   onPovChange,
   followIss,
@@ -189,8 +198,11 @@ export function GlobeView({
   const onReadyRef = useRef(onReady)
   const onPovChangeRef = useRef(onPovChange)
   const onTourBrokenRef = useRef(onTourBroken)
+  const onMoonEnterRef = useRef(onMoonEnter)
+  const onApolloPickRef = useRef(onApolloPick)
   const followRef = useRef(followIss)
   const tourRef = useRef(tour)
+  const moonModeRef = useRef(moonMode)
   const layersRef = useRef(layers)
   const quakesRef = useRef(quakes)
   useEffect(() => {
@@ -200,11 +212,14 @@ export function GlobeView({
     onReadyRef.current = onReady
     onPovChangeRef.current = onPovChange
     onTourBrokenRef.current = onTourBroken
+    onMoonEnterRef.current = onMoonEnter
+    onApolloPickRef.current = onApolloPick
     followRef.current = followIss
     tourRef.current = tour
+    moonModeRef.current = moonMode
     layersRef.current = layers
     quakesRef.current = quakes
-  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, onTourBroken, followIss, tour, layers, quakes])
+  }, [onFollowBroken, onIssClick, onSatClick, onReady, onPovChange, onTourBroken, onMoonEnter, onApolloPick, followIss, tour, moonMode, layers, quakes])
   const initialPovRef = useRef(initialPov)
 
   // the globe slowly spins as an opening showcase — first user touch stops it for good
@@ -223,6 +238,8 @@ export function GlobeView({
   const labelsUpdateRef = useRef<() => void>(() => {})
   const countryLabelsRef = useRef<CountryLabel[]>([])
   const volcanoesRef = useRef<THREE.Points | null>(null)
+  const moonMeshRef = useRef<THREE.Mesh | null>(null)
+  const apolloMarkersRef = useRef<THREE.Mesh[]>([])
   const ecoRef = useRef(eco)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
@@ -264,9 +281,70 @@ export function GlobeView({
     sunSprite.scale.set(160, 160, 1)
     globe.scene().add(sunSprite)
     const moonMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(5, 16, 16),
-      new THREE.MeshBasicMaterial({ color: '#c9d1dc' }),
+      new THREE.SphereGeometry(5, 24, 24),
+      new THREE.MeshBasicMaterial({ color: '#e8edf3' }),
     )
+    new THREE.TextureLoader().load('moon-2k.jpg', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace
+      const m = moonMesh.material as THREE.MeshBasicMaterial
+      m.map = tex
+      m.color.set('#ffffff')
+      m.needsUpdate = true
+    })
+    moonMeshRef.current = moonMesh
+    // Apollo landing sites pinned to the lunar surface (selenographic coords)
+    const markerGeo = new THREE.SphereGeometry(0.22, 8, 8)
+    const markerMat = new THREE.MeshBasicMaterial({ color: '#4ade80' })
+    apolloMarkersRef.current = APOLLO_SITES.map((site) => {
+      const marker = new THREE.Mesh(markerGeo, markerMat)
+      const phi = (90 - site.lat) * (Math.PI / 180)
+      const theta = (site.lng + 90) * (Math.PI / 180)
+      marker.position.set(
+        5.05 * Math.sin(phi) * Math.cos(theta),
+        5.05 * Math.cos(phi),
+        -5.05 * Math.sin(phi) * Math.sin(theta),
+      )
+      marker.userData.site = site
+      moonMesh.add(marker)
+      return marker
+    })
+
+    // click handling for the Moon itself + Apollo markers (not globe.gl layers)
+    const raycaster = new THREE.Raycaster()
+    let downX = 0
+    let downY = 0
+    const onPtrDown = (ev: PointerEvent) => {
+      downX = ev.clientX
+      downY = ev.clientY
+    }
+    const onCanvasClick = (ev: MouseEvent) => {
+      if (Math.abs(ev.clientX - downX) + Math.abs(ev.clientY - downY) > 6) return // drag
+      const rect = globe.renderer().domElement.getBoundingClientRect()
+      const ndc = new THREE.Vector2(
+        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+        -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+      )
+      raycaster.setFromCamera(ndc, globe.camera() as THREE.PerspectiveCamera)
+      if (moonModeRef.current) {
+        const hit = raycaster.intersectObjects(apolloMarkersRef.current, false)[0]
+        onApolloPickRef.current((hit?.object.userData.site as ApolloSite) ?? null)
+      } else {
+        const hit = raycaster.intersectObject(moonMesh, true)[0]
+        if (hit) onMoonEnterRef.current()
+      }
+    }
+    globe.renderer().domElement.addEventListener('pointerdown', onPtrDown)
+    globe.renderer().domElement.addEventListener('click', onCanvasClick)
+
+    // globe.gl pins controls.target to (0,0,0) in its own 'change' listener —
+    // ours registers later, so per event we get the last word and re-pin to
+    // the Moon while in moon mode
+    const keepMoonTarget = () => {
+      if (moonModeRef.current && moonMeshRef.current) {
+        globe.controls().target.copy(moonMeshRef.current.position)
+      }
+    }
+    globe.controls().addEventListener('change', keepMoonTarget)
     const moonGlow = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: getGlowTexture(),
@@ -342,7 +420,10 @@ export function GlobeView({
     // when an interaction ends, debounced otherwise (auto-rotate fires
     // 'change' every frame and would starve a plain debounce)
     let povTimer: ReturnType<typeof setTimeout> | undefined
-    const reportPov = () => onPovChangeRef.current(globe.pointOfView())
+    const reportPov = () => {
+      if (moonModeRef.current) return // lunar camera doesn't map to an Earth view
+      onPovChangeRef.current(globe.pointOfView())
+    }
     const onCamChange = () => {
       clearTimeout(povTimer)
       povTimer = setTimeout(reportPov, 600)
@@ -535,12 +616,19 @@ export function GlobeView({
         ;(volcanoes.material as THREE.PointsMaterial).dispose()
         volcanoesRef.current = null
       }
+      globe.renderer().domElement.removeEventListener('pointerdown', onPtrDown)
+      globe.renderer().domElement.removeEventListener('click', onCanvasClick)
+      globe.controls().removeEventListener('change', keepMoonTarget)
       globe.scene().remove(sunSprite)
       sunSprite.material.dispose()
       globe.scene().remove(moonMesh)
       moonMesh.geometry.dispose()
       ;(moonMesh.material as THREE.MeshBasicMaterial).dispose()
       moonGlow.material.dispose()
+      markerGeo.dispose()
+      markerMat.dispose()
+      moonMeshRef.current = null
+      apolloMarkersRef.current = []
       globe.controls().removeEventListener('start', onDragStart)
       globe.controls().removeEventListener('change', updateTileEngine)
       globe.controls().removeEventListener('change', updateLabels)
@@ -735,6 +823,10 @@ export function GlobeView({
           Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
         }
       }
+      // moon drifts ~13°/day — keep the orbit pivot glued to it in moon mode
+      if (moonModeRef.current && moonMeshRef.current) {
+        globe.controls().target.copy(moonMeshRef.current.position)
+      }
       // arrows ride their orbit rings in the direction of flight
       const cycle = now.getTime() / ARROW_LOOP_MS
       for (const t of trails.values()) {
@@ -898,6 +990,33 @@ export function GlobeView({
     const id = setInterval(next, 8_000)
     return () => clearInterval(id)
   }, [tour])
+
+  // 🌙 Moon mode: re-target the orbit controls from Earth to the Moon —
+  // you orbit the Moon exactly like Earth, with Earth hanging in its sky
+  useEffect(() => {
+    const globe = globeRef.current
+    const moon = moonMeshRef.current
+    if (!globe || !moon) return
+    const controls = globe.controls()
+    if (moonMode) {
+      const prevMin = controls.minDistance
+      globe.controls().autoRotate = false
+      userInteractedRef.current = true
+      controls.minDistance = 7 // moon radius is 5
+      // camera between Earth and Moon, slightly offset, looking at the Moon
+      const dir = moon.position.clone().normalize()
+      const cam = globe.camera() as THREE.PerspectiveCamera
+      cam.position.copy(moon.position).addScaledVector(dir, -22).add(new THREE.Vector3(0, 6, 0))
+      controls.target.copy(moon.position)
+      controls.update()
+      return () => {
+        controls.minDistance = prevMin
+        controls.target.set(0, 0, 0)
+        controls.update()
+        globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
+      }
+    }
+  }, [moonMode])
 
   // search pick: fly the camera to the chosen satellite
   useEffect(() => {

@@ -17,10 +17,11 @@ import {
   type LayerState,
   type OrbitEntry,
 } from './components/Hud'
+import { MoonPanel } from './components/MoonPanel'
 import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
 import { useEmsc, useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
 import { mergeQuakes } from './lib/emsc'
-import { moonPhaseLabel, subLunarPoint } from './lib/moon'
+import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove } from './lib/satellites'
@@ -137,7 +138,8 @@ export default function App() {
   )
 
   // moon phase for the HUD, recomputed per minute
-  const moonLabel = useMemo(() => moonPhaseLabel(subLunarPoint(new Date(minuteNow * 60_000))), [minuteNow])
+  const moonState = useMemo(() => subLunarPoint(new Date(minuteNow * 60_000)), [minuteNow])
+  const moonLabel = useMemo(() => moonPhaseLabel(moonState), [moonState])
 
   // 🎬 cinematic tour
   const [tourOn, setTourOn] = useState(false)
@@ -148,6 +150,22 @@ export default function App() {
     })
   }, [])
   const onTourBroken = useCallback(() => setTourOn(false), [])
+
+  // 🌙 moon mode: click the Moon (or the HUD line) → orbit IT instead of Earth
+  const [moonMode, setMoonMode] = useState(false)
+  const [apolloSite, setApolloSite] = useState<ApolloSite | null>(null)
+  const onMoonEnter = useCallback(() => {
+    setMoonMode(true)
+    setFollowIss(false)
+    setTourOn(false)
+    setApolloSite(null)
+  }, [])
+  const onMoonExit = useCallback(() => {
+    setMoonMode(false)
+    setApolloSite(null)
+  }, [])
+  const onApolloPick = useCallback((site: ApolloSite | null) => setApolloSite(site), [])
+
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
@@ -302,6 +320,9 @@ export default function App() {
         simNow={simNow}
         tour={tourOn}
         onTourBroken={onTourBroken}
+        moonMode={moonMode}
+        onMoonEnter={onMoonEnter}
+        onApolloPick={onApolloPick}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
         followIss={followIss}
@@ -318,7 +339,8 @@ export default function App() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col items-start gap-3">
             <TitleCard now={now} satCount={sats.length} />
-            <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} />
+            <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} onOpenMoon={onMoonEnter} />
+            {moonMode && <MoonPanel moon={moonState} picked={apolloSite} onBack={onMoonExit} />}
             <SettingsPanel
               layers={layers}
               onToggleLayer={onToggleLayer}
