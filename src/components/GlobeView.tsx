@@ -76,6 +76,9 @@ interface Props {
   focusPlanet: string | null
   /** A planet (or the Sun = 'sun') was clicked in solar mode. */
   onPlanetPick: (id: string) => void
+  /** Simulated-time anchor: simMs advances `warp`× faster than real time.
+   * warp 1 with simMs≈realMs means "live". Drives the whole sky. */
+  solarTime: { realMs: number; simMs: number; warp: number }
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
@@ -200,6 +203,7 @@ export function GlobeView({
   solarMode,
   focusPlanet,
   onPlanetPick,
+  solarTime,
   initialPov,
   onPovChange,
   followIss,
@@ -273,6 +277,11 @@ export function GlobeView({
   const solarAnimRef = useRef<
     { mesh: THREE.Mesh; rotationH: number; moons: { mesh: THREE.Mesh; def: MoonDef; rScene: number }[] }[]
   >([])
+  const solarTimeRef = useRef(solarTime)
+  useEffect(() => {
+    solarTimeRef.current = solarTime
+  }, [solarTime])
+  const applySkyRef = useRef<(date: Date) => void>(() => {})
   const ecoRef = useRef(eco)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
@@ -401,8 +410,12 @@ export function GlobeView({
     moonMesh.add(moonGlow)
     globe.scene().add(moonMesh)
 
-    const applySun = () => {
-      const now = new Date()
+    // simulated "now": real time, or warped time while time-warping in solar mode
+    const simNowMs = () => {
+      const t = solarTimeRef.current
+      return t.simMs + (Date.now() - t.realMs) * t.warp
+    }
+    const applySky = (now: Date) => {
       const sun = subsolarPoint(now)
       const { x, y, z } = globe.getCoords(sun.lat, sun.lng, 0)
       sunUniform.value.set(x, y, z).normalize()
@@ -413,8 +426,9 @@ export function GlobeView({
       // brighter glow around fuller moon
       ;(moonGlow.material as THREE.SpriteMaterial).opacity = 0.25 + 0.5 * moon.illumination
     }
-    applySun()
-    const sunTimer = setInterval(applySun, SUN_REFRESH_MS)
+    applySkyRef.current = applySky
+    applySky(new Date(simNowMs()))
+    const sunTimer = setInterval(() => applySky(new Date(simNowMs())), SUN_REFRESH_MS)
 
     // real day & night: day texture blended into city lights along the live
     // terminator (textures © Solar System Scope, CC BY 4.0). Eco mode starts
@@ -852,7 +866,9 @@ export function GlobeView({
         raf = requestAnimationFrame(frame)
         return
       }
-      const now = new Date()
+      // warped clock: everything physical follows it (sats speed up too)
+      const t = solarTimeRef.current
+      const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
       const show = layersRef.current
       for (const p of propagateSats(sats, now)) {
         const o = byId.get(p.id)
@@ -1141,7 +1157,9 @@ export function GlobeView({
       group.add(orbitLines)
 
       const updateSolar = () => {
-        const now = new Date()
+        const t = solarTimeRef.current
+        const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
+        applySkyRef.current(now) // keep Sun/Moon/terminator on the warped clock
         const positions = planetPositions(now)
         // sun sits where applySun already puts the glow (900 units ≈ 1 AU)
         const sunSub = subsolarPoint(now)
@@ -1193,7 +1211,8 @@ export function GlobeView({
     const group = solarGroupRef.current
     group.visible = true
     updateSolarRef.current()
-    const timer = setInterval(updateSolarRef.current, 60_000)
+    // 1 Hz so time-warp visibly moves planets along their orbits
+    const timer = setInterval(() => updateSolarRef.current(), 1_000)
 
     // widen the camera envelope for the outer system
     const cam = globe.camera() as THREE.PerspectiveCamera

@@ -156,9 +156,25 @@ export default function App() {
   // 🌙 moon mode: click the Moon (or the HUD line) → orbit IT instead of Earth
   const [moonMode, setMoonMode] = useState(false)
   const [apolloSite, setApolloSite] = useState<ApolloSite | null>(null)
-  // 🪐 solar system mode
+  // 🪐 solar system mode + ⏩ time-warp (simMs runs warp× faster than real)
   const [solarMode, setSolarMode] = useState(false)
   const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
+  const [solarTime, setSolarTime] = useState(() => {
+    const t = Date.now()
+    return { realMs: t, simMs: t, warp: 1 }
+  })
+  const solarSimNow = solarTime.simMs + (now - solarTime.realMs) * solarTime.warp
+  const onWarp = useCallback((warp: number) => {
+    // keep the simulated moment continuous; ×1 = pause at that moment
+    setSolarTime((prev) => {
+      const real = Date.now()
+      return { realMs: real, simMs: prev.simMs + (real - prev.realMs) * prev.warp, warp }
+    })
+  }, [])
+  const onWarpReset = useCallback(() => {
+    const t = Date.now()
+    setSolarTime({ realMs: t, simMs: t, warp: 1 })
+  }, [])
   const onMoonEnter = useCallback(() => {
     setMoonMode(true)
     setSolarMode(false)
@@ -187,7 +203,8 @@ export default function App() {
   const onSolarExit = useCallback(() => {
     setSolarMode(false)
     setFocusPlanet(null)
-  }, [])
+    onWarpReset() // Earth always comes back live
+  }, [onWarpReset])
 
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
@@ -349,6 +366,7 @@ export default function App() {
         solarMode={solarMode}
         focusPlanet={focusPlanet}
         onPlanetPick={onPlanetPick}
+        solarTime={solarTime}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
         followIss={followIss}
@@ -370,7 +388,11 @@ export default function App() {
             {solarMode && (
               <PlanetPanel
                 focus={focusPlanet}
-                now={minuteNow * 60_000}
+                now={solarSimNow}
+                realNow={now}
+                warp={solarTime.warp}
+                onWarp={onWarp}
+                onWarpReset={onWarpReset}
                 onOverview={onSolarOverview}
                 onBack={onSolarExit}
               />
