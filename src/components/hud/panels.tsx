@@ -22,9 +22,18 @@ function toggleFullscreen() {
   else void document.documentElement.requestFullscreen()
 }
 
-export function TitleCard({ now, satCount }: { now: number; satCount: number }) {
+export function TitleCard({
+  now,
+  satCount,
+  subtitle,
+}: {
+  now: number
+  satCount: number
+  /** Mode-specific hint; defaults to the Earth overview line. */
+  subtitle?: string
+}) {
   return (
-    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4">
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4">
       <h1 className="flex items-baseline gap-3 text-lg font-bold tracking-tight">
         🌍 Earth Pulse
         <span className="num text-xs font-medium text-slate-400">{formatUtcClock(now)}</span>
@@ -40,8 +49,8 @@ export function TitleCard({ now, satCount }: { now: number; satCount: number }) 
       </h1>
       <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
         <span className="live-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
-        the planet, live — earthquakes · {satCount > 0 ? `${satCount} satellites` : 'ISS'} · space
-        weather · Wikipedia
+        {subtitle ??
+          `the planet, live — earthquakes · ${satCount > 0 ? `${satCount} satellites` : 'ISS'} · space weather · Wikipedia`}
       </p>
     </div>
   )
@@ -58,7 +67,7 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
 }) {
   const { kp, wind } = weather
   return (
-    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '180ms' }}>
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '180ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         ☀️ Space weather
       </h2>
@@ -102,7 +111,7 @@ export function AbovePanel({
   onPickSat: (id: string, name: string) => void
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto hidden max-w-64 px-4 py-3 sm:block">
+    <div className="hud fade-up pointer-events-auto hidden w-72 px-4 py-3 sm:block">
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         📡 Above you now
       </h2>
@@ -134,11 +143,15 @@ export function QuakePanel({
   flashes,
   now,
   onFocusQuake,
+  soundOn,
+  onToggleSound,
 }: {
   quakes: Quake[]
   flashes: Quake[]
   now: number
   onFocusQuake: (quake: Quake) => void
+  soundOn: boolean
+  onToggleSound: () => void
 }) {
   const stats = quakeStats(quakes)
   const fresh = flashes[flashes.length - 1]
@@ -154,9 +167,20 @@ export function QuakePanel({
     </button>
   )
   return (
-    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '120ms' }}>
-      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '120ms' }}>
+      <h2 className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Earthquakes · last 24 h
+        <button
+          type="button"
+          onClick={onToggleSound}
+          aria-pressed={soundOn}
+          title={soundOn ? 'new-quake sound ping: on' : 'new-quake sound ping: off'}
+          className={`cursor-pointer rounded px-1 text-sm normal-case ${
+            soundOn ? 'text-emerald-300' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          {soundOn ? '🔔' : '🔕'}
+        </button>
       </h2>
       <div className="num mt-1 text-3xl font-bold text-amber-300">{stats.count}</div>
       {fresh && (
@@ -191,7 +215,7 @@ export function IssPanel({
   now: number
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '240ms' }}>
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '240ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         🛰 ISS right now
       </h2>
@@ -266,7 +290,7 @@ export const WikiPanel = memo(function WikiPanel({
 
 export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number; onClose: () => void }) {
   return (
-    <div className="hud pointer-events-auto px-4 py-3 sm:px-5 sm:py-4">
+    <div className="hud pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="num text-2xl font-bold text-amber-300">{formatMag(quake.mag)}</div>

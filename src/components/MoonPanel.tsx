@@ -13,7 +13,7 @@ export function MoonPanel({
   onBack: () => void
 }) {
   return (
-    <div className="hud pointer-events-auto max-w-72 px-4 py-3">
+    <div className="hud pointer-events-auto w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
           🌙 Orbiting the Moon

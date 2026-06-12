@@ -45,7 +45,7 @@ export function SettingsPanel({
       ? satList.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
       : []
   return (
-    <div className="hud fade-up pointer-events-auto max-w-64 px-4 py-3" style={{ animationDelay: '240ms' }}>
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '240ms' }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

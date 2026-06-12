@@ -9,14 +9,7 @@ import {
   TitleCard,
   WikiPanel,
 } from './components/hud/panels'
-import {
-  FollowIssButton,
-  LoadingOverlay,
-  SolarButton,
-  SoundToggle,
-  TimelinePanel,
-  TourButton,
-} from './components/hud/controls'
+import { EarthDock, LoadingOverlay, TimelinePanel } from './components/hud/controls'
 import { SettingsPanel } from './components/hud/SettingsPanel'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { MoonPanel } from './components/MoonPanel'
@@ -78,12 +71,7 @@ export default function App() {
     [sats],
   )
 
-  const {
-    timeOffsetH,
-    playing: timelinePlaying,
-    onToggle: onTimelineToggle,
-    onScrub: onTimelineScrub,
-  } = useTimeline()
+  const { timeOffsetH, playing: timelinePlaying, onToggle: onTimelineToggle, onScrub: onTimelineScrub } = useTimeline()
   const simNow = now + timeOffsetH * 3_600_000
   const timelineActive = timeOffsetH < 0
   const displayQuakes = useMemo(
@@ -141,6 +129,9 @@ export default function App() {
     setApolloSite(null)
   }, [])
   const onApolloPick = useCallback((site: ApolloSite | null) => setApolloSite(site), [])
+
+  // which world the HUD lives in right now
+  const mode: 'earth' | 'moon' | 'solar' = solarMode ? 'solar' : moonMode ? 'moon' : 'earth'
   const onSolarToggle = useCallback(() => {
     setSolarMode((s) => {
       if (!s) {
@@ -159,7 +150,6 @@ export default function App() {
     setFocusPlanet(null)
     onWarpReset() // Earth always comes back live
   }, [onWarpReset])
-
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
@@ -255,15 +245,14 @@ export default function App() {
 
   const toggleSound = useCallback(() => {
     setSoundOn((on) => {
-      // create/resume the context on the user gesture — autoplay policy
       if (!on) {
+        // create/resume the context on the user gesture — autoplay policy
         audioRef.current ??= new AudioContext()
         void audioRef.current.resume()
       }
       return !on
     })
   }, [])
-
 
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
@@ -305,14 +294,30 @@ export default function App() {
       />
       {!ready && <LoadingOverlay />}
 
-      {/* HUD overlay — pointer-events only on the panels, globe stays draggable */}
+      {/* HUD overlay — mode-aware: Earth shows the live dashboards, Moon and
+          Solar modes keep only what belongs to them. Pointer events live on
+          the panels; the globe stays draggable. */}
       <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col items-start gap-3">
-            <TitleCard now={now} satCount={sats.length} />
-            <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} onOpenMoon={onMoonEnter} />
-            {moonMode && <MoonPanel moon={moonState} picked={apolloSite} onBack={onMoonExit} />}
-            {solarMode && (
+            <TitleCard
+              now={now}
+              satCount={sats.length}
+              subtitle={
+                solarMode
+                  ? 'the solar system, live — click any body to orbit it'
+                  : moonMode
+                    ? 'orbiting the Moon — drag to orbit, scroll to zoom'
+                    : undefined
+              }
+            />
+            {mode === 'earth' && (
+              <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} onOpenMoon={onMoonEnter} />
+            )}
+            {mode === 'moon' && (
+              <MoonPanel moon={moonState} picked={apolloSite} onBack={onMoonExit} />
+            )}
+            {mode === 'solar' && (
               <PlanetPanel
                 focus={focusPlanet}
                 now={solarSimNow}
@@ -324,47 +329,64 @@ export default function App() {
                 onBack={onSolarExit}
               />
             )}
-            <SettingsPanel
-              layers={layers}
-              onToggleLayer={onToggleLayer}
-              orbits={orbits}
-              onRemoveOrbit={onRemoveOrbit}
-              onClearOrbits={onClearOrbits}
-              satList={satList}
-              onPickSat={onPickSat}
-              eco={eco}
-              onToggleEco={onToggleEco}
-              userLoc={userLoc}
-              locating={locating}
-              onLocate={onLocate}
-            />
-            {userLoc && <AbovePanel overhead={overhead} onPickSat={onPickSat} />}
+            {mode === 'earth' && (
+              <SettingsPanel
+                layers={layers}
+                onToggleLayer={onToggleLayer}
+                orbits={orbits}
+                onRemoveOrbit={onRemoveOrbit}
+                onClearOrbits={onClearOrbits}
+                satList={satList}
+                onPickSat={onPickSat}
+                eco={eco}
+                onToggleEco={onToggleEco}
+                userLoc={userLoc}
+                locating={locating}
+                onLocate={onLocate}
+              />
+            )}
+            {mode === 'earth' && userLoc && <AbovePanel overhead={overhead} onPickSat={onPickSat} />}
           </div>
-          <WikiPanel edits={edits} totalSeen={totalSeen} />
+          {mode === 'earth' && <WikiPanel edits={edits} totalSeen={totalSeen} />}
         </div>
 
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col items-start gap-3">
-            <SoundToggle on={soundOn} onToggle={toggleSound} />
-            <TimelinePanel
-              offsetH={timeOffsetH}
-              playing={timelinePlaying}
-              onScrub={onTimelineScrub}
-              onTogglePlay={onTimelineToggle}
-            />
-            <QuakePanel
-              quakes={displayQuakes}
-              flashes={timelineActive ? [] : flashes}
-              now={simNow}
-              onFocusQuake={onFocusQuake}
-            />
+            {mode === 'earth' && (
+              <>
+                <TimelinePanel
+                  offsetH={timeOffsetH}
+                  playing={timelinePlaying}
+                  onScrub={onTimelineScrub}
+                  onTogglePlay={onTimelineToggle}
+                />
+                <QuakePanel
+                  quakes={displayQuakes}
+                  flashes={timelineActive ? [] : flashes}
+                  now={simNow}
+                  onFocusQuake={onFocusQuake}
+                  soundOn={soundOn}
+                  onToggleSound={toggleSound}
+                />
+              </>
+            )}
           </div>
           <div className="flex flex-col items-end gap-3">
-            {selected && <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />}
-            <SolarButton active={solarMode} onToggle={onSolarToggle} />
-            <TourButton active={tourOn} onToggle={onTourToggle} />
-            {layers.iss && <FollowIssButton active={followIss} onToggle={() => setFollowIss((f) => !f)} />}
-            <IssPanel iss={iss} pass={issPass} now={now} />
+            {mode === 'earth' && selected && (
+              <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />
+            )}
+            {mode === 'earth' && (
+              <EarthDock
+                solarMode={solarMode}
+                tourOn={tourOn}
+                followIss={followIss}
+                showFollow={layers.iss}
+                onSolar={onSolarToggle}
+                onTour={onTourToggle}
+                onFollow={onIssClick}
+              />
+            )}
+            {mode === 'earth' && <IssPanel iss={iss} pass={issPass} now={now} />}
           </div>
         </div>
       </div>
