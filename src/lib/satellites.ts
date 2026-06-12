@@ -143,3 +143,59 @@ export const EARTH_RADIUS_KM = 6371
 export function globeAltitude(altKm: number): number {
   return altKm / EARTH_RADIUS_KM
 }
+
+const RAD = Math.PI / 180
+
+function toEcef(lat: number, lng: number, altKm: number): [number, number, number] {
+  const r = EARTH_RADIUS_KM + altKm
+  const cl = Math.cos(lat * RAD)
+  return [r * cl * Math.cos(lng * RAD), r * cl * Math.sin(lng * RAD), r * Math.sin(lat * RAD)]
+}
+
+/** Elevation of a satellite above an observer's horizon, in degrees.
+ * Spherical Earth — plenty for pass prediction. */
+export function elevationDeg(
+  observer: { lat: number; lng: number },
+  sat: { lat: number; lng: number; altKm: number },
+): number {
+  const o = toEcef(observer.lat, observer.lng, 0)
+  const s = toEcef(sat.lat, sat.lng, sat.altKm)
+  const range = [s[0] - o[0], s[1] - o[1], s[2] - o[2]]
+  const rangeLen = Math.hypot(...range)
+  const oLen = Math.hypot(...o)
+  const dot = (range[0] * o[0] + range[1] * o[1] + range[2] * o[2]) / (rangeLen * oLen)
+  return Math.asin(Math.min(Math.max(dot, -1), 1)) / RAD
+}
+
+export interface IssPass {
+  /** When the pass starts (sat climbs above `minElevation`), epoch ms. */
+  startMs: number
+  maxElevationDeg: number
+}
+
+/** First time `sat` rises above `minElevation`° over `observer` within the
+ * next `lookaheadMin` minutes — "the ISS flies over you in …". */
+export function nextPass(
+  sat: TrackedSat,
+  observer: { lat: number; lng: number },
+  from: Date,
+  lookaheadMin = 1_440,
+  stepS = 30,
+  minElevation = 10,
+): IssPass | null {
+  let start: number | null = null
+  let maxEl = -90
+  for (let s = 0; s <= lookaheadMin * 60; s += stepS) {
+    const t = new Date(from.getTime() + s * 1000)
+    const pos = propagateSats([sat], t)[0]
+    if (!pos) continue
+    const el = elevationDeg(observer, pos)
+    if (el >= minElevation) {
+      start ??= t.getTime()
+      if (el > maxEl) maxEl = el
+    } else if (start !== null) {
+      return { startMs: start, maxElevationDeg: maxEl }
+    }
+  }
+  return start !== null ? { startMs: start, maxElevationDeg: maxEl } : null
+}

@@ -1,6 +1,8 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { mesh as topoMesh } from 'topojson-client'
+import type { Topology, Objects } from 'topojson-specification'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../lib/quakes'
@@ -34,6 +36,10 @@ interface Props {
   userLoc: { lat: number; lng: number } | null
   /** Bumped on every locate click so we re-fly even to an unchanged position. */
   locVersion: number
+  /** Satellite picked in the search box — fly the camera to it. */
+  focusSat: { id: string; v: number } | null
+  /** Quake picked in the HUD — fly the camera there. */
+  flyTo: { lat: number; lng: number; v: number } | null
   followIss: boolean
   /** User grabbed the globe while following — parent should drop follow mode. */
   onFollowBroken: () => void
@@ -122,6 +128,8 @@ export function GlobeView({
   selectedOrbitIds,
   userLoc,
   locVersion,
+  focusSat,
+  flyTo,
   followIss,
   onFollowBroken,
   onIssClick,
@@ -152,9 +160,12 @@ export function GlobeView({
   // live API telemetry for the ISS tooltip (visual position comes from SGP4)
   const issStateRef = useRef<IssState | null>(null)
 
-  // shown orbits + the cloud mesh, shared between effects outside React state
+  // shown orbits + the cloud mesh + country borders + live orbit datums,
+  // shared between effects outside React state
   const trailsRef = useRef<Map<string, Trail>>(new Map())
   const cloudsRef = useRef<THREE.Mesh | null>(null)
+  const bordersRef = useRef<THREE.LineSegments | null>(null)
+  const orbitObjectsRef = useRef<Map<string, OrbitObject>>(new Map())
 
   // one-time globe setup
   useEffect(() => {
@@ -222,6 +233,38 @@ export function GlobeView({
       cloudsRaf = requestAnimationFrame(rotate)
     })
 
+    // country borders: Natural Earth 110m as one merged line-segment mesh,
+    // draped just above the surface
+    void fetch('geo/countries-110m.json')
+      .then((r) => r.json())
+      .then((topo: Topology<Objects>) => {
+        if (!globeRef.current) return
+        const borders = topoMesh(topo, topo.objects.countries)
+        const lines =
+          borders.type === 'MultiLineString' ? borders.coordinates : [borders.coordinates]
+        const positions: number[] = []
+        for (const line of lines) {
+          for (let i = 0; i < line.length - 1; i++) {
+            for (const [lng, lat] of [line[i], line[i + 1]]) {
+              const { x, y, z } = globe.getCoords(lat as number, lng as number, 0.004)
+              positions.push(x, y, z)
+            }
+          }
+        }
+        const geometry = new THREE.BufferGeometry()
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+        const segments = new THREE.LineSegments(
+          geometry,
+          new THREE.LineBasicMaterial({ color: '#9fb3c8', transparent: true, opacity: 0.38 }),
+        )
+        segments.visible = layersRef.current.borders
+        globe.scene().add(segments)
+        bordersRef.current = segments
+      })
+      .catch(() => {
+        // no borders file — the globe just stays border-less
+      })
+
     const onResize = () => {
       globe.width(window.innerWidth).height(window.innerHeight)
     }
@@ -242,6 +285,13 @@ export function GlobeView({
         ;(clouds.material as THREE.MeshPhongMaterial).dispose()
         cloudsRef.current = null
       }
+      const borders = bordersRef.current
+      if (borders) {
+        globe.scene().remove(borders)
+        borders.geometry.dispose()
+        ;(borders.material as THREE.LineBasicMaterial).dispose()
+        bordersRef.current = null
+      }
       globe.controls().removeEventListener('start', onDragStart)
       window.removeEventListener('resize', onResize)
       globe._destructor()
@@ -249,10 +299,13 @@ export function GlobeView({
     }
   }, [])
 
-  // cloud layer visibility (mesh lives outside React)
+  // cloud + border layer visibility (meshes live outside React)
   useEffect(() => {
     if (cloudsRef.current) cloudsRef.current.visible = layers.clouds
   }, [layers.clouds])
+  useEffect(() => {
+    if (bordersRef.current) bordersRef.current.visible = layers.borders
+  }, [layers.borders])
 
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
   useEffect(() => {
@@ -360,6 +413,7 @@ export function GlobeView({
       byId.set(p.id, o)
       objects.push(o)
     }
+    orbitObjectsRef.current = byId
 
     // three-globe hangs each datum's Object3D off the datum itself
     // (key __threeObjObject for the objects layer; older versions __threeObj)
@@ -509,6 +563,29 @@ export function GlobeView({
       userInteractedRef.current = true
     }
   }, [userLoc, locVersion])
+
+  // search pick: fly the camera to the chosen satellite
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !focusSat) return
+    const o = orbitObjectsRef.current.get(focusSat.id)
+    if (!o) return
+    globe.controls().autoRotate = false
+    userInteractedRef.current = true
+    globe.pointOfView(
+      { lat: o.lat, lng: o.lng, altitude: Math.max(0.7, globeAltitude(o.altKm) + 0.35) },
+      1_400,
+    )
+  }, [focusSat])
+
+  // HUD quake click: fly the camera to the epicenter
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !flyTo) return
+    globe.controls().autoRotate = false
+    userInteractedRef.current = true
+    globe.pointOfView({ lat: flyTo.lat, lng: flyTo.lng, altitude: 1.0 }, 1_400)
+  }, [flyTo])
 
   // live API telemetry — the tooltip and follow camera read it
   useEffect(() => {

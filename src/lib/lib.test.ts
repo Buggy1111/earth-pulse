@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCoords, formatKmh, formatUtcClock, timeAgo } from './format'
+import { formatCoords, formatCountdown, formatKmh, formatUtcClock, timeAgo } from './format'
 import { parseIss } from './iss'
 import { pingDuration, pingFrequency, pingGain } from './ping'
 import {
@@ -14,8 +14,10 @@ import {
 } from './quakes'
 import { auroraColatitude, auroraOpacity, auroraOvals, auroraWidth } from './aurora'
 import {
+  elevationDeg,
   globeAltitude,
   isIss,
+  nextPass,
   orbitalPeriodMin,
   orbitTrack,
   parseTle,
@@ -265,6 +267,27 @@ describe('orbitTrack', () => {
   })
 })
 
+describe('ISS pass prediction', () => {
+  const ISS_TLE = `ISS (ZARYA)
+1 25544U 98067A   26162.50000000  .00016717  00000+0  30200-3 0  9990
+2 25544  51.6400 208.9163 0006317  69.9862 290.2026 15.49815308 10000`
+
+  it('elevationDeg: přímo nad hlavou 90°, na protinožcích −90°', () => {
+    expect(elevationDeg({ lat: 50, lng: 15 }, { lat: 50, lng: 15, altKm: 420 })).toBeCloseTo(90, 3)
+    expect(elevationDeg({ lat: 50, lng: 15 }, { lat: -50, lng: -165, altKm: 420 })).toBeLessThan(-80)
+  })
+
+  it('nextPass najde přelet ISS nad Moravou do 24 h (inklinace 51,6° pokrývá 49,8°N)', () => {
+    const [sat] = toTrackedSats(parseTle(ISS_TLE))
+    const pass = nextPass(sat, { lat: 49.75, lng: 18.1 }, new Date(Date.UTC(2026, 5, 12, 6)))
+    expect(pass).not.toBeNull()
+    expect(pass!.maxElevationDeg).toBeGreaterThanOrEqual(10)
+    const hoursAway = (pass!.startMs - Date.UTC(2026, 5, 12, 6)) / 3_600_000
+    expect(hoursAway).toBeGreaterThanOrEqual(0)
+    expect(hoursAway).toBeLessThan(24)
+  })
+})
+
 describe('space weather (NOAA SWPC)', () => {
   it('parseKp bere poslední platný řádek', () => {
     const rows = [
@@ -327,6 +350,8 @@ describe('format + iss', () => {
     expect(formatCoords(50.1, -14.3)).toBe('50.1°N 14.3°W')
     expect(formatKmh(27585.6)).toBe('27,586 km/h')
     expect(formatUtcClock(Date.UTC(2026, 5, 12, 7, 4, 9))).toBe('07:04:09 UTC')
+    expect(formatCountdown(8 * 60_000)).toBe('8 min')
+    expect(formatCountdown(134 * 60_000)).toBe('2 h 14 min')
   })
 
   it('parseIss mapuje pole', () => {

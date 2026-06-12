@@ -1,10 +1,24 @@
 import { memo, useState } from 'react'
-import { formatCoords, formatKm, formatKmh, formatMag, formatUtcClock, timeAgo } from '../lib/format'
+import {
+  formatCoords,
+  formatCountdown,
+  formatKm,
+  formatKmh,
+  formatMag,
+  formatUtcClock,
+  timeAgo,
+} from '../lib/format'
+import type { IssPass } from '../lib/satellites'
 import type { IssState } from '../lib/iss'
 import { quakeStats, type Quake } from '../lib/quakes'
 import { kpColor, kpLabel } from '../lib/spaceWeather'
 import type { WikiEdit } from '../lib/wiki'
 import type { SpaceWeather } from '../hooks'
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) void document.exitFullscreen()
+  else void document.documentElement.requestFullscreen()
+}
 
 export function TitleCard({ now, satCount }: { now: number; satCount: number }) {
   return (
@@ -12,6 +26,15 @@ export function TitleCard({ now, satCount }: { now: number; satCount: number }) 
       <h1 className="flex items-baseline gap-3 text-lg font-bold tracking-tight">
         🌍 Earth Pulse
         <span className="num text-xs font-medium text-slate-400">{formatUtcClock(now)}</span>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label="Toggle fullscreen"
+          title="fullscreen"
+          className="cursor-pointer text-sm text-slate-500 hover:text-slate-200"
+        >
+          ⛶
+        </button>
       </h1>
       <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
         <span className="live-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
@@ -63,6 +86,7 @@ export interface LayerState {
   quakes: boolean
   aurora: boolean
   clouds: boolean
+  borders: boolean
 }
 
 export interface OrbitEntry {
@@ -76,6 +100,7 @@ const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
   { key: 'quakes', label: '🌋 earthquakes' },
   { key: 'aurora', label: '🌌 aurora' },
   { key: 'clouds', label: '☁️ clouds' },
+  { key: 'borders', label: '🗺 country borders' },
 ]
 
 export function SettingsPanel({
@@ -84,6 +109,8 @@ export function SettingsPanel({
   orbits,
   onRemoveOrbit,
   onClearOrbits,
+  satList,
+  onPickSat,
   userLoc,
   locating,
   onLocate,
@@ -93,11 +120,18 @@ export function SettingsPanel({
   orbits: OrbitEntry[]
   onRemoveOrbit: (id: string) => void
   onClearOrbits: () => void
+  satList: OrbitEntry[]
+  onPickSat: (id: string, name: string) => void
   userLoc: { lat: number; lng: number } | null
   locating: boolean
   onLocate: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const matches =
+    query.trim().length >= 2
+      ? satList.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      : []
   return (
     <div className="hud fade-up pointer-events-auto max-w-64 px-4 py-3" style={{ animationDelay: '240ms' }}>
       <button
@@ -112,6 +146,34 @@ export function SettingsPanel({
 
       {open && (
         <div className="mt-2 flex flex-col gap-2">
+          <div className="relative">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="🔭 find a satellite…"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-500 focus:border-sky-400/50 focus:outline-none"
+            />
+            {matches.length > 0 && (
+              <ul className="mt-1 flex flex-col">
+                {matches.map((m) => (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onPickSat(m.id, m.name)
+                        setQuery('')
+                      }}
+                      className="w-full cursor-pointer truncate rounded px-1.5 py-0.5 text-left text-xs text-slate-300 hover:bg-white/10 hover:text-sky-300"
+                    >
+                      {m.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="flex flex-col gap-1">
             {LAYER_LABELS.map(({ key, label }) => (
               <label key={key} className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
@@ -224,13 +286,26 @@ export function QuakePanel({
   quakes,
   flashes,
   now,
+  onFocusQuake,
 }: {
   quakes: Quake[]
   flashes: Quake[]
   now: number
+  onFocusQuake: (quake: Quake) => void
 }) {
   const stats = quakeStats(quakes)
   const fresh = flashes[flashes.length - 1]
+  const row = (label: string, q: Quake, accent: string, extra?: string) => (
+    <button
+      type="button"
+      onClick={() => onFocusQuake(q)}
+      title="fly there"
+      className="block max-w-56 cursor-pointer text-left text-xs text-slate-400 hover:text-slate-200"
+    >
+      {label}: <span className={accent}>{formatMag(q.mag)}</span> {q.place}
+      {extra && <span className="num text-slate-500"> · {extra}</span>}
+    </button>
+  )
   return (
     <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '120ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
@@ -238,31 +313,36 @@ export function QuakePanel({
       </h2>
       <div className="num mt-1 text-3xl font-bold text-amber-300">{stats.count}</div>
       {fresh && (
-        <p className="slide-in mt-1 max-w-56 text-xs">
+        <button
+          type="button"
+          onClick={() => onFocusQuake(fresh)}
+          className="slide-in mt-1 block max-w-56 cursor-pointer text-left text-xs"
+        >
           <span className="mr-1.5 rounded bg-rose-500/20 px-1 font-bold text-rose-300">NEW</span>
           <span className="text-slate-200">{formatMag(fresh.mag)}</span>{' '}
           <span className="text-slate-400">{fresh.place}</span>
-        </p>
+        </button>
       )}
       {stats.latest && (
-        <p className="mt-1 max-w-56 text-xs text-slate-400">
-          latest: <span className="text-slate-200">{formatMag(stats.latest.mag)}</span>{' '}
-          {stats.latest.place}
-          <span className="num text-slate-500"> · {timeAgo(stats.latest.time, now)}</span>
-        </p>
+        <div className="mt-1">{row('latest', stats.latest, 'text-slate-200', timeAgo(stats.latest.time, now))}</div>
       )}
       {stats.strongest && (
-        <p className="mt-0.5 max-w-56 text-xs text-slate-400">
-          strongest: <span className="text-rose-300">{formatMag(stats.strongest.mag)}</span>{' '}
-          {stats.strongest.place}
-        </p>
+        <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
       )}
       <p className="mt-2 text-[10px] text-slate-600">data: USGS, refreshed every minute</p>
     </div>
   )
 }
 
-export function IssPanel({ iss }: { iss: IssState | null }) {
+export function IssPanel({
+  iss,
+  pass,
+  now,
+}: {
+  iss: IssState | null
+  pass: IssPass | null
+  now: number
+}) {
   return (
     <div className="hud fade-up pointer-events-auto px-5 py-4" style={{ animationDelay: '240ms' }}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
@@ -278,6 +358,19 @@ export function IssPanel({ iss }: { iss: IssState | null }) {
         </>
       ) : (
         <p className="mt-1 text-xs text-slate-500">acquiring signal…</p>
+      )}
+      {pass && (
+        <p className="mt-1.5 text-xs text-emerald-300">
+          {pass.startMs <= now ? (
+            <>✨ over your location right now!</>
+          ) : (
+            <>
+              over your location in{' '}
+              <span className="num font-semibold">{formatCountdown(pass.startMs - now)}</span>
+              <span className="num text-slate-400"> · max {Math.round(pass.maxElevationDeg)}°</span>
+            </>
+          )}
+        </p>
       )}
     </div>
   )

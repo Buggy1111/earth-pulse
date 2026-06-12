@@ -17,6 +17,7 @@ import {
 import { useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
+import { isIss, nextPass } from './lib/satellites'
 
 export default function App() {
   const { quakes, newQuakes, flashes } = useQuakes()
@@ -37,13 +38,29 @@ export default function App() {
     quakes: true,
     aurora: true,
     clouds: true,
+    borders: true,
   })
   const [orbits, setOrbits] = useState<OrbitEntry[]>([])
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null)
   const [locating, setLocating] = useState(false)
   const [locVersion, setLocVersion] = useState(0)
+  const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
+  const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
 
   const orbitIds = useMemo(() => orbits.map((o) => o.id), [orbits])
+  const satList = useMemo(
+    () => sats.filter((s) => !isIss(s.name)).map((s) => ({ id: s.id, name: s.name })),
+    [sats],
+  )
+
+  // next ISS pass over the user's location, re-checked once a minute
+  const minuteNow = Math.floor(now / 60_000)
+  const issPass = useMemo(() => {
+    if (!userLoc) return null
+    const issSat = sats.find((s) => isIss(s.name))
+    if (!issSat) return null
+    return nextPass(issSat, userLoc, new Date(minuteNow * 60_000))
+  }, [userLoc, sats, minuteNow])
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
@@ -63,6 +80,17 @@ export default function App() {
     [],
   )
   const onClearOrbits = useCallback(() => setOrbits([]), [])
+
+  // search pick: show the orbit AND fly the camera to the satellite
+  const onPickSat = useCallback((id: string, name: string) => {
+    setOrbits((list) => (list.some((o) => o.id === id) ? list : [...list, { id, name }]))
+    setFocusSat((f) => ({ id, v: (f?.v ?? 0) + 1 }))
+  }, [])
+
+  const onFocusQuake = useCallback((q: Quake) => {
+    setSelected(q)
+    setFlyTo((f) => ({ lat: q.lat, lng: q.lng, v: (f?.v ?? 0) + 1 }))
+  }, [])
 
   const onLocate = useCallback(() => {
     if (!navigator.geolocation) return
@@ -117,6 +145,8 @@ export default function App() {
         selectedOrbitIds={orbitIds}
         userLoc={userLoc}
         locVersion={locVersion}
+        focusSat={focusSat}
+        flyTo={flyTo}
         followIss={followIss}
         onFollowBroken={onFollowBroken}
         onIssClick={onIssClick}
@@ -138,6 +168,8 @@ export default function App() {
               orbits={orbits}
               onRemoveOrbit={onRemoveOrbit}
               onClearOrbits={onClearOrbits}
+              satList={satList}
+              onPickSat={onPickSat}
               userLoc={userLoc}
               locating={locating}
               onLocate={onLocate}
@@ -149,12 +181,12 @@ export default function App() {
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-3">
             <SoundToggle on={soundOn} onToggle={toggleSound} />
-            <QuakePanel quakes={quakes} flashes={flashes} now={now} />
+            <QuakePanel quakes={quakes} flashes={flashes} now={now} onFocusQuake={onFocusQuake} />
           </div>
           <div className="flex flex-col items-end gap-3">
             {selected && <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />}
             {layers.iss && <FollowIssButton active={followIss} onToggle={() => setFollowIss((f) => !f)} />}
-            <IssPanel iss={iss} />
+            <IssPanel iss={iss} pass={issPass} now={now} />
           </div>
         </div>
       </div>

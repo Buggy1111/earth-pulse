@@ -21,6 +21,13 @@ export function formatKmh(kmh: number): string {
   return `${Math.round(kmh).toLocaleString('en-US')} km/h`
 }
 
+/** "2 h 14 min" / "8 min" until a future timestamp. */
+export function formatCountdown(ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60_000))
+  const h = Math.floor(m / 60)
+  return h > 0 ? `${h} h ${m % 60} min` : `${m} min`
+}
+
 export function formatUtcClock(ts: number): string {
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')
