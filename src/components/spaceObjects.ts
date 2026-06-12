@@ -1,50 +1,78 @@
-/** Miniature 3D models for the orbit layer — a generic satellite and the ISS.
+/** Miniature 3D models for the orbit layer, built to match real reference
+ * shots: a comms-style satellite (boxy bus, big dish, segmented solar wings)
+ * and the ISS (long truss, four blocks of paired steel-blue arrays, white
+ * module stack). Shared geometries/materials — ~150 instances live at once.
+ * Sizes are in globe.gl scene units (globe radius = 100), wildly exaggerated
+ * on purpose — a to-scale satellite would be invisible.
  *
- * Built from primitives with shared geometries/materials (~150 instances live
- * at once). Sizes are in globe.gl scene units (globe radius = 100), wildly
- * exaggerated on purpose — a to-scale satellite would be invisible.
+ * Emissive values are deliberately strong: on the night side there are no
+ * scene lights to speak of, and an unlit model is black-on-black.
  */
 
 import * as THREE from 'three'
 
-// gold foil body, deep-blue panels, slight emissive so the night side stays visible
-const BODY_GEO = new THREE.BoxGeometry(0.55, 0.55, 0.9)
-const BODY_MAT = new THREE.MeshLambertMaterial({ color: '#c9a227', emissive: '#8a6d1a' })
-const PANEL_GEO = new THREE.BoxGeometry(1.7, 0.04, 0.55)
-const PANEL_MAT = new THREE.MeshLambertMaterial({ color: '#1d4ed8', emissive: '#1e3a8a' })
-const DISH_GEO = new THREE.SphereGeometry(0.22, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2)
-const DISH_MAT = new THREE.MeshLambertMaterial({ color: '#e2e8f0', emissive: '#94a3b8' })
+// ——— generic satellite: white/grey bus + parabolic dish + 2×3-segment wings
+const BUS_GEO = new THREE.BoxGeometry(0.6, 0.6, 0.85)
+const BUS_MAT = new THREE.MeshLambertMaterial({ color: '#dde3ec', emissive: '#8b94a3' })
+const PANEL_GEO = new THREE.BoxGeometry(0.62, 0.04, 0.5)
+const PANEL_MAT = new THREE.MeshLambertMaterial({ color: '#1e3a8a', emissive: '#27418f' })
+const BOOM_GEO = new THREE.CylinderGeometry(0.03, 0.03, 2.6, 5)
+const BOOM_MAT = new THREE.MeshLambertMaterial({ color: '#9aa3b0', emissive: '#5d6571' })
+// dish: open hemisphere facing forward, plus a feed horn
+const DISH_GEO = new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)
+const DISH_MAT = new THREE.MeshLambertMaterial({
+  color: '#f1f5f9',
+  emissive: '#aab4c2',
+  side: THREE.DoubleSide,
+})
+const FEED_GEO = new THREE.CylinderGeometry(0.025, 0.025, 0.4, 5)
 
-/** Box body + two solar wings + a small dish, randomly tumbled per instance. */
+/** Boxy bus + big dish + two three-segment solar wings, randomly tumbled. */
 export function makeSatelliteObject(): THREE.Object3D {
   const sat = new THREE.Group()
-  sat.add(new THREE.Mesh(BODY_GEO, BODY_MAT))
+  sat.add(new THREE.Mesh(BUS_GEO, BUS_MAT))
 
-  const left = new THREE.Mesh(PANEL_GEO, PANEL_MAT)
-  left.position.x = -1.15
-  const right = new THREE.Mesh(PANEL_GEO, PANEL_MAT)
-  right.position.x = 1.15
-  sat.add(left, right)
+  // wing boom through the bus
+  const boom = new THREE.Mesh(BOOM_GEO, BOOM_MAT)
+  boom.rotation.z = Math.PI / 2
+  sat.add(boom)
 
+  // three panel segments per wing with small gaps, like the reference shot
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      const panel = new THREE.Mesh(PANEL_GEO, PANEL_MAT)
+      panel.position.x = side * (0.65 + i * 0.68)
+      sat.add(panel)
+    }
+  }
+
+  // dish on top, tilted slightly off-axis like a real comms antenna
   const dish = new THREE.Mesh(DISH_GEO, DISH_MAT)
-  dish.position.z = 0.55
-  dish.rotation.x = Math.PI / 2
+  dish.position.set(0, 0.42, 0.1)
+  dish.rotation.x = -0.5
   sat.add(dish)
+  const feed = new THREE.Mesh(FEED_GEO, BOOM_MAT)
+  feed.position.set(0, 0.62, 0.0)
+  feed.rotation.x = -0.5
+  sat.add(feed)
 
   // every real satellite points somewhere else
   sat.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
-  sat.scale.setScalar(1.4)
+  sat.scale.setScalar(1.35)
   return sat
 }
 
-const ISS_TRUSS_GEO = new THREE.BoxGeometry(5.6, 0.18, 0.18)
-const ISS_TRUSS_MAT = new THREE.MeshLambertMaterial({ color: '#94a3b8', emissive: '#64748b' })
-const ISS_MODULE_GEO = new THREE.CylinderGeometry(0.28, 0.28, 3.4, 10)
-const ISS_MODULE_MAT = new THREE.MeshLambertMaterial({ color: '#e5e7eb', emissive: '#9ca3af' })
-const ISS_ARRAY_GEO = new THREE.BoxGeometry(1.15, 0.03, 2.3)
-const ISS_ARRAY_MAT = new THREE.MeshLambertMaterial({ color: '#b45309', emissive: '#92400e' })
-const ISS_RADIATOR_GEO = new THREE.BoxGeometry(0.5, 0.02, 1.3)
-const ISS_RADIATOR_MAT = new THREE.MeshLambertMaterial({ color: '#f1f5f9', emissive: '#cbd5e1' })
+// ——— ISS: long lattice truss, 4 wing blocks of PAIRED steel-blue arrays,
+// white pressurized module stack, radiators
+const ISS_TRUSS_GEO = new THREE.BoxGeometry(7.2, 0.16, 0.16)
+const ISS_TRUSS_MAT = new THREE.MeshLambertMaterial({ color: '#cbd5e1', emissive: '#76818f' })
+const ISS_ARRAY_GEO = new THREE.BoxGeometry(1.05, 0.03, 2.9)
+const ISS_ARRAY_MAT = new THREE.MeshLambertMaterial({ color: '#41599c', emissive: '#3f5694' })
+const ISS_MODULE_GEO = new THREE.CylinderGeometry(0.26, 0.26, 3.6, 10)
+const ISS_MODULE_MAT = new THREE.MeshLambertMaterial({ color: '#e8edf4', emissive: '#9aa6b5' })
+const ISS_CROSS_GEO = new THREE.CylinderGeometry(0.22, 0.22, 1.6, 8)
+const ISS_RADIATOR_GEO = new THREE.BoxGeometry(0.55, 0.02, 1.5)
+const ISS_RADIATOR_MAT = new THREE.MeshLambertMaterial({ color: '#f4f7fa', emissive: '#b7c1cc' })
 
 /** "ISS" name tag as a sprite glued to the model — moves perfectly with it. */
 function makeIssLabel(): THREE.Sprite {
@@ -66,35 +94,44 @@ function makeIssLabel(): THREE.Sprite {
     }),
   )
   sprite.scale.set(4.6, 1.7, 1)
-  sprite.position.y = 2.6
+  sprite.position.y = 3.2
   return sprite
 }
 
-/** Recognizable mini-ISS: main truss, pressurized module stack crossing it,
- * eight amber solar arrays in four pairs, plus white radiators. */
+/** ISS like the reference render: four blocks of paired arrays on a long
+ * truss, white module stack crossing the center, radiators alongside. */
 export function makeIssObject(): THREE.Object3D {
   const iss = new THREE.Group()
   iss.add(new THREE.Mesh(ISS_TRUSS_GEO, ISS_TRUSS_MAT))
 
-  // pressurized modules run perpendicular to the truss (Zarya–Zvezda axis)
-  const modules = new THREE.Mesh(ISS_MODULE_GEO, ISS_MODULE_MAT)
-  modules.rotation.x = Math.PI / 2
-  iss.add(modules)
-
-  // four solar array pairs at the truss ends, panels facing "up"
-  for (const xEnd of [-2.4, -1.6, 1.6, 2.4]) {
-    for (const zSide of [-1.35, 1.35]) {
-      const panel = new THREE.Mesh(ISS_ARRAY_GEO, ISS_ARRAY_MAT)
-      panel.position.set(xEnd, 0, zSide)
-      iss.add(panel)
+  // 4 wing blocks (2 per truss end), each = 2 parallel paired panels
+  // reaching fore and aft of the truss — 16 panels total like the real thing
+  for (const xBlock of [-3.1, -2.0, 2.0, 3.1]) {
+    for (const zSide of [-1, 1]) {
+      for (const lane of [-0.55, 0.55]) {
+        const panel = new THREE.Mesh(ISS_ARRAY_GEO, ISS_ARRAY_MAT)
+        panel.position.set(xBlock + lane * 0.5, 0, zSide * 1.62)
+        iss.add(panel)
+      }
     }
   }
 
-  // central thermal radiators, slightly tilted off the truss
-  for (const z of [-0.85, 0.85]) {
+  // pressurized modules: long stack perpendicular to the truss + cross modules
+  const modules = new THREE.Mesh(ISS_MODULE_GEO, ISS_MODULE_MAT)
+  modules.rotation.x = Math.PI / 2
+  iss.add(modules)
+  for (const z of [-0.9, 0.6]) {
+    const cross = new THREE.Mesh(ISS_CROSS_GEO, ISS_MODULE_MAT)
+    cross.rotation.z = Math.PI / 2
+    cross.position.set(0, 0, z)
+    iss.add(cross)
+  }
+
+  // white thermal radiators near the center, tilted off the truss plane
+  for (const x of [-1.1, 1.1]) {
     const radiator = new THREE.Mesh(ISS_RADIATOR_GEO, ISS_RADIATOR_MAT)
-    radiator.position.set(0.55, 0.25, z)
-    radiator.rotation.x = 0.35
+    radiator.position.set(x, 0.3, 0)
+    radiator.rotation.x = 0.5
     iss.add(radiator)
   }
 
