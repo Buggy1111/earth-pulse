@@ -77,7 +77,13 @@ export function setupPointer(globe: GlobeInstance, deps: PointerDeps): () => voi
   const pinWorld = new THREE.Vector3()
   const keepPinnedTarget = () => {
     const pin = deps.pinTargetRef.current
-    if (pin) globe.controls().target.copy(pin.getWorldPosition(pinWorld))
+    if (!pin) return
+    const controls = globe.controls()
+    controls.target.copy(pin.getWorldPosition(pinWorld))
+    // globe.gl just scaled rotate/zoom speed by "altitude above Earth" —
+    // nonsense when orbiting Saturn 20k units away. Constant feel instead.
+    controls.rotateSpeed = 0.7
+    controls.zoomSpeed = 0.9
   }
   globe.controls().addEventListener('change', keepPinnedTarget)
 

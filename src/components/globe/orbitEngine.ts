@@ -82,6 +82,9 @@ export function startOrbitEngine(
   let frameNo = 0
   const dir = new THREE.Vector3()
   const pinWorld = new THREE.Vector3()
+  const pinDelta = new THREE.Vector3()
+  const prevPinWorld = new THREE.Vector3()
+  let prevPinObj: THREE.Object3D | null = null
   const frame = () => {
     // eco mode: propagate at half the frame rate — still fluid, half the CPU
     if (deps.ecoRef.current && ++frameNo % 2 === 1) {
@@ -104,9 +107,21 @@ export function startOrbitEngine(
         Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
       }
     }
-    // bodies drift — keep the orbit pivot glued to whatever we're orbiting
-    if (deps.pinTargetRef.current) {
-      globe.controls().target.copy(deps.pinTargetRef.current.getWorldPosition(pinWorld))
+    // bodies drift — keep the orbit pivot glued to whatever we're orbiting,
+    // and CHASE it: the camera translates with the body, so a focused planet
+    // stays framed even at full time-warp
+    const pin = deps.pinTargetRef.current
+    if (pin) {
+      pin.getWorldPosition(pinWorld)
+      if (prevPinObj === pin) {
+        pinDelta.subVectors(pinWorld, prevPinWorld)
+        ;(globe.camera() as THREE.PerspectiveCamera).position.add(pinDelta)
+      }
+      prevPinWorld.copy(pinWorld)
+      prevPinObj = pin
+      globe.controls().target.copy(pinWorld)
+    } else {
+      prevPinObj = null
     }
     // solar mode: one frame call drives planets, moons, spin and the sky
     if (deps.solarModeRef.current && deps.solarGroupRef.current?.visible) {

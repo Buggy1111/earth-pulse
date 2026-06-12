@@ -19,7 +19,6 @@ import {
   planetHelio,
   planetSpin,
   SUN_DISPLAY,
-  subPlanetPoint,
 } from '../../lib/planets'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
@@ -195,32 +194,15 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     )
   }
 
-  // ——— per-frame motion: group transform + body positions + spin + moons
-  const v1 = new THREE.Vector3()
-  const v2 = new THREE.Vector3()
-  const v3 = new THREE.Vector3()
-  const colY = new THREE.Vector3()
-  const colZ = new THREE.Vector3()
-  const rot = new THREE.Matrix4()
-  const sceneDirOf = (raDeg: number, decDeg: number, out: THREE.Vector3, now: Date) => {
-    const pt = subPlanetPoint({ raDeg, decDeg }, now)
-    const c = globe.getCoords(pt.lat, pt.lng, 0)
-    return out.set(c.x, c.y, c.z).normalize()
-  }
+  // ——— per-frame motion in an INERTIAL frame: the scene is Earth-fixed and
+  // spins with GMST, but rotating the whole solar system with it would make
+  // everything whirl under time-warp. Fixed mapping instead: ecliptic plane →
+  // scene XZ, ecliptic north → +Y. Earth still lands exactly at the origin.
+  group.rotation.x = -Math.PI / 2
   const frame = (now: Date) => {
-    // ecliptic→equatorial→Earth-fixed-scene basis (scene spins with GMST)
-    const eps = 23.439 * (Math.PI / 180)
-    sceneDirOf(0, 0, v1, now) // equatorial x (vernal equinox)
-    sceneDirOf(90, 0, v2, now) // equatorial y
-    sceneDirOf(0, 90, v3, now) // equatorial z (north)
-    colY.copy(v2).multiplyScalar(Math.cos(eps)).addScaledVector(v3, Math.sin(eps))
-    colZ.copy(v2).multiplyScalar(-Math.sin(eps)).addScaledVector(v3, Math.cos(eps))
-    rot.makeBasis(v1, colY, colZ)
-    group.setRotationFromMatrix(rot)
     const eh = earthHelio(now)
-    group.position
-      .set(-eh[0] * AU_SCENE, -eh[1] * AU_SCENE, -eh[2] * AU_SCENE)
-      .applyMatrix4(rot)
+    // group.position = Rx(-90°) · (−eh·AU):  (x,y,z) → (x, z, −y)
+    group.position.set(-eh[0] * AU_SCENE, eh[2] * AU_SCENE, eh[1] * AU_SCENE)
     earthProxy.position.set(eh[0] * AU_SCENE, eh[1] * AU_SCENE, eh[2] * AU_SCENE)
 
     const ms = now.getTime()
