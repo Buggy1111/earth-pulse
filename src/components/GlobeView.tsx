@@ -126,7 +126,7 @@ export function GlobeView(props: Props) {
   const moonMeshRef = useRef<THREE.Mesh | null>(null)
   const surfaceRef = useRef<ReturnType<typeof setupSurface> | null>(null)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
-  const textureResRef = useRef<'4k' | '8k'>(eco ? '4k' : '8k')
+  const textureResRef = useRef<'2k' | '8k'>(eco ? '2k' : '8k')
 
   // one-time globe setup: scene, sky, surface, pointer plumbing
   useEffect(() => {
@@ -218,7 +218,7 @@ export function GlobeView(props: Props) {
     const globe = globeRef.current
     if (!globe) return
     globe.renderer().setPixelRatio(eco ? 1 : Math.min(window.devicePixelRatio, 2))
-    const wanted: '4k' | '8k' = eco ? '4k' : '8k'
+    const wanted: '2k' | '8k' = eco ? '2k' : '8k'
     const material = globeMaterialRef.current
     if (!material || textureResRef.current === wanted) return
     textureResRef.current = wanted

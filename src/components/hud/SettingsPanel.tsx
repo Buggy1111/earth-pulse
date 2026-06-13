@@ -100,10 +100,10 @@ export function SettingsPanel({
             ))}
             <label
               className="mt-1 flex cursor-pointer items-center gap-2 border-t border-white/10 pt-2 text-xs text-slate-300"
-              title="4K textures, lower render resolution, half-rate propagation — for laptops and integrated GPUs"
+              title="Fast version: 2K textures, simpler satellites, lighter clouds, half-rate propagation — for laptops and integrated GPUs. Off = full 8K detail."
             >
               <input type="checkbox" checked={eco} onChange={onToggleEco} className="accent-emerald-400" />
-              ⚡ smooth performance mode
+              ⚡ fast mode (2K)
             </label>
           </div>
 

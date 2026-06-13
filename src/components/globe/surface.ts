@@ -19,8 +19,8 @@ import {
 export interface SurfaceOptions {
   sunUniform: { value: THREE.Vector3 }
   layersRef: { current: LayerState }
-  /** Initial texture resolution (eco starts on 4K, never downloads 8K). */
-  textureRes: '4k' | '8k'
+  /** Texture resolution: eco/fast = 2K (tiny, integrated GPUs fly), full = 8K. */
+  textureRes: '2k' | '4k' | '8k'
   /** False once the component unmounted — async loaders bail out. */
   isAlive: () => boolean
   onReady: () => void
@@ -106,8 +106,11 @@ export function setupSurface(globe: GlobeInstance, opts: SurfaceOptions): Surfac
       depthWrite: false,
     })
     sunlitClouds(cloudsMaterial, sunUniform)
+    // fast mode halves the cloud sphere's tessellation — a transparent overdraw
+    // pass is pure fill-rate cost on integrated GPUs and looks identical at this scale
+    const cloudSeg = opts.textureRes === '2k' ? 32 : 64
     const clouds = new THREE.Mesh(
-      new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALTITUDE), 64, 64),
+      new THREE.SphereGeometry(globe.getGlobeRadius() * (1 + CLOUDS_ALTITUDE), cloudSeg, cloudSeg),
       cloudsMaterial,
     )
     clouds.visible = layersRef.current.clouds
