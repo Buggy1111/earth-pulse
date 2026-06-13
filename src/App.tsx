@@ -4,6 +4,7 @@ import {
   AbovePanel,
   EventsPanel,
   IssPanel,
+  MissionCard,
   QuakeDetail,
   QuakePanel,
   SpaceWeatherPanel,
@@ -172,10 +173,12 @@ export default function App() {
     })
   }, [])
 
+  const [selectedMission, setSelectedMission] = useState<string | null>(null)
   const onSatClick = useCallback((id: string, name: string) => {
     setOrbits((list) =>
       list.some((o) => o.id === id) ? list.filter((o) => o.id !== id) : [...list, { id, name }],
     )
+    setSelectedMission(name)
   }, [])
   const onRemoveOrbit = useCallback(
     (id: string) => setOrbits((list) => list.filter((o) => o.id !== id)),
@@ -187,6 +190,7 @@ export default function App() {
   const onPickSat = useCallback((id: string, name: string) => {
     setOrbits((list) => (list.some((o) => o.id === id) ? list : [...list, { id, name }]))
     setFocusSat((f) => ({ id, v: (f?.v ?? 0) + 1 }))
+    setSelectedMission(name)
   }, [])
 
   const onFocusQuake = useCallback((q: Quake) => {
@@ -395,6 +399,9 @@ export default function App() {
           <div className="flex flex-col items-end gap-3">
             {mode === 'earth' && selected && (
               <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />
+            )}
+            {mode === 'earth' && selectedMission && (
+              <MissionCard name={selectedMission} onClose={() => setSelectedMission(null)} />
             )}
             {mode === 'earth' && (
               <EarthDock

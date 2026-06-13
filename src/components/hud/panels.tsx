@@ -14,6 +14,7 @@ import type { IssPass, OverheadSat } from '../../lib/satellites'
 import type { IssState } from '../../lib/iss'
 import { quakeStats, type Quake } from '../../lib/quakes'
 import { eventCounts, eventMeta, type EarthEvent } from '../../lib/events'
+import { SAT_MISSIONS } from '../../lib/missions'
 import { kpColor, kpLabel } from '../../lib/spaceWeather'
 import type { WikiEdit } from '../../lib/wiki'
 import type { SpaceWeather } from '../../hooks'
@@ -202,6 +203,34 @@ export function QuakePanel({
         <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
       )}
       <p className="mt-2 text-[10px] text-slate-600">data: USGS, refreshed every minute</p>
+    </div>
+  )
+}
+
+export function MissionCard({ name, onClose }: { name: string; onClose: () => void }) {
+  const m = SAT_MISSIONS[name]
+  if (!m) return null
+  return (
+    <div
+      className="hud fade-up pointer-events-auto w-72 px-4 py-3"
+      style={{ borderColor: `${m.color}66`, animationDelay: '60ms' }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold text-slate-100">🛰 {name}</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className="cursor-pointer text-xs text-slate-500 hover:text-slate-200"
+        >
+          ✕
+        </button>
+      </div>
+      <p className="mt-1 text-xs font-medium" style={{ color: m.color }}>
+        {m.measures}
+      </p>
+      <p className="mt-1.5 text-xs text-slate-400">🏛 {m.agency}</p>
+      <p className="mt-0.5 text-xs text-slate-400">🚀 launched {m.launched}</p>
+      <p className="mt-1.5 text-xs text-slate-300">✨ {m.fact}</p>
     </div>
   )
 }
