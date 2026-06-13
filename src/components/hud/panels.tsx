@@ -245,6 +245,18 @@ export function DataLayerPanel({
       {active && (
         <div className="mt-2">
           <p className="text-[11px] text-slate-400">{active.blurb}</p>
+          {active.legend && (
+            <div className="mt-1.5">
+              <div
+                className="h-2 w-full rounded"
+                style={{ background: `linear-gradient(to right, ${active.legend.stops.join(',')})` }}
+              />
+              <div className="mt-0.5 flex justify-between text-[10px] text-slate-400">
+                <span>{active.legend.min}</span>
+                <span>{active.legend.max}</span>
+              </div>
+            </div>
+          )}
           <div className="mt-1.5 flex items-center gap-2">
             <input
               type="range"
