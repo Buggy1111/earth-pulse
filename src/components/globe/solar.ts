@@ -30,6 +30,21 @@ import type { SolarAnimEntry } from './orbitEngine'
  * camera and the pointer raycaster have to enable it too. */
 export const SUNLIT_LAYER = 1
 
+// each planet's orbit (and its moons') glows in the planet's own hue — Mars red,
+// Neptune blue, Saturn pale gold… so the whole system reads as colour-coded
+const PLANET_ORBIT_COLOR: Record<string, string> = {
+  mercury: '#c4a484',
+  venus: '#f5d76e',
+  earth: '#38bdf8',
+  mars: '#f4724f',
+  jupiter: '#e0a96d',
+  saturn: '#f5e0a3',
+  uranus: '#7fe0d4',
+  neptune: '#5b8def',
+  pluto: '#caa98c',
+}
+const orbitColor = (id: string) => PLANET_ORBIT_COLOR[id] ?? '#94a3b8'
+
 export interface SolarDeps {
   solarGroupRef: { current: THREE.Group | null }
   sunMeshRef: { current: THREE.Mesh | null }
@@ -141,7 +156,13 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     })
     const orbitRing = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(ringPts),
-      new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.22 }),
+      new THREE.LineBasicMaterial({
+        color: orbitColor('earth'),
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     )
     earthMoonGroup.add(orbitRing)
     const decor = [label, orbitRing]
@@ -227,7 +248,13 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       })
       const orbitRing = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(ringPts),
-        new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.22 }),
+        new THREE.LineBasicMaterial({
+          color: orbitColor(p.id),
+          transparent: true,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
       )
       tilt.add(orbitRing)
       decor.push(orbitRing)
@@ -282,7 +309,13 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     group.add(
       new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.3 }),
+        new THREE.LineBasicMaterial({
+          color: orbitColor(p.id),
+          transparent: true,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
       ),
     )
   }
@@ -299,7 +332,13 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     group.add(
       new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: '#38bdf8', transparent: true, opacity: 0.35 }),
+        new THREE.LineBasicMaterial({
+          color: orbitColor('earth'),
+          transparent: true,
+          opacity: 0.55,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
       ),
     )
   }
