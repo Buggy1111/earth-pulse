@@ -83,6 +83,9 @@ export function GlobeView(props: Props) {
   const moonModeRef = useRef(moonMode)
   const solarModeRef = useRef(solarMode)
   const solarTimeRef = useRef(solarTime)
+  // timeline-replay offset (ms, ≤0) so the day/night terminator rewinds with
+  // the 24 h earthquake replay — not just the quakes
+  const timeOffsetMsRef = useRef(0)
   const ecoRef = useRef(eco)
   const issStateRef = useRef<IssState | null>(null)
   useEffect(() => {
@@ -97,6 +100,14 @@ export function GlobeView(props: Props) {
     issStateRef.current = iss
   })
   const initialPovRef = useRef(props.initialPov)
+
+  // Rewind the day/night terminator (and the Moon) together with the 24 h
+  // earthquake replay: feed the timeline offset into the shared sun clock and
+  // re-aim it the instant the slider moves, instead of only filtering quakes.
+  useEffect(() => {
+    timeOffsetMsRef.current = simNow - Date.now()
+    if (!solarMode && !moonMode) applySkyRef.current(new Date(simNow))
+  }, [simNow, solarMode, moonMode])
 
   // shared scene state owned outside React (see globe/* modules)
   const userInteractedRef = useRef(false)
@@ -137,7 +148,7 @@ export function GlobeView(props: Props) {
 
     const simNowMs = () => {
       const t = solarTimeRef.current
-      return t.simMs + (Date.now() - t.realMs) * t.warp
+      return t.simMs + (Date.now() - t.realMs) * t.warp + timeOffsetMsRef.current
     }
     const sky = setupSky(globe, simNowMs)
     skyRef.current = sky
