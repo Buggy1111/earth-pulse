@@ -22,9 +22,13 @@ const WARPS: { label: string; factor: number }[] = [
   { label: '1 w/s', factor: 604_800 },
 ]
 
-/** Flat moon lookup + its parent planet (moon ids are globally unique). */
+/** Flat moon lookup + its parent's name (moon ids are globally unique). Earth
+ * is not in PLANETS (it's the live globe), so fall back to a capitalised id. */
 const MOON_INFO = Object.entries(PLANET_MOONS).flatMap(([pid, moons]) =>
-  moons.map((m) => ({ ...m, planet: PLANETS.find((p) => p.id === pid)! })),
+  moons.map((m) => ({
+    ...m,
+    planet: { name: PLANETS.find((p) => p.id === pid)?.name ?? pid[0].toUpperCase() + pid.slice(1) },
+  })),
 )
 
 export function PlanetPanel({

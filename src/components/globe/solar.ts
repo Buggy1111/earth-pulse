@@ -113,6 +113,44 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   group.add(earthProxy)
   deps.planetMeshesRef.current.set('earth', earthProxy)
 
+  // 🌙 the Moon — Earth's own satellite, to scale on its real orbit. Earth is a
+  // special invisible proxy (the live mini-globe sits exactly here), so the
+  // PLANETS loop below never builds its moon — we add it by hand and follow the
+  // proxy each frame. Real size/distance relative to Earth, like every moon.
+  const earthMoonDef = PLANET_MOONS.earth?.[0]
+  const earthMoonGroup = new THREE.Group()
+  let earthMoonMesh: THREE.Mesh | null = null
+  let earthMoonRScene = 0
+  if (earthMoonDef) {
+    const rMoon = Math.max(EARTH_DISPLAY * (earthMoonDef.radiusKm / (12_742 / 2)), 0.7)
+    earthMoonRScene = EARTH_DISPLAY * ((earthMoonDef.aKkm * 1_000) / (12_742 / 2))
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 24, 24), litMaterial(earthMoonDef.color))
+    mesh.rotation.x = Math.PI / 2
+    mesh.layers.set(SUNLIT_LAYER)
+    mesh.userData.moonId = earthMoonDef.id
+    mesh.userData.displayRadius = rMoon
+    loadTex(mesh, `planets/moons/${earthMoonDef.id}.webp`)
+    const label = makeNameSprite(earthMoonDef.name, rMoon * 1.4, true)
+    mesh.add(label)
+    earthMoonGroup.add(mesh)
+    earthMoonMesh = mesh
+    // faint orbit ring (decor: shown only while Earth is the focused system)
+    const ringPts = Array.from({ length: 97 }, (_, i) => {
+      const a = (i / 96) * 2 * Math.PI
+      return new THREE.Vector3(Math.cos(a) * earthMoonRScene, Math.sin(a) * earthMoonRScene, 0)
+    })
+    const orbitRing = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(ringPts),
+      new THREE.LineBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.22 }),
+    )
+    earthMoonGroup.add(orbitRing)
+    const decor = [label, orbitRing]
+    decor.forEach((o) => (o.visible = false))
+    earthProxy.userData.decor = decor
+    group.add(earthMoonGroup)
+    deps.moonMeshesRef.current.set(earthMoonDef.id, mesh)
+  }
+
   // planets: real relative sizes, real tilts, rings, moons, fixed-size labels
   deps.solarAnimRef.current = []
   // Group space is heliocentric-ECLIPTIC: orbits in XY, north = +Z. A
@@ -283,6 +321,12 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     earthProxy.position.set(eh[0] * AU_SCENE, eh[1] * AU_SCENE, eh[2] * AU_SCENE)
 
     const ms = now.getTime()
+    // 🌙 Moon rides along with Earth and walks its orbit
+    if (earthMoonMesh && earthMoonDef) {
+      earthMoonGroup.position.copy(earthProxy.position)
+      const a = moonAngle(earthMoonDef, ms)
+      earthMoonMesh.position.set(Math.cos(a) * earthMoonRScene, Math.sin(a) * earthMoonRScene, 0)
+    }
     for (const p of PLANETS) {
       const system = deps.planetMeshesRef.current.get(p.id)
       if (!system) continue

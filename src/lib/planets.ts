@@ -230,6 +230,9 @@ export interface MoonDef {
 
 /** The major moons — real orbits, periods, sizes and distances. */
 export const PLANET_MOONS: Record<string, MoonDef[]> = {
+  earth: [
+    { id: 'moon', name: 'Moon', aKkm: 384.4, periodD: 27.322, radiusKm: 1737, color: '#b9b4ac', texture: true, fact: 'the only world beyond Earth humans have walked on' },
+  ],
   mars: [
     { id: 'phobos', name: 'Phobos', aKkm: 9.4, discoveredBy: 'Asaph Hall, 1877', periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
     { id: 'deimos', name: 'Deimos', aKkm: 23.5, discoveredBy: 'Asaph Hall, 1877', periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
