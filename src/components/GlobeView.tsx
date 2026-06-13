@@ -298,13 +298,17 @@ export function GlobeView(props: Props) {
       .htmlElementsData(userLoc ? [userLoc] : [])
       .htmlLat((d) => (d as { lat: number }).lat)
       .htmlLng((d) => (d as { lng: number }).lng)
-      .htmlAltitude(0.012)
+      // sit the pin ON the surface (altitude 0): an elevated marker parallaxes
+      // away from the real spot as you zoom in and tilt the view
+      .htmlAltitude(0)
       .htmlElement(() => {
         const el = document.createElement('div')
+        // translateY(-100%) anchors the pin's tip on the point — the label and
+        // pin stack ABOVE the location, pointing straight down at it
         el.innerHTML =
-          '<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translateY(-4px)">' +
-          '<div style="font-size:20px;filter:drop-shadow(0 0 6px rgba(56,189,248,.9))">📍</div>' +
-          '<div style="font:600 10px sans-serif;color:#bae6fd;text-shadow:0 0 6px #000">you are here</div></div>'
+          '<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translateY(-100%)">' +
+          '<div style="font:600 10px sans-serif;color:#bae6fd;text-shadow:0 0 6px #000">you are here</div>' +
+          '<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 6px rgba(56,189,248,.9))">📍</div></div>'
         return el
       })
     if (userLoc) {
