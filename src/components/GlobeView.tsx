@@ -14,7 +14,9 @@ import { globeAltitude, type TrackedSat } from '../lib/satellites'
 import type { LayerState } from './hud/types'
 import { enterMoonMode, startTour } from './globe/cameraModes'
 import { type OrbitObject, type Trail } from './globe/helpers'
+import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers } from './globe/quakesLayer'
+import type { EarthEvent } from '../lib/events'
 import { setupPointer } from './globe/pointer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
@@ -63,6 +65,8 @@ interface Props {
   onIssClick: () => void
   onSatClick: (id: string, name: string) => void
   onQuakeClick: (quake: Quake) => void
+  events: EarthEvent[]
+  onEventClick: (e: EarthEvent) => void
   onReady: () => void
 }
 
@@ -261,6 +265,12 @@ export function GlobeView(props: Props) {
     const globe = globeRef.current
     if (globe) applyQuakeLayers(globe, quakes, flashes, layers.quakes, simNow, onQuakeClick)
   }, [quakes, flashes, onQuakeClick, layers.quakes, simNow])
+
+  // NASA EONET natural-event pins
+  useEffect(() => {
+    const globe = globeRef.current
+    if (globe) applyEventsLayer(globe, props.events, layers.events, props.onEventClick)
+  }, [props.events, layers.events, props.onEventClick])
 
   // orbit engine (satellites + ISS, frame loop) — rebuilt when the TLE set loads
   useEffect(() => {

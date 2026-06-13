@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { EMSC_WS_URL, parseEmscEvent } from './lib/emsc'
+import { EONET_URL, parseEvents, type EarthEvent } from './lib/events'
 import { parseIss, ISS_URL, type IssState } from './lib/iss'
 import { diffNewQuakes, parseQuakes, USGS_FEED_URL, type Quake, type UsgsFeed } from './lib/quakes'
 import { parseTle, toTrackedSats, TLE_LOCAL_URL, type TrackedSat } from './lib/satellites'
@@ -149,6 +150,30 @@ export function useTleSats(): TrackedSat[] {
     }
   }, [])
   return sats
+}
+
+/** NASA EONET natural events (wildfires, storms, volcanoes…), refreshed slowly. */
+export function useEvents(intervalMs = 600_000): EarthEvent[] {
+  const [events, setEvents] = useState<EarthEvent[]>([])
+  useEffect(() => {
+    let cancelled = false
+    const load = () =>
+      void fetch(EONET_URL)
+        .then((r) => r.json())
+        .then((json) => {
+          if (!cancelled) setEvents(parseEvents(json))
+        })
+        .catch(() => {
+          // EONET unreachable — the events layer just stays empty
+        })
+    load()
+    const id = setInterval(load, intervalMs)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [intervalMs])
+  return events
 }
 
 export interface SpaceWeather {

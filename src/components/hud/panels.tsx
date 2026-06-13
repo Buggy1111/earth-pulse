@@ -13,6 +13,7 @@ import {
 import type { IssPass, OverheadSat } from '../../lib/satellites'
 import type { IssState } from '../../lib/iss'
 import { quakeStats, type Quake } from '../../lib/quakes'
+import { eventCounts, eventMeta, type EarthEvent } from '../../lib/events'
 import { kpColor, kpLabel } from '../../lib/spaceWeather'
 import type { WikiEdit } from '../../lib/wiki'
 import type { SpaceWeather } from '../../hooks'
@@ -201,6 +202,45 @@ export function QuakePanel({
         <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
       )}
       <p className="mt-2 text-[10px] text-slate-600">data: USGS, refreshed every minute</p>
+    </div>
+  )
+}
+
+export function EventsPanel({
+  events,
+  onEventClick,
+}: {
+  events: EarthEvent[]
+  onEventClick: (e: EarthEvent) => void
+}) {
+  if (events.length === 0) return null
+  const counts = eventCounts(events)
+  const latest = events[0]
+  const lm = eventMeta(latest.category)
+  return (
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '160ms' }}>
+      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+        Live on Earth · {events.length}
+      </h2>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+        {counts.map(({ category, count }) => {
+          const m = eventMeta(category)
+          return (
+            <span key={category} className="num text-xs text-slate-300" title={m.label}>
+              {m.icon} {count}
+            </span>
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={() => onEventClick(latest)}
+        title="fly there"
+        className="mt-1 block max-w-60 cursor-pointer text-left text-xs text-slate-400 hover:text-slate-200"
+      >
+        latest: {lm.icon} <span className="text-slate-200">{latest.title}</span>
+      </button>
+      <p className="mt-2 text-[10px] text-slate-600">data: NASA EONET, live natural events</p>
     </div>
   )
 }

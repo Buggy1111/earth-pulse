@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import {
   AbovePanel,
+  EventsPanel,
   IssPanel,
   QuakeDetail,
   QuakePanel,
@@ -15,7 +16,17 @@ import type { LayerState, OrbitEntry } from './components/hud/types'
 import { MoonPanel } from './components/MoonPanel'
 import { PlanetPanel } from './components/PlanetPanel'
 import { SolarNavTree } from './components/hud/SolarNavTree'
-import { useEmsc, useIss, useNow, useQuakes, useSpaceWeather, useTleSats, useWikiFeed } from './hooks'
+import {
+  useEmsc,
+  useEvents,
+  useIss,
+  useNow,
+  useQuakes,
+  useSpaceWeather,
+  useTleSats,
+  useWikiFeed,
+} from './hooks'
+import type { EarthEvent } from './lib/events'
 import { useEcoMode, useGeolocate, useSolarTime, useTimeline } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
@@ -49,6 +60,7 @@ export default function App() {
       orbits: true,
       iss: true,
       quakes: true,
+      events: true,
       aurora: true,
       clouds: true,
       borders: true,
@@ -182,6 +194,11 @@ export default function App() {
     setFlyTo((f) => ({ lat: q.lat, lng: q.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
 
+  const events = useEvents()
+  const onEventClick = useCallback((e: EarthEvent) => {
+    setFlyTo((f) => ({ lat: e.lat, lng: e.lng, v: (f?.v ?? 0) + 1 }))
+  }, [])
+
   // shared-link orbits: restore once the TLE catalog is in
   const orbitsRestored = useRef(false)
   useEffect(() => {
@@ -288,6 +305,8 @@ export default function App() {
         onIssClick={onIssClick}
         onSatClick={onSatClick}
         onQuakeClick={setSelected}
+        events={events}
+        onEventClick={onEventClick}
         onReady={onReady}
       />
       {!ready && <LoadingOverlay />}
@@ -369,6 +388,7 @@ export default function App() {
                   soundOn={soundOn}
                   onToggleSound={toggleSound}
                 />
+                {layers.events && <EventsPanel events={events} onEventClick={onEventClick} />}
               </>
             )}
           </div>
