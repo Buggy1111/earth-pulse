@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import {
   AbovePanel,
+  DataLayerPanel,
   EventsPanel,
   IssPanel,
   MissionCard,
@@ -28,6 +29,7 @@ import {
   useWikiFeed,
 } from './hooks'
 import type { EarthEvent } from './lib/events'
+import { gibsDate, type GibsLayer } from './lib/gibs'
 import { useEcoMode, useGeolocate, useSolarTime, useTimeline } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
@@ -203,6 +205,11 @@ export default function App() {
     setFlyTo((f) => ({ lat: e.lat, lng: e.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
 
+  // NASA GIBS data layer + playback date (days back from now)
+  const [gibsLayer, setGibsLayer] = useState<GibsLayer | null>(null)
+  const [gibsDaysBack, setGibsDaysBack] = useState(2)
+  const gibsImageryDate = gibsDate(now, gibsDaysBack)
+
   // shared-link orbits: restore once the TLE catalog is in
   const orbitsRestored = useRef(false)
   useEffect(() => {
@@ -311,6 +318,8 @@ export default function App() {
         onQuakeClick={setSelected}
         events={events}
         onEventClick={onEventClick}
+        gibsLayer={gibsLayer}
+        gibsDate={gibsImageryDate}
         onReady={onReady}
       />
       {!ready && <LoadingOverlay />}
@@ -393,6 +402,13 @@ export default function App() {
                   onToggleSound={toggleSound}
                 />
                 {layers.events && <EventsPanel events={events} onEventClick={onEventClick} />}
+                <DataLayerPanel
+                  active={gibsLayer}
+                  onSelect={setGibsLayer}
+                  daysBack={gibsDaysBack}
+                  onScrubDate={setGibsDaysBack}
+                  date={gibsImageryDate}
+                />
               </>
             )}
           </div>

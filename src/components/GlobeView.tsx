@@ -17,6 +17,7 @@ import { type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers } from './globe/quakesLayer'
 import type { EarthEvent } from '../lib/events'
+import { gibsWmsUrl, type GibsLayer } from '../lib/gibs'
 import { setupPointer } from './globe/pointer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
@@ -67,6 +68,10 @@ interface Props {
   onQuakeClick: (quake: Quake) => void
   events: EarthEvent[]
   onEventClick: (e: EarthEvent) => void
+  /** Active NASA GIBS data layer (null = live day/night globe). */
+  gibsLayer: GibsLayer | null
+  /** YYYY-MM-DD imagery date for the GIBS layer (time playback). */
+  gibsDate: string
   onReady: () => void
 }
 
@@ -131,6 +136,8 @@ export function GlobeView(props: Props) {
   const surfaceRef = useRef<ReturnType<typeof setupSurface> | null>(null)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
   const textureResRef = useRef<'2k' | '8k'>(eco ? '2k' : '8k')
+  const gibsActiveRef = useRef(false)
+  const gibsMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
   // one-time globe setup: scene, sky, surface, pointer plumbing
   useEffect(() => {
@@ -163,6 +170,7 @@ export function GlobeView(props: Props) {
       sunUniform: sky.sunUniform,
       layersRef,
       textureRes: textureResRef.current,
+      gibsActiveRef,
       isAlive: () => globeRef.current !== null,
       onReady: () => cb.current.onReady(),
       onMaterial: (m) => (globeMaterialRef.current = m),
@@ -271,6 +279,35 @@ export function GlobeView(props: Props) {
     const globe = globeRef.current
     if (globe) applyEventsLayer(globe, props.events, layers.events, props.onEventClick)
   }, [props.events, layers.events, props.onEventClick])
+
+  // NASA GIBS data layer: paint one equirectangular WMS image straight onto the
+  // globe material (reliable where globe.gl's tile cache won't refetch). Null
+  // restores the live day/night globe.
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe) return
+    const layer = props.gibsLayer
+    gibsActiveRef.current = !!layer
+    if (!layer) {
+      if (globeMaterialRef.current) globe.globeMaterial(globeMaterialRef.current)
+      surfaceRef.current?.updateTileEngine()
+      return
+    }
+    surfaceRef.current?.updateTileEngine() // clear any Esri tiles first
+    new THREE.TextureLoader().load(gibsWmsUrl(layer, props.gibsDate), (tex) => {
+      if (!gibsActiveRef.current || globeRef.current !== globe) {
+        tex.dispose()
+        return
+      }
+      tex.colorSpace = THREE.SRGBColorSpace
+      const prev = gibsMaterialRef.current
+      const mat = new THREE.MeshBasicMaterial({ map: tex })
+      gibsMaterialRef.current = mat
+      globe.globeMaterial(mat)
+      prev?.map?.dispose()
+      prev?.dispose()
+    })
+  }, [props.gibsLayer, props.gibsDate])
 
   // orbit engine (satellites + ISS, frame loop) — rebuilt when the TLE set loads
   useEffect(() => {

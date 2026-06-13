@@ -21,6 +21,9 @@ export interface SurfaceOptions {
   layersRef: { current: LayerState }
   /** Texture resolution: eco/fast = 2K (tiny, integrated GPUs fly), full = 8K. */
   textureRes: '2k' | '4k' | '8k'
+  /** True while a NASA GIBS data layer owns the globe material (keeps the Esri
+   * tile engine out of the way). */
+  gibsActiveRef: { current: boolean }
   /** False once the component unmounted — async loaders bail out. */
   isAlive: () => boolean
   onReady: () => void
@@ -60,7 +63,6 @@ export function setupSurface(globe: GlobeInstance, opts: SurfaceOptions): Surfac
   const TILES_OFF = 0.38
   const tileUrl = (x: number, y: number, l: number) =>
     `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
-  let tilesOn = false
   let tilePatchTimer: ReturnType<typeof setInterval> | undefined
   // night-side dimming: the engine creates tile materials lazily — patch new ones
   let tilesRoot: THREE.Object3D | null = null
@@ -79,16 +81,30 @@ export function setupSurface(globe: GlobeInstance, opts: SurfaceOptions): Surfac
       }
     })
   }
+  const clearTiles = () =>
+    globe.globeTileEngineUrl(null as unknown as Parameters<GlobeInstance['globeTileEngineUrl']>[0])
+  let mode: 'off' | 'esri' = 'off'
   const updateTileEngine = () => {
+    // a NASA GIBS data layer owns the globe material — leave the Esri tile
+    // engine fully out of the way while it's on
+    if (opts.gibsActiveRef.current) {
+      if (mode === 'esri') {
+        clearTiles()
+        clearInterval(tilePatchTimer)
+        mode = 'off'
+      }
+      return
+    }
+    // Esri street-level imagery on deep zoom (the original behaviour)
     const alt = globe.pointOfView().altitude ?? 10
-    if (layersRef.current.detail && alt < TILES_ON && !tilesOn) {
-      tilesOn = true
+    if (layersRef.current.detail && alt < TILES_ON && mode !== 'esri') {
       globe.globeTileEngineUrl(tileUrl)
       tilePatchTimer = setInterval(patchTileMaterials, 1_200)
-    } else if ((!layersRef.current.detail || alt > TILES_OFF) && tilesOn) {
-      tilesOn = false
-      globe.globeTileEngineUrl(null as unknown as Parameters<GlobeInstance['globeTileEngineUrl']>[0])
+      mode = 'esri'
+    } else if ((!layersRef.current.detail || alt > TILES_OFF) && mode === 'esri') {
+      clearTiles()
       clearInterval(tilePatchTimer)
+      mode = 'off'
     }
   }
   globe.globeTileEngineMaxLevel(17)

@@ -15,6 +15,7 @@ import type { IssState } from '../../lib/iss'
 import { quakeStats, type Quake } from '../../lib/quakes'
 import { eventCounts, eventMeta, type EarthEvent } from '../../lib/events'
 import { SAT_MISSIONS } from '../../lib/missions'
+import { GIBS_LAYERS, type GibsLayer } from '../../lib/gibs'
 import { kpColor, kpLabel } from '../../lib/spaceWeather'
 import type { WikiEdit } from '../../lib/wiki'
 import type { SpaceWeather } from '../../hooks'
@@ -203,6 +204,62 @@ export function QuakePanel({
         <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
       )}
       <p className="mt-2 text-[10px] text-slate-600">data: USGS, refreshed every minute</p>
+    </div>
+  )
+}
+
+export function DataLayerPanel({
+  active,
+  onSelect,
+  daysBack,
+  onScrubDate,
+  date,
+}: {
+  active: GibsLayer | null
+  onSelect: (l: GibsLayer | null) => void
+  daysBack: number
+  onScrubDate: (d: number) => void
+  date: string
+}) {
+  const chip = (key: string, label: string, on: boolean, onClick: () => void) => (
+    <button
+      key={key}
+      type="button"
+      onClick={onClick}
+      className={`cursor-pointer rounded px-2 py-0.5 text-[11px] transition-colors ${
+        on ? 'bg-sky-500/25 text-sky-100' : 'bg-white/5 text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '200ms' }}>
+      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+        🛰 NASA data layers
+      </h2>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {chip('live', 'live globe', active === null, () => onSelect(null))}
+        {GIBS_LAYERS.map((l) => chip(l.id, l.label, active?.id === l.id, () => onSelect(l)))}
+      </div>
+      {active && (
+        <div className="mt-2">
+          <p className="text-[11px] text-slate-400">{active.blurb}</p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input
+              type="range"
+              min={2}
+              max={30}
+              value={daysBack}
+              onChange={(e) => onScrubDate(Number(e.target.value))}
+              aria-label="Imagery date, days before now"
+              className="h-1 flex-1 cursor-pointer accent-sky-400"
+            />
+            <span className="num text-[10px] whitespace-nowrap text-slate-300">{date}</span>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-600">data: NASA GIBS · slide to replay past days</p>
+        </div>
+      )}
     </div>
   )
 }
