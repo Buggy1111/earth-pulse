@@ -191,7 +191,9 @@ export function startOrbitEngine(
     .objectLng((d) => (d as OrbitObject).lng)
     .objectAltitude((d) => globeAltitude((d as OrbitObject).altKm))
     .objectThreeObject((d) =>
-      (d as OrbitObject).kind === 'iss' ? makeIssObject() : makeSatelliteObject(),
+      (d as OrbitObject).kind === 'iss'
+        ? makeIssObject()
+        : makeSatelliteObject(deps.ecoRef.current),
     )
     .objectLabel((d) => {
       const o = d as OrbitObject

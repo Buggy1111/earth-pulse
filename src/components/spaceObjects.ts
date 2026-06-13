@@ -27,8 +27,20 @@ const DISH_MAT = new THREE.MeshLambertMaterial({
 })
 const FEED_GEO = new THREE.CylinderGeometry(0.025, 0.025, 0.4, 5)
 
-/** Boxy bus + big dish + two three-segment solar wings, randomly tumbled. */
-export function makeSatelliteObject(): THREE.Object3D {
+// eco: a single low-poly glint — the detailed model is ~10 meshes (= 10 draw
+// calls) and 148 of those choke integrated GPUs while a sat is a dot anyway
+const SIMPLE_GEO = new THREE.OctahedronGeometry(0.62)
+const SIMPLE_MAT = new THREE.MeshLambertMaterial({ color: '#dde3ec', emissive: '#8b94a3' })
+
+/** Boxy bus + big dish + two three-segment solar wings, randomly tumbled.
+ * In `simple` (eco) mode it collapses to one mesh — one draw call instead of
+ * ten — so 148 of them stop hammering weak GPUs during globe rotation. */
+export function makeSatelliteObject(simple = false): THREE.Object3D {
+  if (simple) {
+    const sat = new THREE.Mesh(SIMPLE_GEO, SIMPLE_MAT)
+    sat.scale.setScalar(1.7)
+    return sat
+  }
   const sat = new THREE.Group()
   sat.add(new THREE.Mesh(BUS_GEO, BUS_MAT))
 
