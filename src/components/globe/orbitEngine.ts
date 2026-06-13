@@ -97,33 +97,51 @@ export function startOrbitEngine(
   let raf = 0
   let frameNo = 0
   const dir = new THREE.Vector3()
+  const Y_UP = new THREE.Vector3(0, 1, 0) // hoisted: was re-allocated per trail/frame
   const pinWorld = new THREE.Vector3()
   const pinDelta = new THREE.Vector3()
   const prevPinWorld = new THREE.Vector3()
   let prevPinObj: THREE.Object3D | null = null
+  let satsParked = false
   const frame = () => {
-    // eco mode: propagate at half the frame rate — still fluid, half the CPU
-    if (deps.ecoRef.current && ++frameNo % 2 === 1) {
-      raf = requestAnimationFrame(frame)
-      return
-    }
+    frameNo++
     // warped clock: everything physical follows it (sats speed up too)
     const t = deps.solarTimeRef.current
     const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
     const show = deps.layersRef.current
-    for (const p of propagateSats(sats, now)) {
-      const o = byId.get(p.id)
-      if (!o) continue
-      o.lat = p.lat
-      o.lng = p.lng
-      o.altKm = p.altKm
-      const mesh = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
-      if (mesh) {
-        mesh.visible = o.kind === 'iss' ? show.iss : show.sats
-        Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
+
+    // Satellite SGP4 is by far the heaviest part of the frame (148 bodies).
+    // Skip it entirely in solar mode (sats aren't the view there) and when
+    // neither the sat nor ISS layer is shown, and run it at half rate in eco —
+    // sats crawl across the globe, so 30 Hz looks identical to 60. The cheap
+    // body + sky motion below still runs every frame, so orbits stay smooth.
+    const ecoHalf = deps.ecoRef.current && frameNo % 2 === 1
+    if (!deps.solarModeRef.current && (show.sats || show.iss) && !ecoHalf) {
+      for (const p of propagateSats(sats, now)) {
+        const o = byId.get(p.id)
+        if (!o) continue
+        o.lat = p.lat
+        o.lng = p.lng
+        o.altKm = p.altKm
+        const mesh = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
+        if (mesh) {
+          mesh.visible = o.kind === 'iss' ? show.iss : show.sats
+          Object.assign(mesh.position, globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm)))
+        }
       }
+    } else if (deps.solarModeRef.current && !satsParked) {
+      // park the satellite swarm out of sight while in solar mode (it lives in
+      // the Earth view) — once on entry, not every frame
+      for (const o of byId.values()) {
+        const mesh = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
+        if (mesh) mesh.visible = false
+      }
+      satsParked = true
     }
-    // solar mode: one frame call drives planets, moons, spin and the sky.
+    if (!deps.solarModeRef.current) satsParked = false
+
+    // Body motion + sky are cheap, so they run EVERY frame — planets, moons and
+    // the terminator glide smoothly instead of stepping at the eco half-rate.
     // MUST run before the chase block — pinning to a body's stale (previous
     // frame) position makes the whole view tremble at high time-warp.
     if (deps.solarModeRef.current && deps.solarGroupRef.current?.visible) {
@@ -150,18 +168,20 @@ export function startOrbitEngine(
     } else {
       prevPinObj = null
     }
-    // arrows ride their orbit rings in the direction of flight
-    const cycle = now.getTime() / ARROW_LOOP_MS
-    for (const trail of trails.values()) {
-      const n = trail.vectors.length
-      if (n < 2) continue
-      const u = ((cycle + trail.phase) % 1) * (n - 1)
-      const i = Math.floor(u)
-      const a = trail.vectors[i]
-      const b = trail.vectors[Math.min(i + 1, n - 1)]
-      trail.arrow.position.lerpVectors(a, b, u - i)
-      dir.subVectors(b, a).normalize()
-      trail.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir)
+    // arrows ride their orbit rings (earth view only; trails belong to sats)
+    if (!deps.solarModeRef.current) {
+      const cycle = now.getTime() / ARROW_LOOP_MS
+      for (const trail of trails.values()) {
+        const n = trail.vectors.length
+        if (n < 2) continue
+        const u = ((cycle + trail.phase) % 1) * (n - 1)
+        const i = Math.floor(u)
+        const a = trail.vectors[i]
+        const b = trail.vectors[Math.min(i + 1, n - 1)]
+        trail.arrow.position.lerpVectors(a, b, u - i)
+        dir.subVectors(b, a).normalize()
+        trail.arrow.quaternion.setFromUnitVectors(Y_UP, dir)
+      }
     }
     raf = requestAnimationFrame(frame)
   }
