@@ -8,12 +8,13 @@ import { APOLLO_SITES } from '../../lib/moon'
 import { subLunarPoint } from '../../lib/moon'
 import { subsolarPoint } from '../../lib/sun'
 import { getGlowTexture, SUN_REFRESH_MS } from './helpers'
+import { makeMoonMaterial } from './moonMaterial'
 
 export interface Sky {
   sunUniform: { value: THREE.Vector3 }
   sunSprite: THREE.Sprite
   moonMesh: THREE.Mesh
-  apolloMarkers: THREE.Mesh[]
+  apolloMarkers: THREE.Object3D[]
   applySky: (date: Date) => void
   dispose: () => void
 }
@@ -41,33 +42,48 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   sunSprite.scale.set(160, 160, 1)
   globe.scene().add(sunSprite)
 
+  // textured, terminator-shaded Moon — the lit fraction matches the real phase
+  const moonTex = new THREE.TextureLoader().load('moon-2k.jpg')
   const moonMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(5, 24, 24),
-    new THREE.MeshBasicMaterial({ color: '#e8edf3' }),
+    new THREE.SphereGeometry(5, 64, 48),
+    makeMoonMaterial(moonTex, sunUniform),
   )
-  new THREE.TextureLoader().load('moon-2k.jpg', (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace
-    const m = moonMesh.material as THREE.MeshBasicMaterial
-    m.map = tex
-    m.color.set('#ffffff')
-    m.needsUpdate = true
-  })
 
-  // Apollo landing sites pinned to the lunar surface (selenographic coords)
-  const markerGeo = new THREE.SphereGeometry(0.22, 8, 8)
-  const markerMat = new THREE.MeshBasicMaterial({ color: '#4ade80' })
+  // Apollo landing sites as small silver flags pinned to the lunar surface
+  // (selenographic coords) — every place humans have stood beyond Earth. The
+  // pole sits on the surface and points straight out; an invisible sphere makes
+  // each flag comfortably clickable. userData.site lives on the group.
+  const poleGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.62, 6)
+  const poleMat = new THREE.MeshBasicMaterial({ color: '#cfd6e0' })
+  const flagGeo = new THREE.PlaneGeometry(0.36, 0.22)
+  const flagMat = new THREE.MeshBasicMaterial({ color: '#f4c34a', side: THREE.DoubleSide })
+  const pickGeo = new THREE.SphereGeometry(0.45, 8, 8)
+  const pickMat = new THREE.MeshBasicMaterial() // never rendered (pick mesh hidden)
+  const up = new THREE.Vector3(0, 1, 0)
   const apolloMarkers = APOLLO_SITES.map((site) => {
-    const marker = new THREE.Mesh(markerGeo, markerMat)
+    const group = new THREE.Group()
     const phi = (90 - site.lat) * (Math.PI / 180)
     const theta = (site.lng + 90) * (Math.PI / 180)
-    marker.position.set(
-      5.05 * Math.sin(phi) * Math.cos(theta),
-      5.05 * Math.cos(phi),
-      -5.05 * Math.sin(phi) * Math.sin(theta),
-    )
-    marker.userData.site = site
-    moonMesh.add(marker)
-    return marker
+    const dir = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      -Math.sin(phi) * Math.sin(theta),
+    ).normalize()
+    group.position.copy(dir).multiplyScalar(5)
+    group.quaternion.setFromUnitVectors(up, dir) // local +Y points outward
+
+    const pole = new THREE.Mesh(poleGeo, poleMat)
+    pole.position.y = 0.31 // base flush with the surface
+    const flag = new THREE.Mesh(flagGeo, flagMat)
+    flag.position.set(0.19, 0.5, 0) // hangs off the top of the pole
+    const pick = new THREE.Mesh(pickGeo, pickMat)
+    pick.position.y = 0.3
+    pick.visible = false // invisible objects are still raycast — generous hit area
+
+    group.add(pole, flag, pick)
+    group.userData.site = site
+    moonMesh.add(group)
+    return group
   })
 
   const moonGlow = new THREE.Sprite(
@@ -111,10 +127,15 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
       sunSprite.material.dispose()
       globe.scene().remove(moonMesh)
       moonMesh.geometry.dispose()
-      ;(moonMesh.material as THREE.MeshBasicMaterial).dispose()
+      ;(moonMesh.material as THREE.ShaderMaterial).dispose()
+      moonTex.dispose()
       moonGlow.material.dispose()
-      markerGeo.dispose()
-      markerMat.dispose()
+      poleGeo.dispose()
+      poleMat.dispose()
+      flagGeo.dispose()
+      flagMat.dispose()
+      pickGeo.dispose()
+      pickMat.dispose()
     },
   }
 }

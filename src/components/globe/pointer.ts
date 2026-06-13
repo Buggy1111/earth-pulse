@@ -8,7 +8,7 @@ import type { ApolloSite } from '../../lib/moon'
 
 export interface PointerDeps {
   moonMesh: THREE.Mesh
-  apolloMarkers: THREE.Mesh[]
+  apolloMarkers: THREE.Object3D[]
   planetMeshesRef: { current: Map<string, THREE.Object3D> }
   sunMeshRef: { current: THREE.Mesh | null }
   pinTargetRef: { current: THREE.Object3D | null }
@@ -63,8 +63,11 @@ export function setupPointer(globe: GlobeInstance, deps: PointerDeps): () => voi
         if (id) deps.onPlanetPick(id)
       }
     } else if (deps.moonModeRef.current) {
-      const hit = raycaster.intersectObjects(deps.apolloMarkers, false)[0]
-      deps.onApolloPick((hit?.object.userData.site as ApolloSite) ?? null)
+      const hit = raycaster.intersectObjects(deps.apolloMarkers, true)[0]
+      // pole / flag / pick-sphere are children — walk up to the flag's group
+      let o: THREE.Object3D | null = hit?.object ?? null
+      while (o && !o.userData.site) o = o.parent
+      deps.onApolloPick((o?.userData.site as ApolloSite) ?? null)
     } else {
       const hit = raycaster.intersectObject(deps.moonMesh, true)[0]
       if (hit) deps.onMoonEnter()

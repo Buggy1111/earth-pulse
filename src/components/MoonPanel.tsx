@@ -36,7 +36,7 @@ export function MoonPanel({
         </p>
       ) : (
         <p className="mt-1.5 text-xs text-slate-500">
-          green flags = the {APOLLO_SITES.length} Apollo landings, every place humans have ever
+          the flags mark the {APOLLO_SITES.length} Apollo landings, every place humans have ever
           stood beyond Earth — tap one. Drag to orbit, scroll to zoom; Earth hangs in the sky
           behind you.
         </p>
