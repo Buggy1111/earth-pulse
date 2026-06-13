@@ -19,11 +19,14 @@ src/
 │   ├── aurora.ts       ovály polární záře dle Kp
 │   ├── iss.ts          parser ISS API
 │   ├── wiki.ts         parser Wikimedia EventStreams
+│   ├── missions.ts     mission karty satelitů (agentura, rok, co měří)
+│   ├── events.ts       parser NASA EONET (přírodní události)
+│   ├── gibs.ts         NASA GIBS vrstvy (WMS GetMap URL, legendy, date)
 │   ├── share.ts        kodek pohledu do/z URL hashe
 │   ├── labels.ts, format.ts, ping.ts
 │   └── *.test.ts       testy po doménách (astro/satellites/feeds/ui-utils)
 │
-├── hooks.ts        React hooky pro feedy (useQuakes, useEmsc, useIss, …)
+├── hooks.ts        React hooky pro feedy (useQuakes, useEmsc, useIss, useEvents, …)
 ├── uiHooks.ts      useEcoMode / useTimeline / useSolarTime / useGeolocate
 ├── App.tsx         kompoziční kořen UI: stav, režimy, drát feedy → glóbus
 │
@@ -39,12 +42,14 @@ src/
     │   ├── moonMaterial.ts shader Měsíce (fáze dle Slunce + earthshine)
     │   ├── surface.ts      day/night textury, mraky, tile engine, hranice, sopky
     │   ├── quakesLayer.ts  glow sprity + ringy zemětřesení
+    │   ├── eventsLayer.ts  piny přírodních událostí (NASA EONET)
     │   ├── orbitEngine.ts  objects layer, per-frame smyčka, traily + šipky
     │   ├── solar.ts        stavba soustavy, updateSolar, focus kamery
     │   ├── sunMaterial.ts  procedurální shader Slunce
     │   ├── pointer.ts      raycast kliky, pin target, pov reporting
     │   └── cameraModes.ts  tour playlist, kamera Měsíce
-    └── hud/               types, panels, controls, SettingsPanel, SolarNavTree
+    └── hud/               types, panels, controls, SettingsPanel, SolarNavTree,
+                           DataLayerPanel (výběr GIBS vrstvy + date slider + legenda)
 ```
 
 ### Proč feature moduly (ADR-001)
@@ -127,6 +132,7 @@ npm run build           # tsc -b && vite build
 npm run preview         # náhled produkčního buildu
 
 # data snapshoty (build-time, ne runtime):
+npm run fetch-famous    # 26 slavných satelitů (Celestrak „active" dle NORAD id) → public/tle/famous.txt
 npm run fetch-tle       # obnoví Celestrak TLE → public/tle/visual.txt
 npm run fetch-volcanoes # obnoví Smithsonian GVP → public/geo/volcanoes.json
 npm run fetch-moons     # stáhne textury + portréty měsíců do public/planets/

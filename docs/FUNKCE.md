@@ -30,12 +30,22 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
 - **⏪ Timeline:** posuvník přehraje posledních 24 h jako film (scrub i auto-play).
 
 ### Satelity 🛰
-- **~148 skutečných satelitů** z Celestrak TLE snapshotu (přibalený v buildu,
-  `public/tle/visual.txt`) — žádné runtime API volání.
+- **26 vybraných slavných satelitů** (NASA „Eyes on the Earth" výběr) z
+  Celestrak skupiny „active" — anonymní roj 148 nahradila kurátorská sestava:
+  ISS, Tiangong, Hubble, Fermi, Terra, Aqua, Aura, Suomi NPP, NOAA-20/21,
+  GOES-16/18, Landsat 8/9, Sentinel-1A/2A/2B/3A/6, Jason-3, SWOT, ICESat-2,
+  GRACE-FO, OCO-2, TanDEM-X, GCOM-W1. Snapshot `public/tle/famous.txt` (obnova
+  `npm run fetch-famous`, stahuje TLE podle NORAD id) — žádné runtime API volání.
 - **Propagace SGP4 každý frame** (`satellite.js`) → opravdu plynulý pohyb po
   dráze, ne skoková interpolace.
-- **Klik na satelit** → uzavřený **neonový orbit ring** se šipkou směru letu.
-- **Vyhledávání podle jména**, modely podle reálných předloh.
+- Každý satelit má **detailní 3D model** a jmenovku.
+- **Orbitální dráhy** (vrstva „orbit lines") — ground-track prstenec kolem
+  satelitu, barva podle **typu mise**: stanice cyan, observatoře fialová,
+  počasí oranžová, oceán modrá, snímkování zelená, atmosféra zlatá; aditivní
+  glow. Rebuild po ~30 s.
+- **🛰 Mission karta** (`src/lib/missions.ts`) — klik na satelit ukáže kartu:
+  agentura, rok vypuštění, co měří, zajímavý fakt; barva dle kategorie.
+- **Vyhledávání podle jména.**
 
 ### ISS 🛰
 - Letí plynule po své SGP4 dráze, **živá telemetrie** z Where The ISS At API
@@ -44,12 +54,34 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
 - Po sdílení polohy: **predikce přeletu** („ISS nad tebou za 2 h 14 min") +
   živý seznam **„above you now"** (satelity aktuálně nad tvým obzorem).
 
-### Den a noc v 8K 🌃
+### Latest Events 🔥
+- **NASA EONET** (Earth Observatory Natural Event Tracker, `src/lib/events.ts`,
+  `src/components/globe/eventsLayer.ts`) — živé přírodní události: požáry,
+  bouře, sopky, ledovce jako barevné piny (globe.gl points layer).
+- Panel **„Live on Earth"** s počty událostí podle kategorie.
+- Hook `useEvents` (refresh á 10 min). Vrstva „natural events" v nastavení.
+
+### Datové vrstvy a time playback 🌍
+- **NASA GIBS** (Global Imagery Browse Services, `src/lib/gibs.ts`) — 4
+  „vital signs" vrstvy: 🌍 dnešní Země (true-color MODIS), 🌡 teplota moří
+  (GHRSST), 🌫 aerosoly (MODIS AOD), ❄️ sníh.
+- Načte se jeden equirektangulární obrázek přes **WMS GetMap** a paintuje se
+  přímo na materiál glóbu (obejde cachování dlaždic v globe.gl).
+- **`DataLayerPanel`** = výběr vrstvy + **date slider** (přetáčení denních
+  snímků až 30 dní zpět = time playback) + **legenda (colorbar)** s rozsahem
+  (SST −2→32 °C, aerosoly clear→hazy, sníh none→snow).
+
+### Den a noc 🌃
 - Custom shader (`dayNightMaterial.ts`) prolíná denní texturu se světly měst
   podél **skutečného terminátoru** (počítaného ze sub-solárního bodu).
 - Teplý pruh **civilního soumraku** na hranici den/noc.
 - Mraky sdílí stejné Slunce — na noční straně se ztmaví, aby nepřeexponovaly
   světla měst.
+- **24h replay:** terminátor i Měsíc sledují posuvník času (⏪ timeline), ne
+  jen filtr otřesů — den/noc se přetáčí spolu se zemětřeseními.
+- **Dvě úrovně textur:** přepínač **„fast mode (2K)"** (rychlé 2K textury
+  `public/earth-day-2k.jpg` / `earth-night-2k.jpg`, ~247 KB místo 4,5 MB) vs
+  plný 8K detail; na slabé GPU se zapne automaticky.
 
 ### Mapový zoom 🔎
 - Pod ~1500 km se streamuje **Esri World Imagery** (LOD až do úrovně ulic,
@@ -67,7 +99,9 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
   článků.
 - 🎬 **Kinematický auto-tour** — kamera klouže mezi živými body zájmu.
 - 🔗 **Sdílení pohledu v URL** (viz [ARCHITEKTURA → Sdílení](ARCHITEKTURA.md#sdílení-pohledu-v-url)).
-- 📍 **Moje poloha** (volitelná geolokace) — odemkne predikci přeletu a „above you".
+- 📍 **Moje poloha** (volitelná geolokace) — odemkne predikci přeletu a „above
+  you". Špendlík **„you are here"** sedí přesně na povrchu (dřív byl ve výšce →
+  paralaxa při zoomu).
 
 ---
 
@@ -101,7 +135,13 @@ otevře se celá soustava.
   **prstencovými systémy** (Saturn).
 - **20 hlavních měsíců** obíhajících na **skutečných drahách a periodách** — Io
   za 1,77 dne, Triton pozpátku. Každý má skutečnou velikost, vzdálenost a (kde
-  existuje) texturu z NASA/USGS.
+  existuje) texturu z NASA/USGS. Nově i **Zemin Měsíc** (dřív jediná planeta bez
+  měsíce ve scéně) — s kartou a texturou, **tidal lock**: přivrácená strana
+  vždy k Zemi, odvrácenou je vidět až po obeplutí.
+- **Barevné dráhy** — planetární i měsíční orbity mají barvu podle planety
+  (+ glow), dřív byly jednotně šedé.
+- **Pluto/Charon** — dopočítaná černá jižní čepička (New Horizons nasnímal jen
+  sever) → hladký terén bez díry.
 - **Procedurální Slunce** — vlastní shader (granulace + ztmavení k okraji).
 - **Stíny měsíců** — per-frame projekce umbry + penumbry na planetu (tranzity).
 - **Navigační strom vpravo** (`SolarNavTree`) — Slunce → planety → rozbalitelné
@@ -133,6 +173,11 @@ otevře se celá soustava.
 - **Eco mód** — automatická detekce slabé GPU (Intel UHD/HD, mobilní čipy,
   software renderer). Pak: 4K textury místo 8K, pixel ratio 1×, propagace 30 Hz
   + FPS watchdog. Preference se ukládá do `localStorage`.
+- **„fast mode (2K)"** — samostatný přepínač lehkých 2K textur Země
+  (~247 KB místo 4,5 MB), auto-detekce slabé GPU.
+- **Plynulost ve sluneční soustavě** — těžká SGP4 propagace satelitů se v solar
+  módu přeskočí; pohyb planet/měsíců + terminátor běží **každý frame** (eco
+  půlí jen drahou SGP4, ne zbytek scény).
 - **Mobilní layout** — kompaktní HUD, Wiki ticker skrytý na telefonech.
 - HUD tlačítka mají `aria-pressed` / `aria-label`; ovládání je myš/dotyk +
   panely (žádné povinné klávesové zkratky).

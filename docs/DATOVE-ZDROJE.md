@@ -15,6 +15,8 @@ aby aplikace nezávisela na dostupnosti API za běhu.
 | Kosmické počasí — Kp | NOAA SWPC | `services.swpc.noaa.gov/json/planetary_k_index_1m.json` | 60 s poll | JSON |
 | Kosmické počasí — sluneční vítr | NOAA SWPC | `services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json` | 60 s poll | JSON (products) |
 | Editace Wikipedie | Wikimedia EventStreams | `stream.wikimedia.org/v2/stream/recentchange` | SSE (push) | JSON events |
+| Přírodní události | NASA EONET v3 | `eonet.gsfc.nasa.gov/api/v3/events` | 10 min poll | JSON |
+| Datové vrstvy (vital signs) | NASA GIBS | `gibs.earthdata.nasa.gov` (WMS GetMap, EPSG:4326) | na vyžádání / date slider | obrázek (equirektangulární) |
 | Mapový detail (zoom) | Esri World Imagery | tile server (LOD) | na vyžádání při zoomu | dlaždice |
 
 ### Detaily chování
@@ -26,12 +28,19 @@ aby aplikace nezávisela na dostupnosti API za běhu.
 - **ISS** (`useIss`): poll 3 s (API žádá ≥1 s mezi voláními).
 - **Wikipedia** (`wiki.ts`): jen lidské editace článků (namespace 0, ne-bot,
   `*.wikipedia.org`).
+- **NASA EONET** (`events.ts`, hook `useEvents`): přírodní události (požáry,
+  bouře, sopky, led) → barevné piny + panel „Live on Earth" s počty dle
+  kategorie, refresh á 10 min.
+- **NASA GIBS** (`gibs.ts`): 4 vrstvy (dnešní Země true-color MODIS, teplota
+  moří GHRSST, aerosoly MODIS AOD, sníh). Jeden equirektangulární obrázek přes
+  WMS GetMap se paintuje na materiál glóbu (obejde cachování dlaždic v
+  globe.gl). Date slider přetáčí denní snímky až 30 dní zpět.
 
 ## Build-time snapshoty (přibalené)
 
 | Data | Zdroj | Soubor | Obnova příkazem |
 | --- | --- | --- | --- |
-| ~148 satelitů (TLE) | Celestrak | `public/tle/visual.txt` | `npm run fetch-tle` |
+| 26 slavných satelitů (TLE) | Celestrak (skupina „active", dle NORAD id) | `public/tle/famous.txt` | `npm run fetch-famous` |
 | 1 215 sopek | Smithsonian GVP | `public/geo/volcanoes.json` | `npm run fetch-volcanoes` |
 | Hranice + jména států | Natural Earth | `public/geo/countries-110m.json` | — |
 

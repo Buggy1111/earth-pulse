@@ -12,16 +12,28 @@ public data feeds.
   shaking — flash ring, NEW badge, optional sound ping pitched by magnitude.
   Additive glow sprites on a warm ramp, fading with event age; a ⏪ timeline
   replays the last 24 h as a film
-- 🛰 **~150 real satellites** — Celestrak TLEs propagated with SGP4 **every
-  frame** (truly fluid orbital motion, zero runtime API calls). Click one for a
-  **closed neon orbit ring with a direction arrow**; search them by name
+- 🛰 **26 famous satellites** (ISS, Hubble, Terra, Sentinels, GOES, Landsat…) —
+  Celestrak "active" TLEs propagated with SGP4 **every frame** (truly fluid
+  orbital motion, zero runtime API calls). Each has a detailed model, a name
+  tag, and a 🛰 **mission card** (agency, launch year, what it measures); click
+  one for a **closed neon orbit ring** coloured by mission type, with a
+  direction arrow. Search them by name
+- 🔥 **Latest natural events** — NASA **EONET** feed: live fires, storms,
+  volcanoes and ice as colour-coded pins, with a "Live on Earth" panel counting
+  them by category
+- 🌍 **Vital-signs data layers** — NASA **GIBS** imagery painted on the globe:
+  today's true-colour Earth, sea-surface temperature, aerosols, snow — with a
+  legend and a **date slider** that replays the last 30 days (time playback)
 - 🛰 **The ISS** — flies smoothly on its SGP4 track, live API telemetry in the
   HUD, **follow chase-camera**, and after you share your location: **"the ISS
   is over you in 2 h 14 min"** (real pass prediction) + a live **"above you
   now"** list of satellites over your horizon
-- 🌃 **Real day & night in 8K** — a custom shader blends the day texture into
-  city lights along the *actual* terminator, with a warm civil-twilight band;
-  clouds share the same Sun and fade out at night
+- 🌃 **Real day & night** — a custom shader blends the day texture into city
+  lights along the *actual* terminator, with a warm civil-twilight band; clouds
+  share the same Sun and fade out at night. **Day & night replay too**: the
+  terminator and the Moon follow the ⏪ 24h time slider, not just the quake
+  filter. Textures come in two tiers — a **"fast mode (2K)"** toggle (~247 KB
+  textures, auto-enabled on weak GPUs) vs full 8K detail
 - 🔎 **Map-grade zoom** — Esri World Imagery streams in below ~1500 km (LOD to
   street level, night-side dimmed); zoom out and the live globe returns.
   🗺 Country borders + names, 🌌 aurora ovals scaled by the live Kp index,
@@ -42,9 +54,10 @@ tap one for the mission and crew.
 ## 🪐 The whole solar system
 One button and you're above the ecliptic: the Sun and all seven other planets
 at their **real positions for right now** (JPL approximate ephemerides), real
-axial tilts (Uranus on its side), real spin rates, ring systems, and **twelve
-major moons revolving at their true periods** — Io in 1.77 days, Triton
-backwards. Click any body to orbit it. Then grab the **⏩ time-warp** (up to a
+axial tilts (Uranus on its side), real spin rates, ring systems, and **major
+moons revolving at their true periods** — Io in 1.77 days, Triton backwards,
+and Earth's own **tidally-locked Moon** (its near side always faces Earth).
+Click any body to orbit it. Then grab the **⏩ time-warp** (up to a
 week per second) and watch the system dance — planets slide along their
 orbits, moons whirl, and even Earth's terminator and satellites speed up.
 
@@ -77,7 +90,8 @@ pixel ratio, 30 Hz propagation — with an FPS watchdog).
   every frame — we get the last word).
 - Data: USGS + EMSC (quakes), Celestrak (TLE snapshot), Where The ISS At,
   NOAA SWPC (Kp + solar wind), Wikimedia EventStreams, Natural Earth
-  (borders/names), Smithsonian GVP (volcano snapshot).
+  (borders/names), Smithsonian GVP (volcano snapshot), **NASA EONET** (natural
+  events) and **NASA GIBS** (data layers) — all free, no keys, CORS-friendly.
 
 ## Documentation
 Deep docs live in [`docs/`](docs/) (Czech):

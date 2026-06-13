@@ -67,13 +67,60 @@ Pět kroků:
 5. **Stíny měsíců** na planetách (tranzity, umbra+penumbra) + FIX orientace
    soustavy zděděné ze Season 2. *(52a9175)*
 
-## 🌙 Detailní Měsíc (13. 6., 07:20) — nejnovější
+## 🌙 Detailní Měsíc (13. 6., 07:20)
 - Nový shader (`moonMaterial.ts`): **terminátor řízený směrem ke Slunci** →
   osvětlená část odpovídá skutečné fázi; jemný **earthshine** na temné straně;
   **limb darkening**. Jemnější geometrie (64×48).
 - Apollo místa: ošklivé **zelené tečky** nahrazeny **stříbrnými vlajkami se
   zlatým praporkem**; picking přes skupiny (neviditelná pick-koule = pohodlný
   klik), funkčnost zachována. *(5459f9c)*
+
+## 🛰 „v0.4" — NASA Eyes on the Earth (13. 6., večer) — nejnovější
+Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-friendly).
+
+**Slavné satelity + dráhy:**
+- Anonymní roj 148 nahrazeno **26 vybranými slavnými satelity** (ISS, Tiangong,
+  Hubble, Fermi, Terra/Aqua/Aura, Suomi NPP, NOAA-20/21, GOES-16/18,
+  Landsat 8/9, Sentinely, Jason-3, SWOT, ICESat-2, GRACE-FO, OCO-2, TanDEM-X,
+  GCOM-W1). Nový `scripts/fetch-famous.mjs` (`npm run fetch-famous`) stahuje TLE
+  dle NORAD id ze skupiny Celestrak „active" → `public/tle/famous.txt`. Každý má
+  detailní 3D model a jmenovku.
+- **Orbitální dráhy** (vrstva „orbit lines") — ground-track prstenec, barva
+  podle **typu mise** (stanice cyan, observatoře fialová, počasí oranžová,
+  oceán modrá, snímkování zelená, atmosféra zlatá) + aditivní glow.
+- **🛰 Mission karty** (`src/lib/missions.ts`) — agentura, rok vypuštění, co
+  satelit měří, zajímavý fakt; barva dle kategorie.
+
+**Live na Zemi:**
+- **🔥 Latest Events** (`src/lib/events.ts`, `globe/eventsLayer.ts`) — NASA
+  **EONET** API → živé požáry/bouře/sopky/led jako barevné piny + panel
+  „Live on Earth" s počty dle kategorie. Hook `useEvents` (refresh 10 min).
+- **🌍 Vital Signs datové vrstvy + ⏮ time playback** (`src/lib/gibs.ts`) — NASA
+  **GIBS** přes WMS GetMap: dnešní Země (MODIS), teplota moří (GHRSST),
+  aerosoly (MODIS AOD), sníh; paint na materiál glóbu. `DataLayerPanel` =
+  výběr vrstvy + **date slider** (až 30 dní zpět) + **legenda (colorbar)**.
+
+**Výkon (slabé GPU jako Intel UHD 620):**
+- Přepínač **„fast mode (2K)"** — rychlé 2K textury (`earth-day-2k.jpg`,
+  `earth-night-2k.jpg`, ~247 KB místo 4,5 MB) vs plný 8K detail, auto-detekce.
+- Solar plynulost — těžká SGP4 propagace se v solar módu přeskočí; pohyb planet
+  /měsíců + terminátor běží každý frame.
+
+**Realita a dotažení:**
+- **Den/noc se přetáčí s 24h replayem** zemětřesení (terminátor + Měsíc sledují
+  posuvník času, ne jen filtr otřesů).
+- **Pluto/Charon** — dopočítaná černá jižní čepička (New Horizons nasnímal jen
+  sever) → hladký terén.
+- **Zemin Měsíc** přidán do sluneční soustavy (byl jedinou planetou bez měsíce)
+  + karta + textura; **tidal lock** (přivrácená strana vždy k Zemi).
+- **📍 „you are here" špendlík** sedí přesně na povrchu (byl ve výšce →
+  paralaxa při zoomu).
+- **Barevné dráhy v solar systému** — planetární i měsíční dráhy dle barvy
+  planety + glow (byly šedé).
+
+> Stav: **58/58 testů**, `tsc` + `eslint` čisté, build OK. Verze v
+> `package.json` zůstává `0.3.0` — „v0.4" je neformální milník dnešní NASA Eyes
+> nadstavby.
 
 ---
 
