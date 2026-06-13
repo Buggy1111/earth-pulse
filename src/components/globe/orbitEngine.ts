@@ -26,6 +26,38 @@ import {
   type TrailPath,
 } from './helpers'
 
+// NASA "Eyes"-style mission palette — each orbit is coloured by what the
+// satellite does, not just its altitude. Falls back to LEO teal for anything
+// outside the curated cast.
+const SAT_ORBIT_COLOR: Record<string, string> = {
+  ISS: '#22d3ee', // stations — cyan
+  Tiangong: '#22d3ee',
+  Hubble: '#c084fc', // great observatories — violet
+  Fermi: '#c084fc',
+  'NOAA-20': '#fb923c', // weather — orange
+  'NOAA-21': '#fb923c',
+  'GOES-16': '#fb923c',
+  'GOES-18': '#fb923c',
+  'Jason-3': '#38bdf8', // ocean / altimetry — sky blue
+  SWOT: '#38bdf8',
+  'Sentinel-3A': '#38bdf8',
+  'Sentinel-6': '#38bdf8',
+  'GRACE-FO 1': '#38bdf8',
+  'Landsat 8': '#4ade80', // land imaging — green
+  'Landsat 9': '#4ade80',
+  'Sentinel-1A': '#4ade80',
+  'Sentinel-2A': '#4ade80',
+  'Sentinel-2B': '#4ade80',
+  Terra: '#4ade80',
+  'TanDEM-X': '#4ade80',
+  Aqua: '#fbbf24', // atmosphere / climate — gold
+  Aura: '#fbbf24',
+  'Suomi NPP': '#fbbf24',
+  'ICESat-2': '#fbbf24',
+  'OCO-2': '#fbbf24',
+  'GCOM-W1': '#fbbf24',
+}
+
 export interface SolarAnimEntry {
   mesh: THREE.Mesh
   rotationH: number
@@ -236,8 +268,6 @@ export function startOrbitEngine(
   // the moving model (the ground track drifts west as Earth turns beneath it)
   const orbitGroup = new THREE.Group()
   globe.scene().add(orbitGroup)
-  const orbitColor = (altKm: number) =>
-    altKm > 20_000 ? '#fbbf24' : altKm > 1_800 ? '#a78bfa' : '#5eead4' // GEO · MEO · LEO
   const buildOrbitLines = () => {
     for (const c of [...orbitGroup.children]) {
       orbitGroup.remove(c)
@@ -253,9 +283,17 @@ export function startOrbitEngine(
         const { x, y, z } = globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm))
         return new THREE.Vector3(x, y, z)
       })
+      const color = SAT_ORBIT_COLOR[o.name] ?? (o.altKm > 20_000 ? '#fbbf24' : '#5eead4')
+      // additive blend = the lines softly glow where they cross, dark space only
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: orbitColor(o.altKm), transparent: true, opacity: 0.5 }),
+        new THREE.LineBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.55,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
       )
       line.renderOrder = 1
       orbitGroup.add(line)
