@@ -30,10 +30,12 @@ public data feeds.
   and layers travel in the URL hash)
 
 ## 🌙 The Moon — click it
-Click the Moon in the sky (it sits at its real position, real phase) and the
-camera flies over: **you orbit the Moon like Earth**, with Earth hanging in the
-lunar sky. Green flags mark the six Apollo landings — every place humans have
-ever stood — tap one for the mission and crew.
+Click the Moon in the sky (it sits at its real position) and the camera flies
+over: **you orbit the Moon like Earth**, with Earth hanging in the lunar sky. A
+custom shader lights it by the **real Sun direction**, so the lit crescent
+matches tonight's actual phase, with a faint earthshine on the dark side. Small
+**flags** mark the six Apollo landings — every place humans have ever stood —
+tap one for the mission and crew.
 
 ![Moon mode — orbiting the real Moon with Apollo landing sites](docs/moon-mode.png)
 
@@ -54,7 +56,7 @@ orbits, moons whirl, and even Earth's terminator and satellites speed up.
 ```bash
 npm install
 npm run dev             # http://localhost:5173
-npm test                # 56 tests — ephemerides, SGP4, feeds, share links
+npm test                # 58 tests — ephemerides, SGP4, feeds, share links
 npm run lint && npm run build
 npm run fetch-tle       # refresh the bundled Celestrak TLE snapshot
 npm run fetch-volcanoes # refresh the Smithsonian GVP volcano snapshot
@@ -76,6 +78,14 @@ pixel ratio, 30 Hz propagation — with an FPS watchdog).
 - Data: USGS + EMSC (quakes), Celestrak (TLE snapshot), Where The ISS At,
   NOAA SWPC (Kp + solar wind), Wikimedia EventStreams, Natural Earth
   (borders/names), Smithsonian GVP (volcano snapshot).
+
+## Documentation
+Deep docs live in [`docs/`](docs/) (Czech):
+- [`FUNKCE.md`](docs/FUNKCE.md) — full feature reference, mode by mode
+- [`ARCHITEKTURA.md`](docs/ARCHITEKTURA.md) — code structure, data flow, eco mode, share URLs
+- [`DATOVE-ZDROJE.md`](docs/DATOVE-ZDROJE.md) — every live feed, refresh rate, attribution
+- [`CHANGELOG.md`](docs/CHANGELOG.md) — the build journey, from v0.1 to today
+- [`adr-001-globe-feature-modules.md`](docs/adr-001-globe-feature-modules.md) — why the scene is split into feature modules
 
 ## Stack & credits
 
