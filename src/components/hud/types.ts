@@ -2,6 +2,7 @@
 
 export interface LayerState {
   sats: boolean
+  orbits: boolean
   iss: boolean
   quakes: boolean
   aurora: boolean
@@ -19,6 +20,7 @@ export interface OrbitEntry {
 
 export const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
   { key: 'sats', label: '🛰 satellites' },
+  { key: 'orbits', label: '🛰 orbit lines' },
   { key: 'iss', label: '🛰 ISS' },
   { key: 'quakes', label: '🌋 earthquakes' },
   { key: 'aurora', label: '🌌 aurora' },

@@ -15,7 +15,7 @@ import {
   type SatRec,
 } from 'satellite.js'
 
-export const TLE_LOCAL_URL = 'tle/visual.txt'
+export const TLE_LOCAL_URL = 'tle/famous.txt'
 
 export interface TleSet {
   name: string
@@ -47,7 +47,8 @@ export interface TrackedSat {
 export const ISS_NAME = 'ISS (ZARYA)'
 
 export function isIss(name: string): boolean {
-  return name.startsWith(ISS_NAME)
+  // the curated set relabels it "ISS"; the raw Celestrak name is "ISS (ZARYA)"
+  return name === 'ISS' || name.startsWith(ISS_NAME)
 }
 
 export function toTrackedSats(sets: TleSet[]): TrackedSat[] {

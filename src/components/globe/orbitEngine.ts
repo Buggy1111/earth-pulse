@@ -14,7 +14,7 @@ import {
   type TrackedSat,
 } from '../../lib/satellites'
 import type { LayerState } from '../hud/types'
-import { makeIssObject, makeSatelliteObject } from '../spaceObjects'
+import { makeIssObject, makeNameSprite, makeSatelliteObject } from '../spaceObjects'
 import {
   ARROW_GEO,
   ARROW_LOOP_MS,
@@ -109,6 +109,7 @@ export function startOrbitEngine(
     const t = deps.solarTimeRef.current
     const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
     const show = deps.layersRef.current
+    orbitGroup.visible = !deps.solarModeRef.current && show.orbits
 
     // Satellite SGP4 is by far the heaviest part of the frame (148 bodies).
     // Skip it entirely in solar mode (sats aren't the view there) and when
@@ -190,11 +191,14 @@ export function startOrbitEngine(
     .objectLat((d) => (d as OrbitObject).lat)
     .objectLng((d) => (d as OrbitObject).lng)
     .objectAltitude((d) => globeAltitude((d as OrbitObject).altKm))
-    .objectThreeObject((d) =>
-      (d as OrbitObject).kind === 'iss'
-        ? makeIssObject()
-        : makeSatelliteObject(deps.ecoRef.current),
-    )
+    .objectThreeObject((d) => {
+      const o = d as OrbitObject
+      if (o.kind === 'iss') return makeIssObject()
+      // a curated cast of ~26, so every sat keeps its detailed model + a name tag
+      const model = makeSatelliteObject()
+      model.add(makeNameSprite(o.name, 2, true))
+      return model
+    })
     .objectLabel((d) => {
       const o = d as OrbitObject
       if (o.kind === 'iss') {
@@ -227,10 +231,49 @@ export function startOrbitEngine(
     .pathDashAnimateTime((d) => ((d as TrailPath).kind === 'halo' ? 0 : 4_000))
     .pathTransitionDuration(600)
 
+  // ——— orbit lines (NASA "Eyes on the Earth" look): a faint ground-track ring
+  // per sat, colour-coded by altitude band, rebuilt every 30 s so it stays under
+  // the moving model (the ground track drifts west as Earth turns beneath it)
+  const orbitGroup = new THREE.Group()
+  globe.scene().add(orbitGroup)
+  const orbitColor = (altKm: number) =>
+    altKm > 20_000 ? '#fbbf24' : altKm > 1_800 ? '#a78bfa' : '#5eead4' // GEO · MEO · LEO
+  const buildOrbitLines = () => {
+    for (const c of [...orbitGroup.children]) {
+      orbitGroup.remove(c)
+      ;(c as THREE.Line).geometry.dispose()
+      ;((c as THREE.Line).material as THREE.Material).dispose()
+    }
+    const at = new Date()
+    for (const o of objects) {
+      if (!o.sat) continue
+      const track = orbitTrack(o.sat, at, 96)
+      if (track.length < 2) continue
+      const pts = track.map((p) => {
+        const { x, y, z } = globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm))
+        return new THREE.Vector3(x, y, z)
+      })
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: orbitColor(o.altKm), transparent: true, opacity: 0.5 }),
+      )
+      line.renderOrder = 1
+      orbitGroup.add(line)
+    }
+  }
+  buildOrbitLines()
+  const orbitTimer = setInterval(buildOrbitLines, 30_000)
+
   globe.objectsData(objects)
   raf = requestAnimationFrame(frame)
   return () => {
     cancelAnimationFrame(raf)
+    clearInterval(orbitTimer)
+    for (const c of orbitGroup.children) {
+      ;(c as THREE.Line).geometry.dispose()
+      ;((c as THREE.Line).material as THREE.Material).dispose()
+    }
+    globe.scene().remove(orbitGroup)
     for (const t of trails.values()) globe.scene().remove(t.arrow)
     trails.clear()
     globe.pathsData([])

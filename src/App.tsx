@@ -46,6 +46,7 @@ export default function App() {
   const [layers, setLayers] = useState<LayerState>(() => {
     const base: LayerState = {
       sats: true,
+      orbits: true,
       iss: true,
       quakes: true,
       aurora: true,
