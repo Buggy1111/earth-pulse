@@ -50,6 +50,11 @@ export interface OrbitEngineDeps {
   solarModeRef: { current: boolean }
   solarGroupRef: { current: THREE.Group | null }
   solarFrameRef: { current: (now: Date) => void }
+  /** Re-aims the day/night terminator + Moon each frame in the Earth view. */
+  applySkyRef: { current: (date: Date) => void }
+  /** 24 h-replay offset (ms, ≤0) folded into the sky clock so the terminator
+   * rewinds with the earthquake timeline. */
+  timeOffsetMsRef: { current: number }
   pinTargetRef: { current: THREE.Object3D | null }
   trailsRef: { current: Map<string, Trail> }
   issStateRef: { current: IssState | null }
@@ -123,6 +128,11 @@ export function startOrbitEngine(
     // frame) position makes the whole view tremble at high time-warp.
     if (deps.solarModeRef.current && deps.solarGroupRef.current?.visible) {
       deps.solarFrameRef.current(now)
+    } else {
+      // Earth view: re-aim the terminator + Moon every frame off the warped
+      // clock plus the 24 h-replay offset, so live drifts smoothly and a
+      // scrub/replay sweeps the day/night around the globe with the quakes.
+      deps.applySkyRef.current(new Date(now.getTime() + deps.timeOffsetMsRef.current))
     }
     // bodies drift — keep the orbit pivot glued to whatever we're orbiting,
     // and CHASE it: the camera translates with the body, so a focused planet

@@ -100,6 +100,12 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   moonMesh.add(moonGlow)
   globe.scene().add(moonMesh)
 
+  // tidal lock: the Moon's near side (its flag-bearing face — the Apollo sites
+  // sit around selenographic 0,0 which the marker layout places at local −Z)
+  // always turns toward Earth, exactly as the real Moon does. The far side then
+  // only ever comes into view when you orbit around the Moon.
+  const MOON_NEAR_AXIS = new THREE.Vector3(0, 0, -1)
+  const toEarth = new THREE.Vector3()
   const applySky = (now: Date) => {
     const sun = subsolarPoint(now)
     const { x, y, z } = globe.getCoords(sun.lat, sun.lng, 0)
@@ -108,6 +114,8 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
     const moon = subLunarPoint(now)
     const mc = globe.getCoords(moon.lat, moon.lng, 0)
     moonMesh.position.set(mc.x, mc.y, mc.z).normalize().multiplyScalar(480)
+    toEarth.copy(moonMesh.position).normalize().negate()
+    moonMesh.quaternion.setFromUnitVectors(MOON_NEAR_AXIS, toEarth)
     // brighter glow around fuller moon
     ;(moonGlow.material as THREE.SpriteMaterial).opacity = 0.25 + 0.5 * moon.illumination
   }
