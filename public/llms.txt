@@ -4,7 +4,7 @@
 > browser — no backend and no API keys. It shows live earthquakes, around 150
 > real satellites with clickable orbits, the International Space Station, the
 > aurora, real day/night with city lights, and a full solar-system mode with
-> the Moon and planets. Live at https://earth-pulse.vercel.app/
+> the Moon and planets. Live at https://earth-pulse-rosy.vercel.app/
 
 Earth Pulse turns live public data into a single interactive planet you can
 spin, zoom and fly around. It is built with React, TypeScript, Vite and
@@ -47,5 +47,5 @@ feeds, so anyone can run it as a static site.
 
 ## Links
 
-- Live app: https://earth-pulse.vercel.app/
+- Live app: https://earth-pulse-rosy.vercel.app/
 - Source code: https://github.com/Buggy1111/earth-pulse

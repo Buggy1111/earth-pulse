@@ -38,4 +38,4 @@ Allow: /
 User-agent: meta-externalagent
 Allow: /
 
-Sitemap: https://earth-pulse.vercel.app/sitemap.xml
+Sitemap: https://earth-pulse-rosy.vercel.app/sitemap.xml
