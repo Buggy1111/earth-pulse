@@ -124,6 +124,44 @@ Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-frie
 
 ---
 
+## 🧭 v0.5 — Navigace, UX a první deploy (14. 6.)
+
+**Navigace:**
+- **Jednotný přepínač světů** 🌍/🌙/🪐 viditelný ve všech módech → přímý přechod
+  Měsíc↔Soustava bez návratu přes Zemi. Klávesy `1`/`2`/`3`, `H` (skrýt HUD),
+  `Esc` (domů). *(8b2d506)*
+- **⌖ Reset kamery** — návrat na výchozí pohled Země. *(bc7bdf6)*
+
+**Layout a responzivita:**
+- Plně responzivní HUD — žádné překryvy na mobilu/tabletu/desktopu. *(a211218)*
+- **Customizer jako vysouvací drawer** — opravený bug, kdy otevřené nastavení
+  vytlačilo spodní pravá tlačítka mimo obrazovku. *(3329944)*
+- **📱 Vysouvací šuplíky vlevo+vpravo** na telefonu/tabletu — glóbus je default
+  čistý, panely se vytáhnou od okraje. Refaktor do `Hud.tsx` + nové hooky
+  (`useMediaQuery`, `useQuakePing`, `useShareHash`, `useKioskShow`); App.tsx pod
+  ADR limit 400 řádků. *(aa15034)*
+
+**Vychytávky:**
+- **📺 Kiosk/screensaver** — po ~75 s nečinnosti cinematická smyčka (tour →
+  soustava → follow ISS); libovolná interakce vrací ovládání. *(9e3996c)*
+- **☄️ Kometové orbity** — místo plného prstence jen mizející ocas ZA tělesem
+  (hlava = aktuální poloha). Satelity i celá soustava (planety, Země, měsíce).
+  *(9372cc2, 9cf1cc4)*
+- **✨ Luxusní intro** — svítící Země s neonovými orbitami, třpytivý wordmark
+  „EARTH PULSE" a hvězdné pozadí, plynule prolne do živého glóbu.
+
+**Distribuce:**
+- **🔎 SEO + GEO** — bohatá meta, Open Graph + OG obrázek, Twitter card,
+  JSON-LD `WebApplication`, `robots.txt` vítající AI crawlery, `llms.txt`,
+  `sitemap.xml`. *(f9d4cb2)*
+- **🚀 Deploy** — živě na Vercelu: <https://earth-pulse-rosy.vercel.app/>,
+  auto-deploy z `main` na každý push. *(c232409, 29dc7a7)*
+
+> Stav: **59/59 testů**, `tsc` + `eslint` čisté, build OK. Soubory ≤ 400 řádků
+> (kromě `GlobeView.tsx` — kandidát na rozdělení).
+
+---
+
 ## Verzování
 `package.json` drží `version: 0.3.0`. Vývojové „Seasony" a kroky výše jsou
 neformální oblouky práce, ne semver tagy — projekt je zatím v aktivním vývoji na

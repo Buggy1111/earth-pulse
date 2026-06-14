@@ -27,8 +27,9 @@ src/
 │   └── *.test.ts       testy po doménách (astro/satellites/feeds/ui-utils)
 │
 ├── hooks.ts        React hooky pro feedy (useQuakes, useEmsc, useIss, useEvents, …)
-├── uiHooks.ts      useEcoMode / useTimeline / useSolarTime / useGeolocate
-├── App.tsx         kompoziční kořen UI: stav, režimy, drát feedy → glóbus
+├── uiHooks.ts      useEcoMode/useTimeline/useSolarTime/useGeolocate/useMediaQuery
+│                   /useIdleKiosk/useKioskShow/useQuakePing/useShareHash
+├── App.tsx         kompoziční kořen UI: stav, režimy, drát feedy → glóbus (≤400 ř.)
 │
 └── components/
     ├── GlobeView.tsx       kompoziční kořen 3D scény: props → refs → effects
@@ -48,8 +49,9 @@ src/
     │   ├── sunMaterial.ts  procedurální shader Slunce
     │   ├── pointer.ts      raycast kliky, pin target, pov reporting
     │   └── cameraModes.ts  tour playlist, kamera Měsíce
-    └── hud/               types, panels, controls, SettingsPanel, SolarNavTree,
-                           DataLayerPanel (výběr GIBS vrstvy + date slider + legenda)
+    └── hud/               Hud.tsx (layout: desktop rohy / mobil+tablet šuplíky),
+                           types, panels, controls (switcher, dock, SideDrawer,
+                           loader), SettingsPanel, SolarNavTree, DataLayerPanel
 ```
 
 ### Proč feature moduly (ADR-001)
@@ -126,7 +128,7 @@ neznámé klíče — odkaz nejde „rozbít" ručně.
 ```bash
 npm install
 npm run dev             # vite dev server (http://localhost:5173)
-npm test                # vitest — 58 testů (ephemeridy, SGP4, feedy, share)
+npm test                # vitest — 59 testů (ephemeridy, SGP4, feedy, share)
 npm run lint            # eslint
 npm run build           # tsc -b && vite build
 npm run preview         # náhled produkčního buildu

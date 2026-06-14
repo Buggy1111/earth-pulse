@@ -71,7 +71,7 @@ orbits, moons whirl, and even Earth's terminator and satellites speed up.
 ```bash
 npm install
 npm run dev             # http://localhost:5173
-npm test                # 58 tests — ephemerides, SGP4, feeds, share links
+npm test                # 59 tests — ephemerides, SGP4, feeds, share links
 npm run lint && npm run build
 npm run fetch-tle       # refresh the bundled Celestrak TLE snapshot
 npm run fetch-volcanoes # refresh the Smithsonian GVP volcano snapshot
@@ -80,6 +80,13 @@ npm run fetch-volcanoes # refresh the Smithsonian GVP volcano snapshot
 The HUD is mode-aware (Earth dashboards disappear on the Moon and in the solar
 system) and adapts to weak GPUs automatically (⚡ eco mode: 4K textures, 1×
 pixel ratio, 30 Hz propagation — with an FPS watchdog).
+
+**Navigation & UX:** a persistent 🌍/🌙/🪐 world switcher (keys `1`/`2`/`3`,
+`H` to hide the HUD, `Esc` home), a ⌖ camera reset, and a cinematic kiosk that
+auto-tours after a while idle. On desktop the dashboards live in the corners;
+on phones & tablets they collapse into two slide-out drawers so the globe stays
+clear. Orbits are drawn as comet trails — a fading tail behind each body marks
+where it is right now — and a glowing intro animation greets first load.
 
 ## How it works
 
