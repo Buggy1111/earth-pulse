@@ -70,11 +70,100 @@ function radialRingUVs(geo: THREE.RingGeometry, inner: number, outer: number): v
   uv.needsUpdate = true
 }
 
+// ——— comet-style orbit trails: the full ring geometry stays, but the vertex
+// colours are repainted every frame so the bright head sits on the body and
+// fades back along the path it came from. The body and its orbit always share
+// a parent, so we compare LOCAL positions — no matrix work in the hot path.
+interface SolarTrail {
+  line: THREE.Line
+  pts: THREE.Vector3[]
+  colors: THREE.Float32BufferAttribute
+  base: THREE.Color
+  n: number
+  body: THREE.Object3D
+  span: number
+  prevHead: number
+  lastDir: number
+}
+
+function makeTrailOrbit(
+  trails: SolarTrail[],
+  pts: THREE.Vector3[],
+  colorHex: string,
+  opacity: number,
+  body: THREE.Object3D,
+): THREE.Line {
+  const n = pts.length
+  const colors = new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3)
+  const geom = new THREE.BufferGeometry().setFromPoints(pts)
+  geom.setAttribute('color', colors)
+  const line = new THREE.Line(
+    geom,
+    new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  )
+  line.renderOrder = 1
+  trails.push({
+    line,
+    pts,
+    colors,
+    base: new THREE.Color(colorHex),
+    n,
+    body,
+    span: Math.max(2, Math.floor(n * 0.7)),
+    prevHead: -1,
+    lastDir: 1,
+  })
+  return line
+}
+
+function updateSolarTrails(trails: SolarTrail[]): void {
+  for (const tr of trails) {
+    if (!tr.line.visible) continue
+    const bp = tr.body.position // same parent as the orbit → local space matches
+    let h = 0
+    let best = Infinity
+    for (let i = 0; i < tr.n; i++) {
+      const d = tr.pts[i].distanceToSquared(bp)
+      if (d < best) {
+        best = d
+        h = i
+      }
+    }
+    // motion direction from the head's step — auto-handles retrograde moons
+    let dir = tr.lastDir
+    if (tr.prevHead >= 0) {
+      let delta = h - tr.prevHead
+      if (delta > tr.n / 2) delta -= tr.n
+      else if (delta < -tr.n / 2) delta += tr.n
+      if (delta !== 0) dir = Math.sign(delta)
+    }
+    tr.lastDir = dir
+    tr.prevHead = h
+    const c = tr.colors.array as Float32Array
+    c.fill(0)
+    for (let k = 0; k <= tr.span; k++) {
+      const idx = (((h - dir * k) % tr.n) + tr.n) % tr.n
+      const f = (1 - k / tr.span) ** 1.2 // bright head, lingering fade to black
+      c[idx * 3] = tr.base.r * f
+      c[idx * 3 + 1] = tr.base.g * f
+      c[idx * 3 + 2] = tr.base.b * f
+    }
+    tr.colors.needsUpdate = true
+  }
+}
+
 /** Build the system once (lazy). All motion happens in the frame callback. */
 export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.Group {
   if (deps.solarGroupRef.current) return deps.solarGroupRef.current
 
   const group = new THREE.Group()
+  const solarTrails: SolarTrail[] = []
   const loader = new THREE.TextureLoader()
   // sun-lit bodies: the texture doubles as a faint emissive floor so the
   // night side reads as a dim disc instead of vanishing into space
@@ -154,16 +243,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       const a = (i / 96) * 2 * Math.PI
       return new THREE.Vector3(Math.cos(a) * earthMoonRScene, Math.sin(a) * earthMoonRScene, 0)
     })
-    const orbitRing = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(ringPts),
-      new THREE.LineBasicMaterial({
-        color: orbitColor('earth'),
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    )
+    const orbitRing = makeTrailOrbit(solarTrails, ringPts, orbitColor('earth'), 0.85, mesh)
     earthMoonGroup.add(orbitRing)
     const decor = [label, orbitRing]
     decor.forEach((o) => (o.visible = false))
@@ -246,16 +326,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         const a = (i / 96) * 2 * Math.PI
         return new THREE.Vector3(Math.cos(a) * rScene, Math.sin(a) * rScene, 0)
       })
-      const orbitRing = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(ringPts),
-        new THREE.LineBasicMaterial({
-          color: orbitColor(p.id),
-          transparent: true,
-          opacity: 0.5,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      )
+      const orbitRing = makeTrailOrbit(solarTrails, ringPts, orbitColor(p.id), 0.85, moonMesh)
       tilt.add(orbitRing)
       decor.push(orbitRing)
       tilt.add(moonMesh)
@@ -299,25 +370,16 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     deps.planetMeshesRef.current.set(p.id, system)
   }
 
-  // 🛰 true orbit ellipses — exact instantaneous Kepler ellipses, static
-  // geometry inside the heliocentric group (they never need per-frame work)
+  // 🛰 true orbit ellipses — exact instantaneous Kepler ellipses, drawn as
+  // comet trails behind each planet (head = where the planet is right now)
   const buildDate = new Date()
   for (const p of PLANETS) {
+    const system = deps.planetMeshesRef.current.get(p.id)
+    if (!system) continue
     const pts = helioEllipse(p.id, buildDate).map(
       ([x, y, z]) => new THREE.Vector3(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE),
     )
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({
-          color: orbitColor(p.id),
-          transparent: true,
-          opacity: 0.5,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    )
+    group.add(makeTrailOrbit(solarTrails, pts, orbitColor(p.id), 0.6, system))
   }
   // Earth's own orbit (1 AU circle-ish ellipse): reuse via a fake entry
   {
@@ -329,18 +391,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       const [x, y, z] = earthHelio(t)
       pts.push(new THREE.Vector3(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE))
     }
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({
-          color: orbitColor('earth'),
-          transparent: true,
-          opacity: 0.55,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    )
+    group.add(makeTrailOrbit(solarTrails, pts, orbitColor('earth'), 0.6, earthProxy))
   }
 
   // ——— per-frame motion in an INERTIAL frame: the scene is Earth-fixed and
@@ -397,6 +448,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         }
       }
     }
+    // repaint the comet trails so each one fades back behind its moving body
+    updateSolarTrails(solarTrails)
     // granulation crawls in real time — a surface boil, not orbital motion
     ;(sun.material as THREE.ShaderMaterial).uniforms.uTime.value = performance.now() / 1000
     deps.applySkyRef.current(now) // terminator/Moon follow the warped clock
