@@ -62,14 +62,17 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
 - Hook `useEvents` (refresh á 10 min). Vrstva „natural events" v nastavení.
 
 ### Datové vrstvy a time playback 🌍
-- **NASA GIBS** (Global Imagery Browse Services, `src/lib/gibs.ts`) — 4
-  „vital signs" vrstvy: 🌍 dnešní Země (true-color MODIS), 🌡 teplota moří
-  (GHRSST), 🌫 aerosoly (MODIS AOD), ❄️ sníh.
+- **NASA GIBS** (Global Imagery Browse Services, `src/lib/gibs.ts`) — 5
+  „vital signs" vrstev, všechny **full-globe** („vzor air"): 🌍 dnešní Země
+  (true-color MODIS), 🌡 teplota vzduchu, 🌡 teplota povrchu (pevnina+moře),
+  💧 vodní pára, 🌫 aerosoly (poslední čtyři = měsíční modely NASA MERRA-2).
 - Načte se jeden equirektangulární obrázek přes **WMS GetMap** a paintuje se
-  přímo na materiál glóbu (obejde cachování dlaždic v globe.gl).
-- **`DataLayerPanel`** = výběr vrstvy + **date slider** (přetáčení denních
-  snímků až 30 dní zpět = time playback) + **legenda (colorbar)** s rozsahem
-  (SST −2→32 °C, aerosoly clear→hazy, sníh none→snow).
+  přímo na materiál glóbu (obejde cachování dlaždic v globe.gl); nad datovou
+  vrstvou se obrysy kontinentů přebarví na černé (`surface.setDataMode`).
+- **`DataLayerPanel`** = výběr vrstvy + **legenda (colorbar)** s odstupňovanými
+  značkami (teploty −40/−20/0/20/40 °C, vodní pára dry→humid, aerosoly
+  clear→hazy) + **date slider** u denních vrstev (30 dní zpět = time playback);
+  měsíční vrstvy ukazují „📅 monthly · RRRR-MM".
 
 ### Den a noc 🌃
 - Custom shader (`dayNightMaterial.ts`) prolíná denní texturu se světly měst

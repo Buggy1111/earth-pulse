@@ -23,9 +23,11 @@ public data feeds.
 - 🔥 **Latest natural events** — NASA **EONET** feed: live fires, storms,
   volcanoes and ice as colour-coded pins, with a "Live on Earth" panel counting
   them by category
-- 🌍 **Vital-signs data layers** — NASA **GIBS** imagery painted on the globe:
-  today's true-colour Earth, sea-surface temperature, aerosols, snow — with a
-  legend and a **date slider** that replays the last 30 days (time playback)
+- 🌍 **Vital-signs data layers** — NASA **GIBS** imagery painted on the globe,
+  all whole-planet: today's true-colour Earth, plus **air temperature**,
+  **surface temperature**, **water vapour** and **aerosols** (NASA MERRA-2) —
+  each with a graduated °C/scale colour-bar legend and the continents outlined
+  in black, plus a **date slider** (daily layers replay the last 30 days)
 - 🛰 **The ISS** — flies smoothly on its SGP4 track, live API telemetry in the
   HUD, **follow chase-camera**, and after you share your location: **"the ISS
   is over you in 2 h 14 min"** (real pass prediction) + a live **"above you

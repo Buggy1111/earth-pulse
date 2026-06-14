@@ -31,10 +31,18 @@ aby aplikace nezávisela na dostupnosti API za běhu.
 - **NASA EONET** (`events.ts`, hook `useEvents`): přírodní události (požáry,
   bouře, sopky, led) → barevné piny + panel „Live on Earth" s počty dle
   kategorie, refresh á 10 min.
-- **NASA GIBS** (`gibs.ts`): 4 vrstvy (dnešní Země true-color MODIS, teplota
-  moří GHRSST, aerosoly MODIS AOD, sníh). Jeden equirektangulární obrázek přes
-  WMS GetMap se paintuje na materiál glóbu (obejde cachování dlaždic v
-  globe.gl). Date slider přetáčí denní snímky až 30 dní zpět.
+- **NASA GIBS** (`gibs.ts`): 5 vrstev, všechny **full-globe**: dnešní Země
+  (true-color MODIS, denní) + 4 měsíční MERRA-2 modely — 🌡 teplota vzduchu
+  (`MERRA2_2m_Air_Temperature`), 🌡 teplota povrchu pevnin+moří
+  (`MERRA2_Surface_Skin_Temperature`), 💧 vodní pára
+  (`MERRA2_Total_Precipitable_Water_Vapor`), 🌫 aerosoly
+  (`MERRA2_Total_Aerosol_Optical_Thickness_550nm_Extinction`). Jeden
+  equirektangulární obrázek přes WMS GetMap se paintuje na materiál glóbu
+  (obejde cachování dlaždic v globe.gl); přes datovou vrstvu zčernají obrysy
+  kontinentů. Denní vrstvy mají date slider (30 dní zpět), měsíční ukazují
+  nejnovější dostupný měsíc (~5 měs. zpoždění). Pozn.: dřívější GHRSST/MODIS
+  vrstvy (teplota moří, MODIS aerosoly, sníh) byly jen-oceán/jen-pevnina (černá
+  no-data) → nahrazeny full-globe MERRA-2.
 
 ## Build-time snapshoty (přibalené)
 

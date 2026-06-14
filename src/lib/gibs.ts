@@ -17,27 +17,28 @@ export interface GibsLayer {
   /** Monthly product — the date is snapped to the first of a recent month. */
   monthly?: boolean
   blurb: string
-  /** Colour-bar legend (low → high) matching the layer's baked-in palette. */
-  legend?: { stops: string[]; min: string; max: string }
+  /** Colour-bar legend: the gradient `stops` plus evenly-spaced `ticks`
+   * (labels low → high) matching the layer's baked-in palette. */
+  legend?: { stops: string[]; ticks: string[] }
 }
 
 export const GIBS_LAYERS: GibsLayer[] = [
   { id: 'truecolor', label: '🌍 Today’s Earth', layer: 'MODIS_Terra_CorrectedReflectance_TrueColor', level: 9, ext: 'jpg', daily: true, blurb: 'true-colour daily mosaic (MODIS Terra)' },
   {
     id: 'airtemp', label: '🌡 Air temperature', layer: 'MERRA2_2m_Air_Temperature_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'near-surface air temperature, whole planet — monthly (NASA MERRA-2)',
-    legend: { stops: ['#3b1f8f', '#2563eb', '#22d3ee', '#4ade80', '#fde047', '#fb923c', '#ef4444', '#7f1d1d'], min: '−40 °C', max: '+40 °C' },
+    legend: { stops: ['#3b1f8f', '#2563eb', '#22d3ee', '#4ade80', '#fde047', '#fb923c', '#ef4444', '#7f1d1d'], ticks: ['−40°', '−20°', '0°', '20°', '40 °C'] },
   },
   {
     id: 'surftemp', label: '🌡 Surface temperature', layer: 'MERRA2_Surface_Skin_Temperature_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'land & sea surface temperature, whole planet — monthly (NASA MERRA-2)',
-    legend: { stops: ['#08306b', '#2171b5', '#6baed6', '#deebf7', '#fff5eb', '#fc9272', '#ef3b2c', '#a50f15'], min: '−40 °C', max: '+40 °C' },
+    legend: { stops: ['#08306b', '#2171b5', '#6baed6', '#deebf7', '#fff5eb', '#fc9272', '#ef3b2c', '#a50f15'], ticks: ['−40°', '−20°', '0°', '20°', '40 °C'] },
   },
   {
     id: 'vapor', label: '💧 Water vapour', layer: 'MERRA2_Total_Precipitable_Water_Vapor_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'moisture in the air column, whole planet — monthly (NASA MERRA-2)',
-    legend: { stops: ['#ffffe5', '#d9f0a3', '#addd8e', '#41ab5d', '#238443', '#005a32'], min: 'dry', max: 'humid' },
+    legend: { stops: ['#ffffe5', '#d9f0a3', '#addd8e', '#41ab5d', '#238443', '#005a32'], ticks: ['dry', 'moderate', 'humid'] },
   },
   {
     id: 'aerosols', label: '🌫 Aerosols', layer: 'MERRA2_Total_Aerosol_Optical_Thickness_550nm_Extinction_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'dust, smoke & pollution haze, whole planet — monthly (NASA MERRA-2)',
-    legend: { stops: ['#fff7bc', '#fee391', '#fec44f', '#fe9929', '#d95f0e', '#993404'], min: 'clear', max: 'hazy' },
+    legend: { stops: ['#fff7bc', '#fee391', '#fec44f', '#fe9929', '#d95f0e', '#993404'], ticks: ['clear', 'moderate', 'hazy'] },
   },
 ]
 

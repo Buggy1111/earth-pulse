@@ -149,6 +149,11 @@ Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-frie
   *(9372cc2, 9cf1cc4)*
 - **✨ Luxusní intro** — svítící Země s neonovými orbitami, třpytivý wordmark
   „EARTH PULSE" a hvězdné pozadí, plynule prolne do živého glóbu.
+- **🌡 NASA „vital signs" vrstvy** — 5 full-globe datových vrstev (true-color +
+  teplota vzduchu, teplota povrchu, vodní pára, aerosoly z NASA MERRA-2), každá
+  s odstupňovanou colorbar legendou a černými obrysy kontinentů přes barevné
+  pole. Patchy MODIS/GHRSST vrstvy (jen oceán/jen pevnina) nahrazeny full-globe
+  modely. *(a3fb4bc, ff56cef, b00a8c0, 243d8b3)*
 
 **Distribuce:**
 - **🔎 SEO + GEO** — bohatá meta, Open Graph + OG obrázek, Twitter card,

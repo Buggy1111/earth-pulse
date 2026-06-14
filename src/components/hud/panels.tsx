@@ -251,9 +251,10 @@ export function DataLayerPanel({
                 className="h-2 w-full rounded"
                 style={{ background: `linear-gradient(to right, ${active.legend.stops.join(',')})` }}
               />
-              <div className="mt-0.5 flex justify-between text-[10px] text-slate-400">
-                <span>{active.legend.min}</span>
-                <span>{active.legend.max}</span>
+              <div className="num mt-0.5 flex justify-between text-[10px] text-slate-400">
+                {active.legend.ticks.map((t, i) => (
+                  <span key={i}>{t}</span>
+                ))}
               </div>
             </div>
           )}
