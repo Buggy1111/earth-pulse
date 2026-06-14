@@ -73,6 +73,7 @@ export function EarthDock({
   showFollow,
   onTour,
   onFollow,
+  onResetView,
   onHideHud,
 }: {
   tourOn: boolean
@@ -80,6 +81,7 @@ export function EarthDock({
   showFollow: boolean
   onTour: () => void
   onFollow: () => void
+  onResetView: () => void
   onHideHud: () => void
 }) {
   const actions: DockAction[] = [
@@ -87,6 +89,7 @@ export function EarthDock({
   ]
   if (showFollow)
     actions.push({ icon: '🛰', label: 'follow ISS', activeLabel: 'following — drag to stop', active: followIss, activeColor: 'text-sky-300', onToggle: onFollow })
+  actions.push({ icon: '⌖', label: 'reset view', activeLabel: 'reset view', active: false, activeColor: '', onToggle: onResetView })
   actions.push({ icon: '👁', label: 'clean view (H)', activeLabel: 'clean view (H)', active: false, activeColor: '', onToggle: onHideHud })
   return <ModeDock actions={actions} />
 }

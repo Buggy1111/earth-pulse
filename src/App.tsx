@@ -191,6 +191,9 @@ export default function App() {
   // screenshots, video, ambient/kiosk). Toggle with the dock button or H.
   const [hudHidden, setHudHidden] = useState(false)
   const onHideHud = useCallback(() => setHudHidden(true), [])
+  // ⌖ recenter the camera on the default Earth view
+  const [resetView, setResetView] = useState(0)
+  const onResetView = useCallback(() => setResetView((v) => v + 1), [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
@@ -338,6 +341,7 @@ export default function App() {
         eco={eco}
         focusSat={focusSat}
         flyTo={flyTo}
+        resetView={resetView}
         simNow={simNow}
         tour={tourOn}
         onTourBroken={onTourBroken}
@@ -488,6 +492,7 @@ export default function App() {
                 showFollow={layers.iss}
                 onTour={onTourToggle}
                 onFollow={onIssClick}
+                onResetView={onResetView}
                 onHideHud={onHideHud}
               />
             )}

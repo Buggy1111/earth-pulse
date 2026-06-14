@@ -48,6 +48,8 @@ interface Props {
   focusSat: { id: string; v: number } | null
   /** Quake picked in the HUD — fly the camera there. */
   flyTo: { lat: number; lng: number; v: number } | null
+  /** Bumped to recenter the camera on the default Earth view. */
+  resetView: number
   /** Reference "now" for quake age/glow — the timeline slider rewinds it. */
   simNow: number
   tour: boolean
@@ -490,6 +492,16 @@ export function GlobeView(props: Props) {
     userInteractedRef.current = true
     globe.pointOfView({ lat: flyTo.lat, lng: flyTo.lng, altitude: 1.0 }, 1_400)
   }, [flyTo])
+
+  // ⌖ reset view: glide back to the default Earth framing (skip the first run)
+  const resetViewRef = useRef(props.resetView)
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || props.resetView === resetViewRef.current) return
+    resetViewRef.current = props.resetView
+    globe.controls().autoRotate = false
+    globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 900)
+  }, [props.resetView])
 
   // follow ISS: chase camera on every position update, pause auto-rotate meanwhile
   useEffect(() => {
