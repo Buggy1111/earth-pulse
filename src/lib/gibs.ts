@@ -28,12 +28,8 @@ export const GIBS_LAYERS: GibsLayer[] = [
     legend: { stops: ['#3b1f8f', '#2563eb', '#22d3ee', '#4ade80', '#fde047', '#fb923c', '#ef4444', '#7f1d1d'], min: '−40 °C', max: '+40 °C' },
   },
   {
-    id: 'sstanom', label: '🌡 Sea temp anomaly', layer: 'GHRSST_L4_MUR_Sea_Surface_Temperature_Anomalies', level: 7, ext: 'png', daily: true, blurb: 'sea-surface temperature vs the long-term normal (GHRSST MUR)',
-    legend: { stops: ['#2166ac', '#67a9cf', '#d1e5f0', '#f7f7f7', '#fddbc7', '#ef8a62', '#b2182b'], min: '−5 °C', max: '+5 °C' },
-  },
-  {
-    id: 'sst', label: '🌡 Sea temperature', layer: 'GHRSST_L4_MUR_Sea_Surface_Temperature', level: 7, ext: 'png', daily: true, blurb: 'sea-surface temperature (GHRSST MUR)',
-    legend: { stops: ['#3b1f8f', '#2563eb', '#22d3ee', '#4ade80', '#fde047', '#fb923c', '#ef4444'], min: '−2 °C', max: '32 °C' },
+    id: 'surftemp', label: '🌡 Surface temperature', layer: 'MERRA2_Surface_Skin_Temperature_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'land & sea surface temperature, whole planet — monthly (NASA MERRA-2)',
+    legend: { stops: ['#08306b', '#2171b5', '#6baed6', '#deebf7', '#fff5eb', '#fc9272', '#ef3b2c', '#a50f15'], min: '−40 °C', max: '+40 °C' },
   },
   {
     id: 'aod', label: '🌫 Aerosols', layer: 'MODIS_Combined_Value_Added_AOD', level: 6, ext: 'png', daily: true, blurb: 'aerosol optical depth — smoke, dust, haze',
