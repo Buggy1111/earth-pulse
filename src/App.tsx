@@ -12,7 +12,13 @@ import {
   TitleCard,
   WikiPanel,
 } from './components/hud/panels'
-import { EarthDock, LoadingOverlay, TimelinePanel } from './components/hud/controls'
+import {
+  EarthDock,
+  LoadingOverlay,
+  ModeSwitcher,
+  ShowHudButton,
+  TimelinePanel,
+} from './components/hud/controls'
 import { SettingsPanel } from './components/hud/SettingsPanel'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { MoonPanel } from './components/MoonPanel'
@@ -145,17 +151,6 @@ export default function App() {
 
   // which world the HUD lives in right now
   const mode: 'earth' | 'moon' | 'solar' = solarMode ? 'solar' : moonMode ? 'moon' : 'earth'
-  const onSolarToggle = useCallback(() => {
-    setSolarMode((s) => {
-      if (!s) {
-        setMoonMode(false)
-        setFollowIss(false)
-        setTourOn(false)
-      }
-      setFocusPlanet(null)
-      return !s
-    })
-  }, [])
   const onSolarOverview = useCallback(() => setFocusPlanet(null), [])
   const onSolarExit = useCallback(() => {
     setSolarMode(false)
@@ -166,6 +161,50 @@ export default function App() {
     (id: string) => (id === 'earth' ? onSolarExit() : setFocusPlanet(id)),
     [onSolarExit],
   )
+
+  // unified world navigation — jump straight to any world from any world, so
+  // you're never stranded needing to back out through Earth first.
+  const goEarth = useCallback(() => {
+    setSolarMode(false)
+    setFocusPlanet(null)
+    onWarpReset()
+    setMoonMode(false)
+    setApolloSite(null)
+    setFollowIss(false)
+    setTourOn(false)
+  }, [onWarpReset])
+  const goMoon = useCallback(() => {
+    onMoonEnter()
+    onWarpReset()
+    setFocusPlanet(null)
+  }, [onMoonEnter, onWarpReset])
+  const goSolar = useCallback(() => {
+    setSolarMode(true)
+    setMoonMode(false)
+    setApolloSite(null)
+    setFocusPlanet(null)
+    setFollowIss(false)
+    setTourOn(false)
+  }, [])
+
+  // 👁 clean view: hide the whole HUD for an unobstructed globe (great for
+  // screenshots, video, ambient/kiosk). Toggle with the dock button or H.
+  const [hudHidden, setHudHidden] = useState(false)
+  const onHideHud = useCallback(() => setHudHidden(true), [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
+      if (e.key === 'h' || e.key === 'H') setHudHidden((h) => !h)
+      else if (e.key === 'Escape') {
+        if (hudHidden) setHudHidden(false)
+        else goEarth()
+      } else if (e.key === '1') goEarth()
+      else if (e.key === '2') goMoon()
+      else if (e.key === '3') goSolar()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [hudHidden, goEarth, goMoon, goSolar])
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
@@ -324,10 +363,16 @@ export default function App() {
       />
       {!ready && <LoadingOverlay />}
 
+      {hudHidden && <ShowHudButton onShow={() => setHudHidden(false)} />}
+
       {/* HUD overlay — mode-aware: Earth shows the live dashboards, Moon and
           Solar modes keep only what belongs to them. Pointer events live on
-          the panels; the globe stays draggable. */}
+          the panels; the globe stays draggable. Hidden entirely in clean view. */}
+      {!hudHidden && (
       <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-4 sm:p-6">
+        <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 sm:top-4">
+          <ModeSwitcher mode={mode} onEarth={goEarth} onMoon={goMoon} onSolar={goSolar} />
+        </div>
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col items-start gap-3">
             <TitleCard
@@ -421,24 +466,26 @@ export default function App() {
             )}
             {mode === 'earth' && (
               <EarthDock
-                solarMode={solarMode}
                 tourOn={tourOn}
                 followIss={followIss}
                 showFollow={layers.iss}
-                onSolar={onSolarToggle}
                 onTour={onTourToggle}
                 onFollow={onIssClick}
+                onHideHud={onHideHud}
               />
             )}
             {mode === 'earth' && <IssPanel iss={iss} pass={issPass} now={now} />}
           </div>
         </div>
       </div>
+      )}
 
-      <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-slate-600">
-        Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
-        Solar System Scope (CC BY)
-      </p>
+      {!hudHidden && (
+        <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 text-center text-[10px] text-slate-600">
+          Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
+          Solar System Scope (CC BY)
+        </p>
+      )}
     </>
   )
 }
