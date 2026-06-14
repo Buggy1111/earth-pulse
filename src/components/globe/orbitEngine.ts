@@ -190,13 +190,17 @@ export function startOrbitEngine(
     const pin = deps.pinTargetRef.current
     if (pin) {
       pin.getWorldPosition(pinWorld)
-      if (prevPinObj === pin) {
-        pinDelta.subVectors(pinWorld, prevPinWorld)
-        ;(globe.camera() as THREE.PerspectiveCamera).position.add(pinDelta)
+      // guard: a non-finite body position (extreme warp/precision) must never
+      // reach the camera — one NaN there freezes the whole renderer
+      if (Number.isFinite(pinWorld.x + pinWorld.y + pinWorld.z)) {
+        if (prevPinObj === pin) {
+          pinDelta.subVectors(pinWorld, prevPinWorld)
+          ;(globe.camera() as THREE.PerspectiveCamera).position.add(pinDelta)
+        }
+        prevPinWorld.copy(pinWorld)
+        prevPinObj = pin
+        globe.controls().target.copy(pinWorld)
       }
-      prevPinWorld.copy(pinWorld)
-      prevPinObj = pin
-      globe.controls().target.copy(pinWorld)
     } else {
       prevPinObj = null
     }
