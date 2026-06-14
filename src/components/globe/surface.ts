@@ -36,6 +36,9 @@ export interface Surface {
   volcanoesRef: { current: THREE.Points | null }
   updateTileEngine: () => void
   updateLabels: () => void
+  /** Style the borders for a NASA data layer (black continent outlines) or the
+   * live globe (faint blue-grey, honouring the user's toggle). */
+  setDataMode: (on: boolean) => void
   dispose: () => void
 }
 
@@ -253,6 +256,14 @@ export function setupSurface(globe: GlobeInstance, opts: SurfaceOptions): Surfac
     volcanoesRef,
     updateTileEngine,
     updateLabels,
+    setDataMode: (on: boolean) => {
+      const b = bordersRef.current
+      if (!b) return
+      const m = b.material as THREE.LineBasicMaterial
+      m.color.set(on ? '#000000' : '#9fb3c8')
+      m.opacity = on ? 0.9 : 0.38
+      b.visible = on || layersRef.current.borders
+    },
     dispose: () => {
       cancelAnimationFrame(cloudsRaf)
       clearInterval(tilePatchTimer)

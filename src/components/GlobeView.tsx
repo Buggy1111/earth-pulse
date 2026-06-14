@@ -220,8 +220,10 @@ export function GlobeView(props: Props) {
   useEffect(() => {
     const s = surfaceRef.current
     if (s?.cloudsRef.current) s.cloudsRef.current.visible = layers.clouds
-    if (s?.bordersRef.current) s.bordersRef.current.visible = layers.borders
     if (s?.volcanoesRef.current) s.volcanoesRef.current.visible = layers.volcanoes
+    // borders: black continent outlines over a data layer, faint blue-grey on
+    // the live globe (the styling itself lives in surface, off the React path)
+    s?.setDataMode(gibsActiveRef.current)
     s?.updateTileEngine()
     s?.updateLabels()
   }, [layers.clouds, layers.borders, layers.volcanoes, layers.detail, layers.labels])
@@ -290,6 +292,7 @@ export function GlobeView(props: Props) {
     if (!globe) return
     const layer = props.gibsLayer
     gibsActiveRef.current = !!layer
+    surfaceRef.current?.setDataMode(!!layer)
     if (!layer) {
       if (globeMaterialRef.current) globe.globeMaterial(globeMaterialRef.current)
       surfaceRef.current?.updateTileEngine()
