@@ -138,6 +138,39 @@ export function orbitTrack(sat: TrackedSat, date: Date, points = 128): TrackPoin
   return out
 }
 
+/** The path the satellite has just FLOWN — a trailing arc ending at its
+ * current position (the head). `fraction` is how much of one period to look
+ * back. Same frozen-gmst trick as orbitTrack, so it sits in the true orbital
+ * plane; the last point is "now" and lines up with the live model. */
+export function orbitTrail(
+  sat: TrackedSat,
+  date: Date,
+  fraction = 0.7,
+  points = 64,
+): TrackPoint[] {
+  const gmst = gstime(date)
+  const periodMs = orbitalPeriodMin(sat) * 60_000
+  const out: TrackPoint[] = []
+  for (let i = 0; i <= points; i++) {
+    // walk from -fraction·period (oldest tail) up to 0 (now, the head)
+    const t = new Date(date.getTime() + (-fraction + (i / points) * fraction) * periodMs)
+    try {
+      const pv = propagate(sat.satrec, t)
+      if (!pv || typeof pv.position === 'boolean') continue
+      const geo = eciToGeodetic(pv.position, gmst)
+      if (!Number.isFinite(geo.height)) continue
+      out.push({
+        lat: degreesLat(geo.latitude),
+        lng: degreesLong(geo.longitude),
+        altKm: geo.height,
+      })
+    } catch {
+      // skip points the propagator can't produce
+    }
+  }
+  return out
+}
+
 export const EARTH_RADIUS_KM = 6371
 
 /** globe.gl altitude is in units of globe radius. */

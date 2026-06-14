@@ -6,6 +6,7 @@ import {
   nextPass,
   orbitalPeriodMin,
   orbitTrack,
+  orbitTrail,
   parseTle,
   propagateSats,
   satsAbove,
@@ -96,6 +97,32 @@ describe('orbitTrack', () => {
     // a předposlední (skutečný konec periody) je blízko startu — žádný 23° skok
     const prev = track[track.length - 2]
     expect(Math.abs(prev.lat - first.lat)).toBeLessThan(2)
+  })
+})
+
+describe('orbitTrail (ocas za tělesem)', () => {
+  const TLE = `HST
+1 20580U 90037B   26162.50000000  .00001000  00000+0  50000-4 0  9991
+2 20580  28.4690  80.0000 0002500 100.0000 260.0000 15.09700000 10002`
+
+  it('hlava ocasu = aktuální poloha, vzorky leží v minulosti', () => {
+    const [sat] = toTrackedSats(parseTle(TLE))
+    const at = new Date(Date.UTC(2026, 5, 12, 6))
+    const trail = orbitTrail(sat, at, 0.7, 64)
+    expect(trail.length).toBe(65) // 64 segmentů + hlava
+    // hlava (poslední bod) sedí s živou pozicí z propagateSats v ten samý čas
+    const now = propagateSats(sat ? [sat] : [], at)[0]
+    const head = trail[trail.length - 1]
+    expect(head.lat).toBeCloseTo(now.lat, 1)
+    expect(head.lng).toBeCloseTo(now.lng, 1)
+    // ocas (první bod) je jinde než hlava — tedy je to oblouk, ne bod
+    const tail = trail[0]
+    expect(Math.hypot(tail.lat - head.lat, tail.lng - head.lng)).toBeGreaterThan(1)
+    // pořád v LEO
+    for (const p of trail) {
+      expect(p.altKm).toBeGreaterThan(200)
+      expect(p.altKm).toBeLessThan(2000)
+    }
   })
 })
 

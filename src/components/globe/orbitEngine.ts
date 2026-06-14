@@ -9,7 +9,7 @@ import type { MoonDef } from '../../lib/planets'
 import {
   globeAltitude,
   isIss,
-  orbitTrack,
+  orbitTrail,
   propagateSats,
   type TrackedSat,
 } from '../../lib/satellites'
@@ -17,7 +17,6 @@ import type { LayerState } from '../hud/types'
 import { makeIssObject, makeNameSprite, makeSatelliteObject } from '../spaceObjects'
 import {
   ARROW_GEO,
-  ARROW_LOOP_MS,
   ARROW_MAT,
   escapeHtml,
   tooltip,
@@ -201,17 +200,15 @@ export function startOrbitEngine(
     } else {
       prevPinObj = null
     }
-    // arrows ride their orbit rings (earth view only; trails belong to sats)
+    // the arrow marks the HEAD of the trail — the satellite's current position —
+    // pointing the way it's travelling (earth view only; trails belong to sats)
     if (!deps.solarModeRef.current) {
-      const cycle = now.getTime() / ARROW_LOOP_MS
       for (const trail of trails.values()) {
         const n = trail.vectors.length
         if (n < 2) continue
-        const u = ((cycle + trail.phase) % 1) * (n - 1)
-        const i = Math.floor(u)
-        const a = trail.vectors[i]
-        const b = trail.vectors[Math.min(i + 1, n - 1)]
-        trail.arrow.position.lerpVectors(a, b, u - i)
+        const a = trail.vectors[n - 2]
+        const b = trail.vectors[n - 1]
+        trail.arrow.position.copy(b)
         dir.subVectors(b, a).normalize()
         trail.arrow.quaternion.setFromUnitVectors(Y_UP, dir)
       }
@@ -252,10 +249,12 @@ export function startOrbitEngine(
     .pathPointLat((p) => (p as number[])[0])
     .pathPointLng((p) => (p as number[])[1])
     .pathPointAlt((p) => (p as number[])[2])
+    // trailing comet look: transparent at the tail, bright at the head (the
+    // satellite's current position) — points run oldest → now
     .pathColor((d: object) =>
       (d as TrailPath).kind === 'halo'
-        ? ['rgba(56, 189, 248, 0.05)', 'rgba(56, 189, 248, 0.4)', 'rgba(56, 189, 248, 0.05)']
-        : ['rgba(240, 253, 255, 0.95)', 'rgba(125, 211, 252, 0.9)', 'rgba(240, 253, 255, 0.95)'],
+        ? ['rgba(56, 189, 248, 0)', 'rgba(56, 189, 248, 0.45)']
+        : ['rgba(240, 253, 255, 0)', 'rgba(125, 211, 252, 0.95)'],
     )
     .pathStroke((d) => ((d as TrailPath).kind === 'halo' ? 5 : 1.3))
     .pathDashLength((d) => ((d as TrailPath).kind === 'halo' ? 1 : 0.06))
@@ -275,22 +274,37 @@ export function startOrbitEngine(
       ;((c as THREE.Line).material as THREE.Material).dispose()
     }
     const at = new Date()
+    const tint = new THREE.Color()
     for (const o of objects) {
       if (!o.sat) continue
-      const track = orbitTrack(o.sat, at, 96)
+      // a comet-style TRAIL behind the body, not a full ring — the bright head
+      // is where the satellite is right now, fading back along where it flew
+      const track = orbitTrail(o.sat, at, 0.7, 64)
       if (track.length < 2) continue
       const pts = track.map((p) => {
         const { x, y, z } = globe.getCoords(p.lat, p.lng, globeAltitude(p.altKm))
         return new THREE.Vector3(x, y, z)
       })
       const color = SAT_ORBIT_COLOR[o.name] ?? (o.altKm > 20_000 ? '#fbbf24' : '#5eead4')
-      // additive blend = the lines softly glow where they cross, dark space only
+      tint.set(color)
+      // per-vertex fade: black tail → full colour head. Additive blend means
+      // black is invisible, so the tail dissolves into space.
+      const n = pts.length
+      const colors = new Float32Array(n * 3)
+      for (let i = 0; i < n; i++) {
+        const f = (i / (n - 1)) ** 1.6 // ease so the fade lingers near the head
+        colors[i * 3] = tint.r * f
+        colors[i * 3 + 1] = tint.g * f
+        colors[i * 3 + 2] = tint.b * f
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints(pts)
+      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3))
       const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
+        geom,
         new THREE.LineBasicMaterial({
-          color,
+          vertexColors: true,
           transparent: true,
-          opacity: 0.55,
+          opacity: 0.85,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
@@ -337,7 +351,7 @@ export function syncTrails(
     if (trails.has(id)) continue
     const sat = sats.find((s) => s.id === id)
     if (!sat) continue
-    const track = orbitTrack(sat, new Date()).map(
+    const track = orbitTrail(sat, new Date()).map(
       (p) => [p.lat, p.lng, globeAltitude(p.altKm)] as [number, number, number],
     )
     const vectors = track.map((p) => {
