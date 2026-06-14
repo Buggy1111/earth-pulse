@@ -29,6 +29,8 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   const starTex = new THREE.TextureLoader().load('stars-milky-way.webp')
   starTex.mapping = THREE.EquirectangularReflectionMapping
   starTex.colorSpace = THREE.SRGBColorSpace
+  // max anisotropy keeps the stars crisp at grazing angles instead of smearing
+  starTex.anisotropy = globe.renderer().capabilities.getMaxAnisotropy()
   globe.scene().background = starTex
 
   const sunUniform = { value: new THREE.Vector3(1, 0, 0) }
