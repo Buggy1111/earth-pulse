@@ -1,0 +1,51 @@
+# Earth Pulse
+
+> A free, open-source, real-time 3D globe of Earth that runs entirely in the
+> browser — no backend and no API keys. It shows live earthquakes, around 150
+> real satellites with clickable orbits, the International Space Station, the
+> aurora, real day/night with city lights, and a full solar-system mode with
+> the Moon and planets. Live at https://earth-pulse.vercel.app/
+
+Earth Pulse turns live public data into a single interactive planet you can
+spin, zoom and fly around. It is built with React, TypeScript, Vite and
+three.js / globe.gl. All data comes from free, key-less, CORS-friendly public
+feeds, so anyone can run it as a static site.
+
+## What it shows (Earth view)
+
+- Live earthquakes from USGS and EMSC, drawn as magnitude-scaled glowing
+  ripples, with a 24-hour timeline you can scrub or replay.
+- Around 150 real satellites, propagated locally every frame with SGP4 from
+  Celestrak TLE data. Click any satellite to draw its orbit as a comet-style
+  trail whose bright head marks the satellite's current position.
+- The International Space Station, with a live position and a follow camera.
+- The real day/night terminator with city lights on the night side.
+- A live aurora oval whose reach and brightness follow the NOAA space-weather
+  Kp index.
+- Latest natural events from NASA EONET: wildfires, storms, volcanoes and ice.
+- NASA GIBS "vital signs" imagery layers (true colour, sea-surface temperature,
+  aerosols, snow) with a date playback slider.
+- Live Wikipedia edits streaming in real time.
+
+## Modes
+
+- Earth: the live dashboard described above.
+- Moon: orbit the real Moon with its true phase and Apollo landing sites.
+- Solar system: the Sun, eight planets, the Moon and the major moons on true,
+  to-scale orbits, with time-warp to speed up the dance. Every orbit is drawn
+  as a comet trail behind its body so you can see where each world is right now.
+- Cinematic kiosk/screensaver tour that starts automatically after a while idle.
+
+## Key facts
+
+- Free and open source (MIT licence).
+- No backend, no sign-up, no API keys — a purely static web app.
+- Works on desktop, tablet and mobile.
+- Data sources: USGS, EMSC, Celestrak, wheretheiss.at, NOAA SWPC, NASA EONET,
+  NASA GIBS, Wikimedia. Textures by Solar System Scope (CC BY), zoom imagery
+  © Esri and contributors.
+
+## Links
+
+- Live app: https://earth-pulse.vercel.app/
+- Source code: https://github.com/Buggy1111/earth-pulse

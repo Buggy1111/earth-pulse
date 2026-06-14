@@ -4,6 +4,8 @@
 backend, no API keys and no tracking: everything runs in your browser against
 public data feeds.
 
+**🔗 Live: https://earth-pulse.vercel.app/** · free & open source (MIT)
+
 ![Earth Pulse — live Earth with city lights, borders, quake glow and satellites](docs/hero.png)
 
 ## 🌍 Earth, live
