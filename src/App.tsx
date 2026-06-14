@@ -369,11 +369,13 @@ export default function App() {
           Solar modes keep only what belongs to them. Pointer events live on
           the panels; the globe stays draggable. Hidden entirely in clean view. */}
       {!hudHidden && (
-      <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-4 sm:p-6">
+      <div className="pointer-events-none fixed inset-0">
         <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 sm:top-4">
           <ModeSwitcher mode={mode} onEarth={goEarth} onMoon={goMoon} onSolar={goSolar} />
         </div>
-        <div className="flex items-start justify-between gap-4">
+        {/* top and bottom stacks are anchored independently, so a tall panel
+            (e.g. the open customizer) can never shove the other off-screen */}
+        <div className="pointer-events-none absolute inset-x-4 top-4 flex items-start justify-between gap-4 sm:inset-x-6 sm:top-6">
           <div className="flex flex-col items-start gap-3 pt-11 lg:pt-0">
             <TitleCard
               now={now}
@@ -423,7 +425,7 @@ export default function App() {
               </div>
             )}
             {mode === 'earth' && userLoc && (
-              <div className="hidden sm:contents">
+              <div className="hidden sm:contents hide-short">
                 <AbovePanel overhead={overhead} onPickSat={onPickSat} />
               </div>
             )}
@@ -437,7 +439,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="pointer-events-none absolute inset-x-4 bottom-4 flex flex-col gap-3 sm:inset-x-6 sm:bottom-6 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="flex flex-col items-start gap-3">
             {mode === 'earth' && (
               <>
@@ -456,11 +458,11 @@ export default function App() {
                   onToggleSound={toggleSound}
                 />
                 {layers.events && (
-                  <div className="hidden sm:contents">
+                  <div className="hidden sm:contents hide-short">
                     <EventsPanel events={events} onEventClick={onEventClick} />
                   </div>
                 )}
-                <div className="hidden sm:contents">
+                <div className="hidden sm:contents hide-short">
                   <DataLayerPanel
                     active={gibsLayer}
                     onSelect={setGibsLayer}

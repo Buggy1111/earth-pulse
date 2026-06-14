@@ -32,6 +32,15 @@ body {
   }
 }
 
+/* On short viewports (small laptops) the stacked corner panels run out of
+   vertical room — drop the secondary panels so the essentials never collide.
+   Comes after Tailwind so it wins over sm:contents on short+wide screens. */
+@media (max-height: 720px) {
+  .hide-short {
+    display: none;
+  }
+}
+
 .num {
   font-variant-numeric: tabular-nums;
 }

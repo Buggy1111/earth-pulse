@@ -45,19 +45,35 @@ export function SettingsPanel({
       ? satList.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
       : []
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '240ms' }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
-      >
-        ⚙ customize
-        <span className="text-slate-500">{open ? '▾' : '▸'}</span>
-      </button>
+    <>
+      {/* Compact toggle lives in the corner column; the panel itself opens as a
+          full-height left drawer so it never collides with the other panels. */}
+      <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '240ms' }}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex w-full cursor-pointer items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
+        >
+          ⚙ customize
+          <span className="text-slate-500">{open ? '▾' : '▸'}</span>
+        </button>
+      </div>
 
       {open && (
-        <div className="mt-2 flex flex-col gap-2">
+        <aside className="hud slide-in pointer-events-auto fixed top-3 bottom-3 left-3 z-30 flex w-72 flex-col px-4 py-3 sm:top-6 sm:bottom-6 sm:left-6">
+          <div className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            ⚙ customize
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close customize panel"
+              className="cursor-pointer px-1 text-slate-500 hover:text-slate-200"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="mt-3 flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
           <div className="relative">
             <input
               type="search"
@@ -164,8 +180,9 @@ export function SettingsPanel({
               🔗 {copied ? 'link copied!' : 'copy view link'}
             </button>
           </div>
-        </div>
+          </div>
+        </aside>
       )}
-    </div>
+    </>
   )
 }
