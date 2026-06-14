@@ -1,6 +1,6 @@
 /** Interactive HUD controls: the mode dock, the quake timeline, loading. */
 
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 /** Persistent world switcher — always visible in every mode, so you never get
  * stranded: jump straight Earth ↔ Moon ↔ Solar without backing out first. */
@@ -215,11 +215,51 @@ export function TimelinePanel({
   )
 }
 
-export function LoadingOverlay() {
+/** Cinematic intro: a glowing Earth orbited by neon satellites, a shimmering
+ * wordmark and a starfield. When `done`, it fades out and unmounts itself,
+ * revealing the live globe. */
+export function LoadingOverlay({ done = false }: { done?: boolean }) {
+  const [gone, setGone] = useState(false)
+  // keep the intro on screen long enough to be seen, even when the globe is
+  // ready almost instantly (cached assets) — then fade out
+  const [minDone, setMinDone] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMinDone(true), 1700)
+    return () => clearTimeout(t)
+  }, [])
+  const fade = done && minDone
+  useEffect(() => {
+    if (!fade) return
+    const t = setTimeout(() => setGone(true), 850)
+    return () => clearTimeout(t)
+  }, [fade])
+  if (gone) return null
   return (
-    <div className="fixed inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#02030a]">
-      <span className="text-3xl">🌍</span>
-      <p className="live-dot text-sm text-slate-400">waking up the planet…</p>
+    <div
+      className={`ep-loader fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 bg-[#02030a] ${
+        fade ? 'ep-loader-done' : ''
+      }`}
+    >
+      <div className="ep-stars" />
+      <div className="relative h-44 w-44 [perspective:600px]">
+        <div className="absolute inset-0" style={{ transform: 'rotateX(72deg)' }}>
+          <div className="ep-orbit ep-orbit-a">
+            <i />
+          </div>
+        </div>
+        <div className="absolute inset-0" style={{ transform: 'rotateX(72deg) rotateZ(60deg)' }}>
+          <div className="ep-orbit ep-orbit-b">
+            <i />
+          </div>
+        </div>
+        <div className="ep-globe absolute inset-7 rounded-full" />
+      </div>
+      <div className="relative flex flex-col items-center gap-2">
+        <h1 className="ep-wordmark text-2xl font-semibold tracking-[0.4em] sm:text-3xl">EARTH PULSE</h1>
+        <p className="ep-tagline text-[11px] tracking-wide text-slate-500">
+          loading the planet<span className="ep-dots" />
+        </p>
+      </div>
     </div>
   )
 }

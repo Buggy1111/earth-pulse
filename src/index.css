@@ -71,3 +71,83 @@ body {
 .fade-up {
   animation: fade-up 0.6s ease-out both;
 }
+
+/* ——— intro loader: a glowing Earth with neon satellite orbits, a shimmering
+   wordmark and a starfield, fading out to reveal the live globe ——— */
+@keyframes ep-spin { to { transform: rotate(360deg); } }
+@keyframes ep-twinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes ep-shimmer { to { background-position: 200% center; } }
+@keyframes ep-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ep-globe-glow {
+  0%, 100% { box-shadow: 0 0 42px 6px rgba(56, 189, 248, 0.35), inset -16px -10px 38px rgba(0, 0, 0, 0.75); }
+  50% { box-shadow: 0 0 70px 14px rgba(56, 189, 248, 0.55), inset -16px -10px 38px rgba(0, 0, 0, 0.75); }
+}
+@keyframes ep-fade-out { to { opacity: 0; visibility: hidden; } }
+@keyframes ep-ellipsis { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75%, 100% { content: '...'; } }
+
+.ep-loader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 42%, rgba(14, 165, 233, 0.14), transparent 60%);
+}
+.ep-loader-done { animation: ep-fade-out 0.8s ease forwards; pointer-events: none; }
+
+.ep-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 25% 20%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 60% 35%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 82% 70%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 40% 82%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 14% 64%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 90% 24%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 52% 12%, rgba(255, 255, 255, 0.5), transparent);
+  animation: ep-twinkle 5s ease-in-out infinite;
+}
+
+.ep-globe {
+  background: radial-gradient(circle at 32% 30%, #7dd3fc 0%, #0ea5e9 18%, #0c4a6e 52%, #082f49 80%, #041829 100%);
+  animation: ep-globe-glow 3.5s ease-in-out infinite;
+  overflow: hidden;
+}
+.ep-globe::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.14) 50%, transparent 58%);
+  animation: ep-spin 7s linear infinite;
+}
+
+.ep-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+}
+.ep-orbit-a { animation: ep-spin 4.5s linear infinite; }
+.ep-orbit-b { animation: ep-spin 7s linear infinite reverse; border-color: rgba(192, 132, 252, 0.22); }
+.ep-orbit > i {
+  position: absolute;
+  top: -3px;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #e0f2fe;
+  box-shadow: 0 0 10px 3px rgba(125, 211, 252, 0.9);
+}
+.ep-orbit-b > i { background: #f5d0fe; box-shadow: 0 0 10px 3px rgba(192, 132, 252, 0.9); }
+
+.ep-wordmark {
+  background: linear-gradient(90deg, #38bdf8, #a5f3fc 35%, #e0f2fe 50%, #a5f3fc 65%, #38bdf8);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ep-shimmer 3.2s linear infinite, ep-rise 0.8s ease-out both;
+}
+.ep-tagline { animation: ep-rise 0.8s ease-out 0.15s both; }
+.ep-dots::after { content: ''; animation: ep-ellipsis 1.6s steps(1) infinite; }

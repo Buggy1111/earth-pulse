@@ -313,7 +313,7 @@ export default function App() {
         gibsDate={gibsImageryDate}
         onReady={onReady}
       />
-      {!ready && <LoadingOverlay />}
+      <LoadingOverlay done={ready} />
 
       {hudHidden && !kioskActive && <ShowHudButton onShow={() => setHudHidden(false)} />}
 
