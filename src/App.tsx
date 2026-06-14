@@ -36,7 +36,7 @@ import {
 } from './hooks'
 import type { EarthEvent } from './lib/events'
 import { gibsDate, type GibsLayer } from './lib/gibs'
-import { useEcoMode, useGeolocate, useSolarTime, useTimeline } from './uiHooks'
+import { useEcoMode, useGeolocate, useIdleKiosk, useSolarTime, useTimeline } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
 import { playPing } from './lib/ping'
@@ -194,6 +194,54 @@ export default function App() {
   // ⌖ recenter the camera on the default Earth view
   const [resetView, setResetView] = useState(0)
   const onResetView = useCallback(() => setResetView((v) => v + 1), [])
+
+  // 📺 kiosk/screensaver: after ~75 s idle, hide the HUD and run a looping
+  // cinematic show (Earth tour → solar system → follow ISS); any interaction
+  // hands control straight back to the user.
+  const [kioskEnabled, setKioskEnabled] = useState(true)
+  const onToggleKiosk = useCallback(() => setKioskEnabled((k) => !k), [])
+  const idleActive = useIdleKiosk(75_000)
+  const kioskActive = kioskEnabled && idleActive
+  // the HUD is hidden either manually (clean view) or while the kiosk runs
+  const hudOff = hudHidden || kioskActive
+  useEffect(() => {
+    if (!kioskActive) return
+    let scene = 0
+    const apply = () => {
+      const s = scene % 3
+      if (s === 0) {
+        // Earth, cinematic tour
+        setSolarMode(false)
+        setMoonMode(false)
+        setFollowIss(false)
+        onWarpReset()
+        setTourOn(true)
+      } else if (s === 1) {
+        // solar system, gently warped so the planets visibly drift
+        setTourOn(false)
+        setFollowIss(false)
+        setMoonMode(false)
+        setFocusPlanet(null)
+        setSolarMode(true)
+        onWarp(200_000)
+      } else {
+        // back to Earth, chase the ISS
+        setSolarMode(false)
+        setMoonMode(false)
+        setTourOn(false)
+        onWarpReset()
+        setFollowIss(true)
+      }
+      scene++
+    }
+    const kick = setTimeout(apply, 50) // first scene (async — not a sync setState)
+    const id = setInterval(apply, 30_000)
+    return () => {
+      clearTimeout(kick)
+      clearInterval(id)
+      goEarth() // interaction over: hand a clean live Earth back to the user
+    }
+  }, [kioskActive, goEarth, onWarp, onWarpReset])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
@@ -367,12 +415,12 @@ export default function App() {
       />
       {!ready && <LoadingOverlay />}
 
-      {hudHidden && <ShowHudButton onShow={() => setHudHidden(false)} />}
+      {hudHidden && !kioskActive && <ShowHudButton onShow={() => setHudHidden(false)} />}
 
       {/* HUD overlay — mode-aware: Earth shows the live dashboards, Moon and
           Solar modes keep only what belongs to them. Pointer events live on
           the panels; the globe stays draggable. Hidden entirely in clean view. */}
-      {!hudHidden && (
+      {!hudOff && (
       <div className="pointer-events-none fixed inset-0">
         <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 sm:top-4">
           <ModeSwitcher mode={mode} onEarth={goEarth} onMoon={goMoon} onSolar={goSolar} />
@@ -422,6 +470,8 @@ export default function App() {
                   onPickSat={onPickSat}
                   eco={eco}
                   onToggleEco={onToggleEco}
+                  kioskEnabled={kioskEnabled}
+                  onToggleKiosk={onToggleKiosk}
                   userLoc={userLoc}
                   locating={locating}
                   onLocate={onLocate}
@@ -502,7 +552,7 @@ export default function App() {
       </div>
       )}
 
-      {!hudHidden && (
+      {!hudOff && (
         <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 text-center text-[10px] text-slate-600">
           Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
           Solar System Scope (CC BY)

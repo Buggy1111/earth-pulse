@@ -14,6 +14,8 @@ export function SettingsPanel({
   onPickSat,
   eco,
   onToggleEco,
+  kioskEnabled,
+  onToggleKiosk,
   userLoc,
   locating,
   onLocate,
@@ -27,6 +29,8 @@ export function SettingsPanel({
   onPickSat: (id: string, name: string) => void
   eco: boolean
   onToggleEco: () => void
+  kioskEnabled: boolean
+  onToggleKiosk: () => void
   userLoc: { lat: number; lng: number } | null
   locating: boolean
   onLocate: () => void
@@ -120,6 +124,13 @@ export function SettingsPanel({
             >
               <input type="checkbox" checked={eco} onChange={onToggleEco} className="accent-emerald-400" />
               ⚡ fast mode (2K)
+            </label>
+            <label
+              className="flex cursor-pointer items-center gap-2 text-xs text-slate-300"
+              title="After ~75 s without interaction, hide the HUD and run a looping cinematic tour. Move the mouse or tap to resume."
+            >
+              <input type="checkbox" checked={kioskEnabled} onChange={onToggleKiosk} className="accent-sky-400" />
+              📺 auto tour when idle
             </label>
           </div>
 

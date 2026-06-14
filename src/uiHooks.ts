@@ -83,6 +83,36 @@ export function useSolarTime() {
   return { solarTime, onWarp, onWarpReset }
 }
 
+/** 📺 Idle kiosk/screensaver: goes active after `idleMs` without any
+ * deliberate interaction; the next interaction flips it straight back off.
+ * The caller decides what "active" does (clean view + cinematic loop). */
+export function useIdleKiosk(idleMs: number) {
+  const [active, setActive] = useState(false)
+  const activeRef = useRef(false)
+  useEffect(() => {
+    activeRef.current = active
+  }, [active])
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const arm = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => setActive(true), idleMs)
+    }
+    const onActivity = () => {
+      if (activeRef.current) setActive(false)
+      arm()
+    }
+    arm()
+    const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
+    for (const e of events) window.addEventListener(e, onActivity, { passive: true })
+    return () => {
+      clearTimeout(timer)
+      for (const e of events) window.removeEventListener(e, onActivity)
+    }
+  }, [idleMs])
+  return active
+}
+
 /** Browser geolocation with a version counter (re-fly to the same spot). */
 export function useGeolocate() {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null)
