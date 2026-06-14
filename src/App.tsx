@@ -346,7 +346,7 @@ export default function App() {
           onWarpReset={onWarpReset}
           onSolarOverview={onSolarOverview}
           onSolarExit={onSolarExit}
-          setFocusPlanet={setFocusPlanet}
+          onNavigateBody={onPlanetPick}
           layers={layers}
           onToggleLayer={onToggleLayer}
           orbits={orbits}

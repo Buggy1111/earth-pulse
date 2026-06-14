@@ -51,7 +51,7 @@ interface HudProps {
   onWarpReset: () => void
   onSolarOverview: () => void
   onSolarExit: () => void
-  setFocusPlanet: (id: string) => void
+  onNavigateBody: (id: string) => void
   // customize
   layers: LayerState
   onToggleLayer: (key: keyof LayerState) => void
@@ -197,7 +197,7 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' ? (
       <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
     ) : p.mode === 'solar' ? (
-      <SolarNavTree focus={p.focusPlanet} onNavigate={p.setFocusPlanet} onOverview={p.onSolarOverview} />
+      <SolarNavTree focus={p.focusPlanet} onNavigate={p.onNavigateBody} onOverview={p.onSolarOverview} />
     ) : null
   const quakeDetailEl =
     p.mode === 'earth' && p.selected ? (
