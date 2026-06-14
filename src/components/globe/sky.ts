@@ -24,7 +24,9 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   // sky sphere — solar mode lets the camera 130k units out, where the sphere
   // ends and bare background color showed through. scene.background with an
   // equirect texture renders behind everything at any distance.
-  const starTex = new THREE.TextureLoader().load('night-sky.png')
+  // the real Milky Way (Solar System Scope, CC BY) as an equirect environment —
+  // actual stars + the galactic band, far more alive than a flat starfield
+  const starTex = new THREE.TextureLoader().load('stars-milky-way.webp')
   starTex.mapping = THREE.EquirectangularReflectionMapping
   starTex.colorSpace = THREE.SRGBColorSpace
   globe.scene().background = starTex
