@@ -69,10 +69,10 @@ Polohy a fáze se počítají čistou matematikou v `src/lib/` — bez sítě:
 | Polární záře | `aurora.ts` | empirický model dle Kp + IGRF-13 póly |
 
 ## Textury a obrázky (atribuce)
-- **8K Země, 2K Měsíc, planety** © [Solar System Scope](https://www.solarsystemscope.com/textures/) — CC BY 4.0
+- **8K Země, 2K Měsíc, planety, Mléčná dráha** © [Solar System Scope](https://www.solarsystemscope.com/textures/) — CC BY 4.0
 - **Mapový detail při zoomu** © Esri & contributors
 - **Portréty/textury měsíců** — NASA / USGS (public domain), stahuje `npm run fetch-moons`
-- **Hvězdné pozadí** — `public/night-sky.png`
+- **Vesmírné pozadí** — skutečná Mléčná dráha `public/stars-milky-way.webp` (8K equirect, SSS CC BY; zjasněná multiplikativně, max anisotropy)
 
 Žádný feed nevyžaduje klíč ani autentizaci; vše je veřejné a CORS-friendly nebo
 přibalené jako statický snapshot.

@@ -153,7 +153,10 @@ Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-frie
   teplota vzduchu, teplota povrchu, vodní pára, aerosoly z NASA MERRA-2), každá
   s odstupňovanou colorbar legendou a černými obrysy kontinentů přes barevné
   pole. Patchy MODIS/GHRSST vrstvy (jen oceán/jen pevnina) nahrazeny full-globe
-  modely. *(a3fb4bc, ff56cef, b00a8c0, 243d8b3)*
+  modely. *(a3fb4bc, ff56cef, b00a8c0, 243d8b3, a37ae4e)*
+- **🌌 Skutečná Mléčná dráha** jako vesmírné pozadí (Solar System Scope, CC BY)
+  místo plochého starfieldu — 8K equirect, zjasněná galaxie (vesmír zůstává
+  černý) + max anisotropní filtrování pro ostré hvězdy. *(9c16e8e, e2d3fcc)*
 
 **Distribuce:**
 - **🔎 SEO + GEO** — bohatá meta, Open Graph + OG obrázek, Twitter card,

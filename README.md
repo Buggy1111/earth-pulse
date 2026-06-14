@@ -117,9 +117,9 @@ Deep docs live in [`docs/`](docs/) (Czech):
 ## Stack & credits
 
 React 19 + TypeScript + Vite + Tailwind v4 + [globe.gl](https://github.com/vasturiano/globe.gl)
-(three.js) + satellite.js + topojson-client. 8K Earth, Moon and planet textures
-© [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0),
-zoom imagery © Esri & contributors.
+(three.js) + satellite.js + topojson-client. 8K Earth, Moon, planet and
+Milky Way textures © [Solar System Scope](https://www.solarsystemscope.com/textures/)
+(CC BY 4.0), zoom imagery © Esri & contributors.
 
 ---
 
