@@ -1,5 +1,7 @@
 /** Interactive HUD controls: the mode dock, the quake timeline, loading. */
 
+import type { ReactNode } from 'react'
+
 /** Persistent world switcher — always visible in every mode, so you never get
  * stranded: jump straight Earth ↔ Moon ↔ Solar without backing out first. */
 export function ModeSwitcher({
@@ -39,6 +41,61 @@ export function ModeSwitcher({
         )
       })}
     </div>
+  )
+}
+
+/** Slide-out side panel for phones & tablets: the globe stays clear, an edge
+ * tab pulls the panel in from the left or right. */
+export function SideDrawer({
+  side,
+  open,
+  onToggle,
+  icon,
+  title,
+  children,
+}: {
+  side: 'left' | 'right'
+  open: boolean
+  onToggle: () => void
+  icon: string
+  title: string
+  children: ReactNode
+}) {
+  const isLeft = side === 'left'
+  return (
+    <>
+      {!open && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={`Open ${title}`}
+          className={`hud pointer-events-auto fixed top-1/2 z-30 -translate-y-1/2 px-2.5 py-5 text-lg text-slate-300 ${
+            isLeft ? 'left-0 rounded-l-none' : 'right-0 rounded-r-none'
+          }`}
+        >
+          {icon}
+        </button>
+      )}
+      <aside
+        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto bg-[#02030a]/85 p-3 backdrop-blur-md transition-transform duration-300 ${
+          isLeft ? 'left-0 border-r border-white/10' : 'right-0 border-l border-white/10'
+        } ${open ? 'translate-x-0' : isLeft ? '-translate-x-full' : 'translate-x-full'}`}
+        aria-hidden={!open}
+      >
+        <div className="flex items-center justify-between px-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          <span>{icon} {title}</span>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={`Close ${title}`}
+            className="cursor-pointer px-1 text-slate-400 hover:text-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </aside>
+    </>
   )
 }
 

@@ -3,6 +3,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
+import type { LayerState, OrbitEntry } from './components/hud/types'
+import { playPing } from './lib/ping'
+import type { Quake } from './lib/quakes'
+import { encodeView, parseView } from './lib/share'
 
 const ecoPreference = loadEcoPreference()
 
@@ -83,6 +87,18 @@ export function useSolarTime() {
   return { solarTime, onWarp, onWarpReset }
 }
 
+/** Reactive CSS media query — true while it matches. */
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [query])
+  return matches
+}
+
 /** 📺 Idle kiosk/screensaver: goes active after `idleMs` without any
  * deliberate interaction; the next interaction flips it straight back off.
  * The caller decides what "active" does (clean view + cinematic loop). */
@@ -132,4 +148,138 @@ export function useGeolocate() {
     )
   }, [])
   return { userLoc, locating, locVersion, onLocate }
+}
+
+/** 🔔 Optional audio ping when a fresh quake (USGS diff or EMSC live) lands. */
+export function useQuakePing(newQuakes: Quake[], emscFresh: Quake[]) {
+  const [soundOn, setSoundOn] = useState(false)
+  const soundOnRef = useRef(soundOn)
+  useEffect(() => {
+    soundOnRef.current = soundOn
+  }, [soundOn])
+  const audioRef = useRef<AudioContext | null>(null)
+  useEffect(() => {
+    if (newQuakes.length === 0 || !soundOnRef.current) return
+    audioRef.current ??= new AudioContext()
+    for (const q of newQuakes) playPing(audioRef.current, q.mag)
+  }, [newQuakes])
+  const pinged = useRef(new Set<string>())
+  useEffect(() => {
+    if (emscFresh.length === 0 || !soundOnRef.current) return
+    audioRef.current ??= new AudioContext()
+    for (const q of emscFresh) {
+      if (pinged.current.has(q.id)) continue
+      pinged.current.add(q.id)
+      playPing(audioRef.current, q.mag)
+    }
+  }, [emscFresh])
+  const toggleSound = useCallback(() => {
+    setSoundOn((on) => {
+      if (!on) {
+        // create/resume the context on the user gesture — autoplay policy
+        audioRef.current ??= new AudioContext()
+        void audioRef.current.resume()
+      }
+      return !on
+    })
+  }, [])
+  return { soundOn, toggleSound }
+}
+
+/** Keep the URL hash in sync with the view (shareable links) and restore the
+ * orbits from an incoming link once the TLE catalog is loaded. */
+export function useShareHash(opts: {
+  orbits: OrbitEntry[]
+  layers: LayerState
+  setOrbits: (updater: (list: OrbitEntry[]) => OrbitEntry[]) => void
+  sats: { id: string; name: string }[]
+  initialView: ReturnType<typeof parseView>
+}) {
+  const { orbits, layers, setOrbits, sats, initialView } = opts
+  const restored = useRef(false)
+  useEffect(() => {
+    if (restored.current || sats.length === 0 || !initialView?.orbitIds.length) return
+    restored.current = true
+    const names = new Map(sats.map((s) => [s.id, s.name]))
+    setOrbits(() =>
+      initialView.orbitIds.filter((id) => names.has(id)).map((id) => ({ id, name: names.get(id)! })),
+    )
+  }, [sats, initialView, setOrbits])
+  const povRef = useRef(initialView?.camera ?? null)
+  const stateRef = useRef({ orbits, layers })
+  const writeHash = useCallback(() => {
+    const { orbits: o, layers: l } = stateRef.current
+    const layersOff = (Object.keys(l) as (keyof LayerState)[]).filter((k) => !l[k])
+    const hash = encodeView({ camera: povRef.current ?? undefined, orbitIds: o.map((x) => x.id), layersOff })
+    history.replaceState(null, '', hash ? `#${hash}` : window.location.pathname)
+  }, [])
+  useEffect(() => {
+    stateRef.current = { orbits, layers }
+    writeHash()
+  }, [orbits, layers, writeHash])
+  const onPovChange = useCallback(
+    (pov: { lat: number; lng: number; altitude: number }) => {
+      povRef.current = pov
+      writeHash()
+    },
+    [writeHash],
+  )
+  return { onPovChange }
+}
+
+interface KioskActions {
+  setSolarMode: (v: boolean) => void
+  setMoonMode: (v: boolean) => void
+  setFollowIss: (v: boolean) => void
+  setTourOn: (v: boolean) => void
+  setFocusPlanet: (v: string | null) => void
+  onWarp: (factor: number) => void
+  onWarpReset: () => void
+  goEarth: () => void
+}
+
+/** 📺 While the kiosk is active, cycle a cinematic show every 30 s; on exit
+ * hand a clean live Earth back. Actions are read through a ref so the loop
+ * isn't torn down every render. */
+export function useKioskShow(active: boolean, actions: KioskActions) {
+  const ref = useRef(actions)
+  useEffect(() => {
+    ref.current = actions
+  })
+  useEffect(() => {
+    if (!active) return
+    let scene = 0
+    const apply = () => {
+      const a = ref.current
+      const s = scene % 3
+      if (s === 0) {
+        a.setSolarMode(false)
+        a.setMoonMode(false)
+        a.setFollowIss(false)
+        a.onWarpReset()
+        a.setTourOn(true)
+      } else if (s === 1) {
+        a.setTourOn(false)
+        a.setFollowIss(false)
+        a.setMoonMode(false)
+        a.setFocusPlanet(null)
+        a.setSolarMode(true)
+        a.onWarp(200_000)
+      } else {
+        a.setSolarMode(false)
+        a.setMoonMode(false)
+        a.setTourOn(false)
+        a.onWarpReset()
+        a.setFollowIss(true)
+      }
+      scene++
+    }
+    const kick = setTimeout(apply, 50) // first scene (async — not a sync setState)
+    const id = setInterval(apply, 30_000)
+    return () => {
+      clearTimeout(kick)
+      clearInterval(id)
+      ref.current.goEarth()
+    }
+  }, [active])
 }

@@ -1,29 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
-import {
-  AbovePanel,
-  DataLayerPanel,
-  EventsPanel,
-  IssPanel,
-  MissionCard,
-  QuakeDetail,
-  QuakePanel,
-  SpaceWeatherPanel,
-  TitleCard,
-  WikiPanel,
-} from './components/hud/panels'
-import {
-  EarthDock,
-  LoadingOverlay,
-  ModeSwitcher,
-  ShowHudButton,
-  TimelinePanel,
-} from './components/hud/controls'
-import { SettingsPanel } from './components/hud/SettingsPanel'
+import { Hud } from './components/hud/Hud'
+import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
 import type { LayerState, OrbitEntry } from './components/hud/types'
-import { MoonPanel } from './components/MoonPanel'
-import { PlanetPanel } from './components/PlanetPanel'
-import { SolarNavTree } from './components/hud/SolarNavTree'
 import {
   useEmsc,
   useEvents,
@@ -36,13 +15,22 @@ import {
 } from './hooks'
 import type { EarthEvent } from './lib/events'
 import { gibsDate, type GibsLayer } from './lib/gibs'
-import { useEcoMode, useGeolocate, useIdleKiosk, useSolarTime, useTimeline } from './uiHooks'
+import {
+  useEcoMode,
+  useGeolocate,
+  useIdleKiosk,
+  useKioskShow,
+  useMediaQuery,
+  useQuakePing,
+  useShareHash,
+  useSolarTime,
+  useTimeline,
+} from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
-import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove } from './lib/satellites'
-import { encodeView, parseView } from './lib/share'
+import { parseView } from './lib/share'
 
 // shared link? restore camera/orbits/layers from the URL hash
 const initialView = parseView(window.location.hash)
@@ -60,7 +48,7 @@ export default function App() {
   const [selected, setSelected] = useState<Quake | null>(null)
   const [ready, setReady] = useState(false)
   const [followIss, setFollowIss] = useState(false)
-  const [soundOn, setSoundOn] = useState(false)
+  const { soundOn, toggleSound } = useQuakePing(newQuakes, emscFresh)
 
   // user customization: visible layers, chosen orbits, own location
   const [layers, setLayers] = useState<LayerState>(() => {
@@ -195,6 +183,13 @@ export default function App() {
   const [resetView, setResetView] = useState(0)
   const onResetView = useCallback(() => setResetView((v) => v + 1), [])
 
+  // phones & tablets get slide-out drawers so the globe stays clear; desktop
+  // keeps the corner dashboards
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const [drawer, setDrawer] = useState<'left' | 'right' | null>(null)
+  const toggleLeft = useCallback(() => setDrawer((d) => (d === 'left' ? null : 'left')), [])
+  const toggleRight = useCallback(() => setDrawer((d) => (d === 'right' ? null : 'right')), [])
+
   // 📺 kiosk/screensaver: after ~75 s idle, hide the HUD and run a looping
   // cinematic show (Earth tour → solar system → follow ISS); any interaction
   // hands control straight back to the user.
@@ -204,44 +199,16 @@ export default function App() {
   const kioskActive = kioskEnabled && idleActive
   // the HUD is hidden either manually (clean view) or while the kiosk runs
   const hudOff = hudHidden || kioskActive
-  useEffect(() => {
-    if (!kioskActive) return
-    let scene = 0
-    const apply = () => {
-      const s = scene % 3
-      if (s === 0) {
-        // Earth, cinematic tour
-        setSolarMode(false)
-        setMoonMode(false)
-        setFollowIss(false)
-        onWarpReset()
-        setTourOn(true)
-      } else if (s === 1) {
-        // solar system, gently warped so the planets visibly drift
-        setTourOn(false)
-        setFollowIss(false)
-        setMoonMode(false)
-        setFocusPlanet(null)
-        setSolarMode(true)
-        onWarp(200_000)
-      } else {
-        // back to Earth, chase the ISS
-        setSolarMode(false)
-        setMoonMode(false)
-        setTourOn(false)
-        onWarpReset()
-        setFollowIss(true)
-      }
-      scene++
-    }
-    const kick = setTimeout(apply, 50) // first scene (async — not a sync setState)
-    const id = setInterval(apply, 30_000)
-    return () => {
-      clearTimeout(kick)
-      clearInterval(id)
-      goEarth() // interaction over: hand a clean live Earth back to the user
-    }
-  }, [kioskActive, goEarth, onWarp, onWarpReset])
+  useKioskShow(kioskActive, {
+    setSolarMode,
+    setMoonMode,
+    setFollowIss,
+    setTourOn,
+    setFocusPlanet,
+    onWarp,
+    onWarpReset,
+    goEarth,
+  })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
@@ -300,80 +267,13 @@ export default function App() {
   const [gibsDaysBack, setGibsDaysBack] = useState(2)
   const gibsImageryDate = gibsDate(now, gibsDaysBack)
 
-  // shared-link orbits: restore once the TLE catalog is in
-  const orbitsRestored = useRef(false)
-  useEffect(() => {
-    if (orbitsRestored.current || sats.length === 0 || !initialView?.orbitIds.length) return
-    orbitsRestored.current = true
-    const names = new Map(sats.map((s) => [s.id, s.name]))
-    setOrbits(
-      initialView.orbitIds
-        .filter((id) => names.has(id))
-        .map((id) => ({ id, name: names.get(id)! })),
-    )
-  }, [sats])
+  // shareable URL hash (camera/orbits/layers) + restore from an incoming link
+  const { onPovChange } = useShareHash({ orbits, layers, setOrbits, sats, initialView })
 
-  // keep the URL hash in sync — anyone can copy the address bar to share
-  const povRef = useRef(initialView?.camera ?? null)
-  const shareStateRef = useRef({ orbits, layers })
-  const writeHash = useCallback(() => {
-    const { orbits: o, layers: l } = shareStateRef.current
-    const layersOff = (Object.keys(l) as (keyof LayerState)[]).filter((k) => !l[k])
-    const hash = encodeView({
-      camera: povRef.current ?? undefined,
-      orbitIds: o.map((x) => x.id),
-      layersOff,
-    })
-    history.replaceState(null, '', hash ? `#${hash}` : window.location.pathname)
-  }, [])
-  useEffect(() => {
-    shareStateRef.current = { orbits, layers }
-    writeHash()
-  }, [orbits, layers, writeHash])
-  const onPovChange = useCallback(
-    (pov: { lat: number; lng: number; altitude: number }) => {
-      povRef.current = pov
-      writeHash()
-    },
-    [writeHash],
-  )
-
-  // audible ping for just-detected quakes (opt-in via the 🔔 toggle)
-  const soundOnRef = useRef(soundOn)
-  useEffect(() => {
-    soundOnRef.current = soundOn
-  }, [soundOn])
-  const audioRef = useRef<AudioContext | null>(null)
-  useEffect(() => {
-    if (newQuakes.length === 0 || !soundOnRef.current) return
-    audioRef.current ??= new AudioContext()
-    for (const q of newQuakes) playPing(audioRef.current, q.mag)
-  }, [newQuakes])
-  // EMSC live events ping too (these are the truly "right now" ones)
-  const pingedEmsc = useRef(new Set<string>())
-  useEffect(() => {
-    if (emscFresh.length === 0 || !soundOnRef.current) return
-    audioRef.current ??= new AudioContext()
-    for (const q of emscFresh) {
-      if (pingedEmsc.current.has(q.id)) continue
-      pingedEmsc.current.add(q.id)
-      playPing(audioRef.current, q.mag)
-    }
-  }, [emscFresh])
-
-  const toggleSound = useCallback(() => {
-    setSoundOn((on) => {
-      if (!on) {
-        // create/resume the context on the user gesture — autoplay policy
-        audioRef.current ??= new AudioContext()
-        void audioRef.current.resume()
-      }
-      return !on
-    })
-  }, [])
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
   const onIssClick = useCallback(() => setFollowIss((f) => !f), [])
+
   return (
     <>
       <GlobeView
@@ -417,146 +317,83 @@ export default function App() {
 
       {hudHidden && !kioskActive && <ShowHudButton onShow={() => setHudHidden(false)} />}
 
-      {/* HUD overlay — mode-aware: Earth shows the live dashboards, Moon and
-          Solar modes keep only what belongs to them. Pointer events live on
-          the panels; the globe stays draggable. Hidden entirely in clean view. */}
+      {/* HUD — desktop corner dashboards, or two slide-out drawers on phones &
+          tablets. Hidden entirely in clean view / kiosk. */}
       {!hudOff && (
-      <div className="pointer-events-none fixed inset-0">
-        <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 sm:top-4">
-          <ModeSwitcher mode={mode} onEarth={goEarth} onMoon={goMoon} onSolar={goSolar} />
-        </div>
-        {/* top and bottom stacks are anchored independently, so a tall panel
-            (e.g. the open customizer) can never shove the other off-screen */}
-        <div className="pointer-events-none absolute inset-x-4 top-4 flex items-start justify-between gap-4 sm:inset-x-6 sm:top-6">
-          <div className="flex flex-col items-start gap-3 pt-11 lg:pt-0">
-            <TitleCard
-              now={now}
-              satCount={sats.length}
-              subtitle={
-                solarMode
-                  ? 'the solar system, live — click any body to orbit it'
-                  : moonMode
-                    ? 'orbiting the Moon — drag to orbit, scroll to zoom'
-                    : undefined
-              }
-            />
-            {mode === 'earth' && (
-              <SpaceWeatherPanel weather={weather} moonLabel={moonLabel} onOpenMoon={onMoonEnter} />
-            )}
-            {mode === 'moon' && (
-              <MoonPanel moon={moonState} picked={apolloSite} onBack={onMoonExit} />
-            )}
-            {mode === 'solar' && (
-              <PlanetPanel
-                focus={focusPlanet}
-                now={solarSimNow}
-                realNow={now}
-                warp={solarTime.warp}
-                onWarp={onWarp}
-                onWarpReset={onWarpReset}
-                onOverview={onSolarOverview}
-                onBack={onSolarExit}
-              />
-            )}
-            {mode === 'earth' && (
-              <div className="hidden sm:contents">
-                <SettingsPanel
-                  layers={layers}
-                  onToggleLayer={onToggleLayer}
-                  orbits={orbits}
-                  onRemoveOrbit={onRemoveOrbit}
-                  onClearOrbits={onClearOrbits}
-                  satList={satList}
-                  onPickSat={onPickSat}
-                  eco={eco}
-                  onToggleEco={onToggleEco}
-                  kioskEnabled={kioskEnabled}
-                  onToggleKiosk={onToggleKiosk}
-                  userLoc={userLoc}
-                  locating={locating}
-                  onLocate={onLocate}
-                />
-              </div>
-            )}
-            {mode === 'earth' && userLoc && (
-              <div className="hidden sm:contents hide-short">
-                <AbovePanel overhead={overhead} onPickSat={onPickSat} />
-              </div>
-            )}
-          </div>
-          {/* top-right keeps clear of the centered switcher until there's room */}
-          <div className="pt-11 lg:pt-0">
-            {mode === 'earth' && <WikiPanel edits={edits} totalSeen={totalSeen} />}
-            {mode === 'solar' && (
-              <SolarNavTree focus={focusPlanet} onNavigate={setFocusPlanet} onOverview={onSolarOverview} />
-            )}
-          </div>
-        </div>
-
-        <div className="pointer-events-none absolute inset-x-4 bottom-4 flex flex-col gap-3 sm:inset-x-6 sm:bottom-6 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-          <div className="flex flex-col items-start gap-3">
-            {mode === 'earth' && (
-              <>
-                <TimelinePanel
-                  offsetH={timeOffsetH}
-                  playing={timelinePlaying}
-                  onScrub={onTimelineScrub}
-                  onTogglePlay={onTimelineToggle}
-                />
-                <QuakePanel
-                  quakes={displayQuakes}
-                  flashes={timelineActive ? [] : flashes}
-                  now={simNow}
-                  onFocusQuake={onFocusQuake}
-                  soundOn={soundOn}
-                  onToggleSound={toggleSound}
-                />
-                {layers.events && (
-                  <div className="hidden sm:contents hide-short">
-                    <EventsPanel events={events} onEventClick={onEventClick} />
-                  </div>
-                )}
-                <div className="hidden sm:contents hide-short">
-                  <DataLayerPanel
-                    active={gibsLayer}
-                    onSelect={setGibsLayer}
-                    daysBack={gibsDaysBack}
-                    onScrubDate={setGibsDaysBack}
-                    date={gibsImageryDate}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-          <div className="flex flex-col items-start gap-3 sm:items-end">
-            {mode === 'earth' && selected && (
-              <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />
-            )}
-            {mode === 'earth' && selectedMission && (
-              <MissionCard name={selectedMission} onClose={() => setSelectedMission(null)} />
-            )}
-            {mode === 'earth' && (
-              <EarthDock
-                tourOn={tourOn}
-                followIss={followIss}
-                showFollow={layers.iss}
-                onTour={onTourToggle}
-                onFollow={onIssClick}
-                onResetView={onResetView}
-                onHideHud={onHideHud}
-              />
-            )}
-            {mode === 'earth' && <IssPanel iss={iss} pass={issPass} now={now} />}
-          </div>
-        </div>
-      </div>
-      )}
-
-      {!hudOff && (
-        <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 text-center text-[10px] text-slate-600">
-          Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
-          Solar System Scope (CC BY)
-        </p>
+        <Hud
+          mode={mode}
+          isDesktop={isDesktop}
+          drawer={drawer}
+          onToggleLeft={toggleLeft}
+          onToggleRight={toggleRight}
+          onEarth={goEarth}
+          onMoon={goMoon}
+          onSolar={goSolar}
+          now={now}
+          satCount={sats.length}
+          solarMode={solarMode}
+          moonMode={moonMode}
+          weather={weather}
+          moonLabel={moonLabel}
+          onMoonEnter={onMoonEnter}
+          moonState={moonState}
+          apolloSite={apolloSite}
+          onMoonExit={onMoonExit}
+          focusPlanet={focusPlanet}
+          solarSimNow={solarSimNow}
+          warp={solarTime.warp}
+          onWarp={onWarp}
+          onWarpReset={onWarpReset}
+          onSolarOverview={onSolarOverview}
+          onSolarExit={onSolarExit}
+          setFocusPlanet={setFocusPlanet}
+          layers={layers}
+          onToggleLayer={onToggleLayer}
+          orbits={orbits}
+          onRemoveOrbit={onRemoveOrbit}
+          onClearOrbits={onClearOrbits}
+          satList={satList}
+          onPickSat={onPickSat}
+          eco={eco}
+          onToggleEco={onToggleEco}
+          kioskEnabled={kioskEnabled}
+          onToggleKiosk={onToggleKiosk}
+          userLoc={userLoc}
+          locating={locating}
+          onLocate={onLocate}
+          overhead={overhead}
+          timeOffsetH={timeOffsetH}
+          timelinePlaying={timelinePlaying}
+          onTimelineScrub={onTimelineScrub}
+          onTimelineToggle={onTimelineToggle}
+          displayQuakes={displayQuakes}
+          flashes={timelineActive ? [] : flashes}
+          simNow={simNow}
+          onFocusQuake={onFocusQuake}
+          soundOn={soundOn}
+          onToggleSound={toggleSound}
+          selected={selected}
+          onCloseQuake={() => setSelected(null)}
+          events={events}
+          onEventClick={onEventClick}
+          gibsLayer={gibsLayer}
+          onSelectGibs={setGibsLayer}
+          gibsDaysBack={gibsDaysBack}
+          onScrubGibs={setGibsDaysBack}
+          gibsDate={gibsImageryDate}
+          edits={edits}
+          totalSeen={totalSeen}
+          selectedMission={selectedMission}
+          onCloseMission={() => setSelectedMission(null)}
+          tourOn={tourOn}
+          followIss={followIss}
+          onTour={onTourToggle}
+          onFollow={onIssClick}
+          onResetView={onResetView}
+          onHideHud={onHideHud}
+          iss={iss}
+          issPass={issPass}
+        />
       )}
     </>
   )
