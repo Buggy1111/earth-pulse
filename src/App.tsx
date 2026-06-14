@@ -374,7 +374,7 @@ export default function App() {
           <ModeSwitcher mode={mode} onEarth={goEarth} onMoon={goMoon} onSolar={goSolar} />
         </div>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col items-start gap-3">
+          <div className="flex flex-col items-start gap-3 pt-11 lg:pt-0">
             <TitleCard
               now={now}
               satCount={sats.length}
@@ -405,30 +405,39 @@ export default function App() {
               />
             )}
             {mode === 'earth' && (
-              <SettingsPanel
-                layers={layers}
-                onToggleLayer={onToggleLayer}
-                orbits={orbits}
-                onRemoveOrbit={onRemoveOrbit}
-                onClearOrbits={onClearOrbits}
-                satList={satList}
-                onPickSat={onPickSat}
-                eco={eco}
-                onToggleEco={onToggleEco}
-                userLoc={userLoc}
-                locating={locating}
-                onLocate={onLocate}
-              />
+              <div className="hidden sm:contents">
+                <SettingsPanel
+                  layers={layers}
+                  onToggleLayer={onToggleLayer}
+                  orbits={orbits}
+                  onRemoveOrbit={onRemoveOrbit}
+                  onClearOrbits={onClearOrbits}
+                  satList={satList}
+                  onPickSat={onPickSat}
+                  eco={eco}
+                  onToggleEco={onToggleEco}
+                  userLoc={userLoc}
+                  locating={locating}
+                  onLocate={onLocate}
+                />
+              </div>
             )}
-            {mode === 'earth' && userLoc && <AbovePanel overhead={overhead} onPickSat={onPickSat} />}
+            {mode === 'earth' && userLoc && (
+              <div className="hidden sm:contents">
+                <AbovePanel overhead={overhead} onPickSat={onPickSat} />
+              </div>
+            )}
           </div>
-          {mode === 'earth' && <WikiPanel edits={edits} totalSeen={totalSeen} />}
-          {mode === 'solar' && (
-            <SolarNavTree focus={focusPlanet} onNavigate={setFocusPlanet} onOverview={onSolarOverview} />
-          )}
+          {/* top-right keeps clear of the centered switcher until there's room */}
+          <div className="pt-11 lg:pt-0">
+            {mode === 'earth' && <WikiPanel edits={edits} totalSeen={totalSeen} />}
+            {mode === 'solar' && (
+              <SolarNavTree focus={focusPlanet} onNavigate={setFocusPlanet} onOverview={onSolarOverview} />
+            )}
+          </div>
         </div>
 
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="flex flex-col items-start gap-3">
             {mode === 'earth' && (
               <>
@@ -446,18 +455,24 @@ export default function App() {
                   soundOn={soundOn}
                   onToggleSound={toggleSound}
                 />
-                {layers.events && <EventsPanel events={events} onEventClick={onEventClick} />}
-                <DataLayerPanel
-                  active={gibsLayer}
-                  onSelect={setGibsLayer}
-                  daysBack={gibsDaysBack}
-                  onScrubDate={setGibsDaysBack}
-                  date={gibsImageryDate}
-                />
+                {layers.events && (
+                  <div className="hidden sm:contents">
+                    <EventsPanel events={events} onEventClick={onEventClick} />
+                  </div>
+                )}
+                <div className="hidden sm:contents">
+                  <DataLayerPanel
+                    active={gibsLayer}
+                    onSelect={setGibsLayer}
+                    daysBack={gibsDaysBack}
+                    onScrubDate={setGibsDaysBack}
+                    date={gibsImageryDate}
+                  />
+                </div>
               </>
             )}
           </div>
-          <div className="flex flex-col items-end gap-3">
+          <div className="flex flex-col items-start gap-3 sm:items-end">
             {mode === 'earth' && selected && (
               <QuakeDetail quake={selected} now={now} onClose={() => setSelected(null)} />
             )}

@@ -24,6 +24,14 @@ body {
   border-radius: 1rem;
 }
 
+/* On phones a fixed 18rem panel can overrun a narrow viewport — cap it so
+   nothing bleeds off-screen. (Desktop keeps the exact w-72 sizing.) */
+@media (max-width: 640px) {
+  .hud {
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
 .num {
   font-variant-numeric: tabular-nums;
 }
