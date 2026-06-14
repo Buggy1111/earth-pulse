@@ -14,7 +14,7 @@ import {
   useWikiFeed,
 } from './hooks'
 import type { EarthEvent } from './lib/events'
-import { gibsDate, type GibsLayer } from './lib/gibs'
+import { gibsImageDate, type GibsLayer } from './lib/gibs'
 import {
   useEcoMode,
   useGeolocate,
@@ -265,7 +265,7 @@ export default function App() {
   // NASA GIBS data layer + playback date (days back from now)
   const [gibsLayer, setGibsLayer] = useState<GibsLayer | null>(null)
   const [gibsDaysBack, setGibsDaysBack] = useState(2)
-  const gibsImageryDate = gibsDate(now, gibsDaysBack)
+  const gibsImageryDate = gibsImageDate(gibsLayer, now, gibsDaysBack)
 
   // shareable URL hash (camera/orbits/layers) + restore from an incoming link
   const { onPovChange } = useShareHash({ orbits, layers, setOrbits, sats, initialView })

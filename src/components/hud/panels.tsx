@@ -257,19 +257,27 @@ export function DataLayerPanel({
               </div>
             </div>
           )}
-          <div className="mt-1.5 flex items-center gap-2">
-            <input
-              type="range"
-              min={2}
-              max={30}
-              value={daysBack}
-              onChange={(e) => onScrubDate(Number(e.target.value))}
-              aria-label="Imagery date, days before now"
-              className="h-1 flex-1 cursor-pointer accent-sky-400"
-            />
-            <span className="num text-[10px] whitespace-nowrap text-slate-300">{date}</span>
-          </div>
-          <p className="mt-1 text-[10px] text-slate-600">data: NASA GIBS · slide to replay past days</p>
+          {active.monthly ? (
+            <p className="mt-1.5 text-[11px] text-slate-300">
+              📅 monthly · <span className="num">{date.slice(0, 7)}</span>
+            </p>
+          ) : (
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                type="range"
+                min={2}
+                max={30}
+                value={daysBack}
+                onChange={(e) => onScrubDate(Number(e.target.value))}
+                aria-label="Imagery date, days before now"
+                className="h-1 flex-1 cursor-pointer accent-sky-400"
+              />
+              <span className="num text-[10px] whitespace-nowrap text-slate-300">{date}</span>
+            </div>
+          )}
+          <p className="mt-1 text-[10px] text-slate-600">
+            data: NASA GIBS{active.monthly ? '' : ' · slide to replay past days'}
+          </p>
         </div>
       )}
     </div>
