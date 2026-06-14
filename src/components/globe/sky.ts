@@ -9,6 +9,7 @@ import { subLunarPoint } from '../../lib/moon'
 import { subsolarPoint } from '../../lib/sun'
 import { getGlowTexture, SUN_REFRESH_MS } from './helpers'
 import { makeMoonMaterial } from './moonMaterial'
+import { detectWeakGpu } from '../perf'
 
 export interface Sky {
   sunUniform: { value: THREE.Vector3 }
@@ -25,8 +26,21 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   // ends and bare background color showed through. scene.background with an
   // equirect texture renders behind everything at any distance.
   // the real Milky Way (Solar System Scope, CC BY) as an equirect environment —
-  // actual stars + the galactic band, far more alive than a flat starfield
-  const starTex = new THREE.TextureLoader().load('stars-milky-way.webp')
+  // actual stars + the galactic band, far more alive than a flat starfield.
+  // the 8K (8192px) source needs MAX_TEXTURE_SIZE ≥ 8192 — most mobile GPUs cap
+  // at 4096, where uploading it fails silently and the whole scene goes black
+  // (the "loads then nothing" mobile bug). Fall back to a 4K background unless
+  // the GPU is comfortably large AND not a known weak/integrated/mobile chip.
+  const maxTex = globe.renderer().capabilities.maxTextureSize
+  // phones/tablets: even when the GPU reports a large max texture (e.g. iOS
+  // Safari at 16384), the per-context memory budget is tight and an 8K bg on
+  // top of the 8K Earth textures gets the context discarded — blank screen.
+  const isHandheld =
+    matchMedia('(pointer: coarse)').matches && matchMedia('(max-width: 1024px)').matches
+  const canDo8k = maxTex >= 8192 && !detectWeakGpu() && !isHandheld
+  const starTex = new THREE.TextureLoader().load(
+    canDo8k ? 'stars-milky-way.webp' : 'stars-milky-way-4k.webp',
+  )
   starTex.mapping = THREE.EquirectangularReflectionMapping
   starTex.colorSpace = THREE.SRGBColorSpace
   // max anisotropy keeps the stars crisp at grazing angles instead of smearing
