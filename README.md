@@ -45,6 +45,8 @@ public data feeds.
   edits, 🎬 a cinematic auto-tour, 🔗 **shareable view links** (camera, orbits
   and layers travel in the URL hash)
 
+![NASA vital-signs data layer — air temperature painted across the whole planet with the continents outlined in black](docs/air-temperature.png)
+
 ## 🌙 The Moon — click it
 Click the Moon in the sky (it sits at its real position) and the camera flies
 over: **you orbit the Moon like Earth**, with Earth hanging in the lunar sky. A
