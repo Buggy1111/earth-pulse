@@ -32,12 +32,12 @@ export const GIBS_LAYERS: GibsLayer[] = [
     legend: { stops: ['#08306b', '#2171b5', '#6baed6', '#deebf7', '#fff5eb', '#fc9272', '#ef3b2c', '#a50f15'], min: '−40 °C', max: '+40 °C' },
   },
   {
-    id: 'aod', label: '🌫 Aerosols', layer: 'MODIS_Combined_Value_Added_AOD', level: 6, ext: 'png', daily: true, blurb: 'aerosol optical depth — smoke, dust, haze',
-    legend: { stops: ['#ffffcc', '#fed976', '#fd8d3c', '#e31a1c', '#800026'], min: 'clear', max: 'hazy' },
+    id: 'vapor', label: '💧 Water vapour', layer: 'MERRA2_Total_Precipitable_Water_Vapor_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'moisture in the air column, whole planet — monthly (NASA MERRA-2)',
+    legend: { stops: ['#ffffe5', '#d9f0a3', '#addd8e', '#41ab5d', '#238443', '#005a32'], min: 'dry', max: 'humid' },
   },
   {
-    id: 'snow', label: '❄️ Snow cover', layer: 'MODIS_Terra_NDSI_Snow_Cover', level: 8, ext: 'png', daily: true, blurb: 'snow & ice cover (MODIS Terra)',
-    legend: { stops: ['#1e293b', '#64748b', '#bae6fd', '#e0f2fe', '#ffffff'], min: 'none', max: 'snow' },
+    id: 'aerosols', label: '🌫 Aerosols', layer: 'MERRA2_Total_Aerosol_Optical_Thickness_550nm_Extinction_Monthly', level: 6, ext: 'png', daily: true, monthly: true, blurb: 'dust, smoke & pollution haze, whole planet — monthly (NASA MERRA-2)',
+    legend: { stops: ['#fff7bc', '#fee391', '#fec44f', '#fe9929', '#d95f0e', '#993404'], min: 'clear', max: 'hazy' },
   },
 ]
 
@@ -48,7 +48,7 @@ export function gibsDate(now: number, daysBack = 2): string {
 
 /** First day of a recent month — monthly products (e.g. MERRA-2) lag ~2-3
  * months, so step back and snap to the 1st. */
-export function gibsMonthDate(now: number, monthsBack = 3): string {
+export function gibsMonthDate(now: number, monthsBack = 5): string {
   const d = new Date(now)
   d.setUTCMonth(d.getUTCMonth() - monthsBack, 1)
   return d.toISOString().slice(0, 10)
