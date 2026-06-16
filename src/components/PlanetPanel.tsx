@@ -2,6 +2,7 @@
  * faithful encyclopedic data: spin, year, tilt, temperature, moons. */
 
 import { PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
+import { TimeWarp } from './hud/TimeWarp'
 
 const AU_KM = 149_597_870
 
@@ -14,13 +15,6 @@ function fmtRotation(h: number): string {
 function fmtYear(d: number): string {
   return d >= 700 ? `${(d / 365.25).toFixed(1)} years` : `${Math.round(d)} days`
 }
-
-const WARPS: { label: string; factor: number }[] = [
-  { label: 'live', factor: 1 },
-  { label: '1 h/s', factor: 3_600 },
-  { label: '1 d/s', factor: 86_400 },
-  { label: '1 w/s', factor: 604_800 },
-]
 
 /** Flat moon lookup + its parent's name (moon ids are globally unique). Earth
  * is not in PLANETS (it's the live globe), so fall back to a capitalised id. */
@@ -53,7 +47,6 @@ export function PlanetPanel({
   onOverview: () => void
   onBack: () => void
 }) {
-  const warped = warp !== 1 || Math.abs(now - realNow) > 120_000
   const positions = planetPositions(new Date(now))
   const p = focus && focus !== 'sun' ? positions.find((x) => x.id === focus) : null
   const def = p ? PLANETS.find((x) => x.id === p.id) : null
@@ -160,42 +153,9 @@ export function PlanetPanel({
         </p>
       )}
 
-      <div className="mt-2 flex items-center gap-1 border-t border-white/10 pt-2">
-        <span className="mr-1 text-[10px] tracking-wide text-slate-500 uppercase">⏩ time</span>
-        {WARPS.map((w) => (
-          <button
-            key={w.factor}
-            type="button"
-            onClick={() => (w.factor === 1 && warped ? onWarpReset() : onWarp(w.factor))}
-            className={`cursor-pointer rounded px-1.5 py-0.5 text-[11px] ${
-              warp === w.factor
-                ? 'bg-violet-500/25 text-violet-200'
-                : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
-            }`}
-          >
-            {w.label}
-          </button>
-        ))}
+      <div className="mt-2 border-t border-white/10 pt-2">
+        <TimeWarp now={now} realNow={realNow} warp={warp} onWarp={onWarp} onWarpReset={onWarpReset} />
       </div>
-      {warped && (
-        <p className="num mt-1 text-xs text-amber-300">
-          ⏱{' '}
-          {new Date(now).toLocaleString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}{' '}
-          <button
-            type="button"
-            onClick={onWarpReset}
-            className="cursor-pointer text-slate-500 underline hover:text-slate-300"
-          >
-            back to now
-          </button>
-        </p>
-      )}
     </div>
   )
 }

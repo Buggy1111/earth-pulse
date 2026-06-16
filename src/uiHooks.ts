@@ -84,7 +84,20 @@ export function useSolarTime() {
     const t = Date.now()
     setSolarTime({ realMs: t, simMs: t, warp: 1 })
   }, [])
-  return { solarTime, onWarp, onWarpReset }
+  // 🪟 background freeze guard: while the tab/window is hidden, requestAnimationFrame
+  // is paused but the warp clock keeps "accruing". On a high warp that means simMs
+  // jumps thousands of × the hidden duration on return → SGP4/helio get a date far
+  // in the future → NaN → the whole renderer locks up. So we FREEZE the simulated
+  // moment on hide and re-anchor to "now" on show — the hidden gap is simply skipped.
+  const onVisibilityChange = useCallback(() => {
+    const real = Date.now()
+    setSolarTime((prev) =>
+      document.hidden
+        ? { realMs: real, simMs: prev.simMs + (real - prev.realMs) * prev.warp, warp: prev.warp }
+        : { ...prev, realMs: real },
+    )
+  }, [])
+  return { solarTime, onWarp, onWarpReset, onVisibilityChange }
 }
 
 /** Reactive CSS media query — true while it matches. */

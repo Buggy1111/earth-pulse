@@ -122,7 +122,7 @@ export default function App() {
   // 🪐 solar system mode + ⏩ time-warp (simMs runs warp× faster than real)
   const [solarMode, setSolarMode] = useState(false)
   const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
-  const { solarTime, onWarp, onWarpReset } = useSolarTime()
+  const { solarTime, onWarp, onWarpReset, onVisibilityChange } = useSolarTime()
   const solarSimNow = solarTime.simMs + (now - solarTime.realMs) * solarTime.warp
   const onMoonEnter = useCallback(() => {
     setMoonMode(true)
@@ -190,10 +190,11 @@ export default function App() {
   const toggleLeft = useCallback(() => setDrawer((d) => (d === 'left' ? null : 'left')), [])
   const toggleRight = useCallback(() => setDrawer((d) => (d === 'right' ? null : 'right')), [])
 
-  // 📺 kiosk/screensaver: after ~75 s idle, hide the HUD and run a looping
-  // cinematic show (Earth tour → solar system → follow ISS); any interaction
-  // hands control straight back to the user.
-  const [kioskEnabled, setKioskEnabled] = useState(true)
+  // 📺 kiosk/screensaver: opt-in (off by default — first-time visitors land on a
+  // plain live Earth, not an auto-playing tour). When the user switches it on,
+  // ~75 s idle hides the HUD and runs a looping cinematic show (Earth tour →
+  // solar system → follow ISS); any interaction hands control straight back.
+  const [kioskEnabled, setKioskEnabled] = useState(false)
   const onToggleKiosk = useCallback(() => setKioskEnabled((k) => !k), [])
   const idleActive = useIdleKiosk(75_000)
   const kioskActive = kioskEnabled && idleActive
@@ -223,6 +224,13 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [hudHidden, goEarth, goMoon, goSolar])
+
+  // re-anchor the warp clock when the window returns from the background, so a
+  // minimized/backgrounded tab never comes back to a frozen scene (see hook).
+  useEffect(() => {
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [onVisibilityChange])
 
   const onToggleLayer = useCallback((key: keyof LayerState) => {
     setLayers((l) => {
