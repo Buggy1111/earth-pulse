@@ -6,8 +6,8 @@ import {
   formatCountdown,
   formatKm,
   formatKmh,
+  formatLocalClock,
   formatMag,
-  formatUtcClock,
   timeAgo,
 } from '../../lib/format'
 import type { IssPass, OverheadSat } from '../../lib/satellites'
@@ -39,7 +39,7 @@ export function TitleCard({
     <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4">
       <h1 className="flex items-baseline gap-3 text-lg font-bold tracking-tight">
         🌍 Earth Pulse
-        <span className="num text-xs font-medium text-slate-400">{formatUtcClock(now)}</span>
+        <span className="num text-xs font-medium text-slate-400">{formatLocalClock(now)}</span>
         <button
           type="button"
           onClick={toggleFullscreen}

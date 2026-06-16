@@ -162,7 +162,7 @@ export function Hud(p: HudProps) {
   // the day/night terminator and the satellites). Solar view has its own copy.
   const timeWarpEl =
     p.mode === 'earth' ? (
-      <div className="hud pointer-events-auto px-4 py-2">
+      <div className="hud pointer-events-auto w-72 px-4 py-2">
         <TimeWarp
           now={p.solarSimNow}
           realNow={p.now}
@@ -214,7 +214,7 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' ? (
       <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
     ) : p.mode === 'solar' ? (
-      <SolarNavTree focus={p.focusPlanet} onNavigate={p.onNavigateBody} onOverview={p.onSolarOverview} />
+      <SolarNavTree focus={p.focusPlanet} now={p.solarSimNow} onNavigate={p.onNavigateBody} onOverview={p.onSolarOverview} />
     ) : null
   const quakeDetailEl =
     p.mode === 'earth' && p.selected ? (

@@ -1,8 +1,11 @@
 /** Right-side navigator for Solar System mode: the Sun and every planet as a
- * tree, planets expand to their moons — one click glides the camera there. */
+ * tree, planets expand to their moons — one click glides the camera there.
+ * Doubles as a targeting console: each body shows its live range from Earth,
+ * ticking with the simulated clock, and the focused body reads out as the
+ * locked target. */
 
 import { useState } from 'react'
-import { PLANET_MOONS, PLANETS } from '../../lib/planets'
+import { PLANET_MOONS, PLANETS, planetPositions } from '../../lib/planets'
 
 const BODY_COLORS: Record<string, string> = {
   sun: '#ffd27a',
@@ -29,16 +32,32 @@ const TREE: { id: string; name: string }[] = [
   })),
 ]
 
+/** Every body's display name, for the locked-target read-out. */
+const NAME: Record<string, string> = {
+  ...Object.fromEntries(TREE.map((t) => [t.id, t.name])),
+  ...Object.fromEntries(Object.values(PLANET_MOONS).flat().map((m) => [m.id, m.name])),
+}
+
+const fmtAu = (au: number) => `${au.toFixed(au < 10 ? 2 : 1)} AU`
+
 export function SolarNavTree({
   focus,
+  now,
   onNavigate,
   onOverview,
 }: {
   focus: string | null
+  /** Simulated clock — drives the live range read-outs. */
+  now: number
   onNavigate: (id: string) => void
   onOverview: () => void
 }) {
   const [opened, setOpened] = useState<Set<string>>(new Set())
+  // live distance from Earth, AU, for every planet at the current sim time
+  const range = new Map(planetPositions(new Date(now)).map((p) => [p.id, p.distEarthAu]))
+  const rangeOf = (id: string) =>
+    id === 'earth' ? 'home' : id === 'sun' ? '1.0 AU' : range.has(id) ? fmtAu(range.get(id)!) : null
+
   // the focused body's system stays expanded even without a manual toggle
   const focusParent =
     focus &&
@@ -67,10 +86,24 @@ export function SolarNavTree({
           ⊙ overview
         </button>
       </h2>
-      <ul className="mt-1.5 max-h-[56vh] overflow-y-auto pr-1">
+
+      {/* locked-target read-out — the console's “what am I looking at” line */}
+      <div className="num mt-1 flex items-baseline justify-between border-b border-white/10 pb-1.5 text-[10px] tracking-widest text-slate-500 uppercase">
+        <span>
+          ▸ target{' '}
+          <span className="text-cyan-300">{focus ? (NAME[focus] ?? focus) : 'none'}</span>
+        </span>
+        {focus && rangeOf(focus) && rangeOf(focus) !== 'home' && (
+          <span className="text-slate-400">{rangeOf(focus)}</span>
+        )}
+      </div>
+
+      <ul className="mt-1.5 max-h-[52vh] overflow-y-auto pr-1">
         {TREE.map((body) => {
           const moons = PLANET_MOONS[body.id] ?? []
           const open = isOpen(body.id)
+          const active = focus === body.id
+          const r = rangeOf(body.id)
           return (
             <li key={body.id}>
               <div className="flex items-center gap-1">
@@ -78,17 +111,21 @@ export function SolarNavTree({
                   type="button"
                   onClick={() => onNavigate(body.id)}
                   title={`fly to ${body.name}`}
-                  className={`flex flex-1 cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs ${
-                    focus === body.id
-                      ? 'bg-white/15 text-slate-100'
+                  className={`flex flex-1 cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition-colors ${
+                    active
+                      ? 'bg-cyan-400/12 text-cyan-100 shadow-[inset_2px_0_0_#22d3ee]'
                       : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
                   }`}
                 >
+                  <span className="w-2 shrink-0 text-[10px] text-cyan-300">{active ? '▸' : ''}</span>
                   <span
                     className="inline-block h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: BODY_COLORS[body.id] }}
+                    style={{ background: BODY_COLORS[body.id], boxShadow: active ? `0 0 6px ${BODY_COLORS[body.id]}` : undefined }}
                   />
-                  {body.name}
+                  <span className="flex-1 truncate">{body.name}</span>
+                  {r && (
+                    <span className={`num text-[10px] ${active ? 'text-cyan-200/80' : 'text-slate-500'}`}>{r}</span>
+                  )}
                 </button>
                 {moons.length > 0 && (
                   <button
@@ -103,25 +140,28 @@ export function SolarNavTree({
                 )}
               </div>
               {open &&
-                moons.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => onNavigate(m.id)}
-                    title={`fly to ${m.name}`}
-                    className={`ml-4 flex w-[calc(100%-1rem)] cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-[11px] ${
-                      focus === m.id
-                        ? 'bg-white/15 text-slate-100'
-                        : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
-                    }`}
-                  >
-                    <span
-                      className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: m.color }}
-                    />
-                    {m.name}
-                  </button>
-                ))}
+                moons.map((m) => {
+                  const ma = focus === m.id
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => onNavigate(m.id)}
+                      title={`fly to ${m.name}`}
+                      className={`ml-4 flex w-[calc(100%-1rem)] cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-[11px] transition-colors ${
+                        ma
+                          ? 'bg-cyan-400/12 text-cyan-100 shadow-[inset_2px_0_0_#22d3ee]'
+                          : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                      }`}
+                    >
+                      <span
+                        className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: m.color, boxShadow: ma ? `0 0 6px ${m.color}` : undefined }}
+                      />
+                      <span className="flex-1 truncate">{m.name}</span>
+                    </button>
+                  )
+                })}
             </li>
           )
         })}

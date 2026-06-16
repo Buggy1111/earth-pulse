@@ -34,6 +34,26 @@ export function formatUtcClock(ts: number): string {
   return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} UTC`
 }
 
+/** Wall-clock time in the viewer's own timezone, e.g. "14:23:07 CEST" in
+ * Prague or "08:23:07 EDT" in New York — so the clock always reads as the
+ * local time wherever you are. Falls back to bare HH:MM:SS if the browser
+ * won't surface a timezone name. */
+export function formatLocalClock(ts: number): string {
+  const d = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const hms = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  let tz: string
+  try {
+    tz =
+      new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+        .formatToParts(d)
+        .find((x) => x.type === 'timeZoneName')?.value ?? ''
+  } catch {
+    tz = ''
+  }
+  return tz ? `${hms} ${tz}` : hms
+}
+
 export function formatCoords(lat: number, lng: number): string {
   const ns = lat >= 0 ? 'N' : 'S'
   const ew = lng >= 0 ? 'E' : 'W'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCoords, formatCountdown, formatKmh, formatUtcClock, timeAgo } from './format'
+import { formatCoords, formatCountdown, formatKmh, formatLocalClock, formatUtcClock, timeAgo } from './format'
 import { parseIss } from './iss'
 import { geometryLabelPoint, ringCentroid } from './labels'
 import { pingDuration, pingFrequency, pingGain } from './ping'
@@ -86,6 +86,8 @@ describe('format + iss', () => {
     expect(formatCoords(50.1, -14.3)).toBe('50.1°N 14.3°W')
     expect(formatKmh(27585.6)).toBe('27,586 km/h')
     expect(formatUtcClock(Date.UTC(2026, 5, 12, 7, 4, 9))).toBe('07:04:09 UTC')
+    // local clock is timezone-dependent, so assert only the shape (HH:MM:SS …)
+    expect(formatLocalClock(Date.UTC(2026, 5, 12, 7, 4, 9))).toMatch(/^\d{2}:\d{2}:\d{2}/)
     expect(formatCountdown(8 * 60_000)).toBe('8 min')
     expect(formatCountdown(134 * 60_000)).toBe('2 h 14 min')
   })

@@ -4,7 +4,7 @@
  * read-out runs along the bottom. Pure decoration: it never eats a click and
  * unmounts with the rest of the HUD in clean view. */
 
-import { formatUtcClock } from '../../lib/format'
+import { formatLocalClock } from '../../lib/format'
 
 const MODE_LABEL: Record<'earth' | 'moon' | 'solar', string> = {
   earth: 'earth orbit',
@@ -43,7 +43,7 @@ export function ViewportFrame({
         </span>
         <span className="sep">/</span>
         <span className="num" style={{ letterSpacing: '0.18em' }}>
-          {formatUtcClock(now)} UTC
+          {formatLocalClock(now)}
         </span>
       </div>
     </div>
