@@ -4,6 +4,8 @@ export interface LayerState {
   sats: boolean
   orbits: boolean
   iss: boolean
+  aircraft: boolean
+  ships: boolean
   quakes: boolean
   events: boolean
   aurora: boolean
@@ -23,6 +25,8 @@ export const LAYER_LABELS: { key: keyof LayerState; label: string }[] = [
   { key: 'sats', label: '🛰 satellites' },
   { key: 'orbits', label: '🛰 orbit lines' },
   { key: 'iss', label: '🛰 ISS' },
+  { key: 'aircraft', label: '✈ live aircraft (near you)' },
+  { key: 'ships', label: '🚢 live ships (Baltic)' },
   { key: 'quakes', label: '🌋 earthquakes' },
   { key: 'events', label: '🔥 natural events (NASA EONET)' },
   { key: 'aurora', label: '🌌 aurora' },

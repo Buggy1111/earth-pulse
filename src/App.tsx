@@ -56,6 +56,9 @@ export default function App() {
       sats: true,
       orbits: true,
       iss: true,
+      // off by default: these poll free third-party APIs, so only on demand
+      aircraft: false,
+      ships: false,
       quakes: true,
       events: true,
       aurora: true,
