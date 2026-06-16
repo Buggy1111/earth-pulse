@@ -44,6 +44,10 @@ public data feeds.
   ☀️ space weather (NOAA SWPC), 🌋 1,215 Holocene volcanoes, 📝 live Wikipedia
   edits, 🎬 a cinematic auto-tour, 🔗 **shareable view links** (camera, orbits
   and layers travel in the URL hash)
+- ✈🚢 **Live traffic (opt-in)** — real aircraft from airplanes.live ADS-B
+  (around your location) and real ships from Fintraffic AIS (the Baltic),
+  coloured by altitude / motion. Keyless, browser-direct, polled only while
+  their layer is on
 
 ![NASA vital-signs data layer — air temperature painted across the whole planet with the continents outlined in black](docs/air-temperature.png)
 
@@ -104,7 +108,8 @@ where it is right now — and a glowing intro animation greets first load.
 - Data: USGS + EMSC (quakes), Celestrak (TLE snapshot), Where The ISS At,
   NOAA SWPC (Kp + solar wind), Wikimedia EventStreams, Natural Earth
   (borders/names), Smithsonian GVP (volcano snapshot), **NASA EONET** (natural
-  events) and **NASA GIBS** (data layers) — all free, no keys, CORS-friendly.
+  events), **NASA GIBS** (data layers), **airplanes.live** (aircraft ADS-B) and
+  **Fintraffic digitraffic** (ship AIS) — all free, no keys, CORS-friendly.
 
 ## Documentation
 Deep docs live in [`docs/`](docs/) (Czech):

@@ -12,6 +12,8 @@ aby aplikace nezávisela na dostupnosti API za běhu.
 | Zemětřesení (katalog) | USGS | `earthquake.usgs.gov/.../all_day.geojson` | 60 s poll | GeoJSON |
 | Zemětřesení (live) | EMSC SeismicPortal | `wss://www.seismicportal.eu/standing_order/websocket` | WebSocket (push) | JSON events |
 | ISS poloha | Where The ISS At | `api.wheretheiss.at/v1/satellites/25544` | 3 s poll | JSON |
+| Letadla (live) | airplanes.live (ADS-B) | `api.airplanes.live/v2/point/{lat}/{lng}/250` | 8 s poll (jen když vrstva ON) | JSON |
+| Lodě (live, Baltské moře) | Fintraffic digitraffic (AIS) | `meri.digitraffic.fi/api/ais/v1/locations` | 45 s poll (jen když vrstva ON) | GeoJSON |
 | Kosmické počasí — Kp | NOAA SWPC | `services.swpc.noaa.gov/json/planetary_k_index_1m.json` | 60 s poll | JSON |
 | Kosmické počasí — sluneční vítr | NOAA SWPC | `services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json` | 60 s poll | JSON (products) |
 | Editace Wikipedie | Wikimedia EventStreams | `stream.wikimedia.org/v2/stream/recentchange` | SSE (push) | JSON events |
@@ -25,9 +27,19 @@ aby aplikace nezávisela na dostupnosti API za běhu.
   vůči USGS (`emsc.ts → isSameEvent`/`mergeQuakes`): shoda času ±2 min, polohy
   <2°, magnitudy ±1,2.
 - **USGS** (`useQuakes`): poll 60 s, nově viděné otřesy dostanou 15s flash.
-- **ISS** (`useIss`): poll 3 s (API žádá ≥1 s mezi voláními).
+- **ISS** (`useIss`): poll 3 s (API žádá ≥1 s mezi voláními). Payload se
+  validuje (`parseIss`) — nevalidní odpověď → `null`, nikdy NaN do kamery.
+- **Letadla** (`aircraft.ts`, vrstva `trafficLayer.ts`): airplanes.live ADS-B,
+  dotaz **bod + rádius 250 NM** kolem polohy uživatele (nebo defaultně střední
+  Evropa), barva dle výšky. **Vrstva default OFF**, poll 8 s jen když je
+  zapnutá a záložka je viditelná. Komunitní free API bez klíče — proto opt-in.
+  Pozn.: bod+rádius = regionální, ne globální (free keyless globální feed bez
+  backendu neexistuje).
+- **Lodě** (`ships.ts`): Fintraffic digitraffic open AIS, **Baltské moře**
+  (~18k lodí, rovnoměrně podvzorkováno na ≤2500 kvůli slabým GPU), barva dle
+  pohybu. **Vrstva default OFF**, poll 45 s jen když zapnutá a záložka aktivní.
 - **Wikipedia** (`wiki.ts`): jen lidské editace článků (namespace 0, ne-bot,
-  `*.wikipedia.org`).
+  `*.wikipedia.org`). V tickeru se jako `href` použije jen `https://` URL.
 - **NASA EONET** (`events.ts`, hook `useEvents`): přírodní události (požáry,
   bouře, sopky, led) → barevné piny + panel „Live on Earth" s počty dle
   kategorie, refresh á 10 min.

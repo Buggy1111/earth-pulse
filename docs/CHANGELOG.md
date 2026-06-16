@@ -168,6 +168,21 @@ Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-frie
 > Stav: **59/59 testů**, `tsc` + `eslint` čisté, build OK. Soubory ≤ 400 řádků
 > (kromě `GlobeView.tsx` — kandidát na rozdělení).
 
+## 🛰 Sci-fi mission-control HUD (16. 6.)
+- **Přístrojový HUD** — viewport rámeček s rohovými závorkami + telemetrická
+  lišta, 3 fontové role (Space Grotesk / Inter / JetBrains Mono), každý panel
+  jako konzolová buňka. Solar navigace = zaměřovací konzole s živou vzdáleností
+  od Země v AU. Hodiny v **lokálním čase** uživatele.
+- **Luxusní loader** — rotující drátěný (wireframe) glóbus na canvasu s
+  hloubkovým fadem a obíhajícími družicemi + telemetrický boot-log.
+- **✈🚢 Živá doprava** — letadla (airplanes.live ADS-B, okolí polohy) a lodě
+  (Fintraffic AIS, Baltské moře) jako opt-in vrstvy, reálná data bez klíče.
+- **🛡 Robustnost (audit)** — NaN guardy v `propagateSats` (lat/lng) a
+  `parseIss`; eco „simple" model satelitů konečně zapojen; bezpečný `href` v
+  Wikipedia tickeru.
+
+> Stav: **64/64 testů**, `tsc` + `eslint` čisté, build OK.
+
 ---
 
 ## Verzování

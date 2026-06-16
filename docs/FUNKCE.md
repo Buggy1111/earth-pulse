@@ -38,11 +38,12 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
   `npm run fetch-famous`, stahuje TLE podle NORAD id) — žádné runtime API volání.
 - **Propagace SGP4 každý frame** (`satellite.js`) → opravdu plynulý pohyb po
   dráze, ne skoková interpolace.
-- Každý satelit má **detailní 3D model** a jmenovku.
-- **Orbitální dráhy** (vrstva „orbit lines") — ground-track prstenec kolem
-  satelitu, barva podle **typu mise**: stanice cyan, observatoře fialová,
-  počasí oranžová, oceán modrá, snímkování zelená, atmosféra zlatá; aditivní
-  glow. Rebuild po ~30 s.
+- Každý satelit má **detailní 3D model** a jmenovku (v eco módu jeden low-poly
+  mesh). **Vlastní barva pro každý satelit** (golden-angle rozprostření, ISS
+  cyan) — sdílená orbitou, kliknutým trailem i jmenovkou.
+- **Orbitální dráhy** (vrstva „orbit lines") — kometový ocas ZA satelitem
+  (hlava = aktuální poloha), barva satelitu, aditivní glow. Přepočítává se z
+  **warpnutého času**, takže ocas drží i při time-warpu (ne jen po 30 s).
 - **🛰 Mission karta** (`src/lib/missions.ts`) — klik na satelit ukáže kartu:
   agentura, rok vypuštění, co měří, zajímavý fakt; barva dle kategorie.
 - **Vyhledávání podle jména.**
@@ -53,6 +54,19 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
 - **Follow chase-camera** — kamera drží ISS.
 - Po sdílení polohy: **predikce přeletu** („ISS nad tebou za 2 h 14 min") +
   živý seznam **„above you now"** (satelity aktuálně nad tvým obzorem).
+
+### Živá doprava ✈🚢
+- **✈ Letadla** (`src/lib/aircraft.ts`) — živý ADS-B z airplanes.live, dotaz
+  bod + rádius 250 NM kolem **tvojí polohy** (nebo defaultně střední Evropa).
+  Body obarvené dle výšky (nízko jantarová → výška cyan/bílá). Poll 8 s.
+- **🚢 Lodě** (`src/lib/ships.ts`) — živé AIS z Fintraffic digitraffic,
+  **Baltské moře** (~18k lodí, podvzorkováno). Modrá = v pohybu, šedá = stojící.
+  Poll 45 s.
+- Obě jako **vlastní point-cloud vrstvy** (`trafficLayer.ts`), reálná data bez
+  klíče a backendu. **Default vypnuté** (šetří free API) — zapínají se v
+  nastavení a pollují jen když jsou ON a záložka je viditelná.
+- Pozn.: rozsah je poctivý — letadla regionálně (bod+rádius), lodě Baltik;
+  globální keyless free feed bez backendu pro ani jedno neexistuje.
 
 ### Latest Events 🔥
 - **NASA EONET** (Earth Observatory Natural Event Tracker, `src/lib/events.ts`,
