@@ -72,8 +72,8 @@ body {
   font-family: var(--font-mono);
 }
 .hud h2 {
-  color: #7fe3f5;
-  letter-spacing: 0.14em;
+  color: #9aeafa;
+  letter-spacing: 0.06em;
 }
 
 /* On phones a fixed 18rem panel can overrun a narrow viewport — cap it so
@@ -96,7 +96,6 @@ body {
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
 }
 
 @keyframes pulse-dot {
@@ -207,6 +206,69 @@ body {
 .ep-tagline { animation: ep-rise 0.8s ease-out 0.15s both; }
 .ep-dots::after { content: ''; animation: ep-ellipsis 1.6s steps(1) infinite; }
 
+/* loader as a mission-control boot: a corner frame, a telemetry boot log that
+   types itself in, and an indeterminate scan bar — so the very first frame
+   already feels like the spacecraft console it leads into */
+.ep-frame {
+  position: fixed;
+  width: 44px;
+  height: 44px;
+  border: 0 solid rgba(94, 234, 255, 0.6);
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+  animation: ep-rise 0.9s ease-out both;
+}
+.ep-frame-tl { top: 18px; left: 18px; border-top-width: 2px; border-left-width: 2px; }
+.ep-frame-tr { top: 18px; right: 18px; border-top-width: 2px; border-right-width: 2px; }
+.ep-frame-bl { bottom: 18px; left: 18px; border-bottom-width: 2px; border-left-width: 2px; }
+.ep-frame-br { bottom: 18px; right: 18px; border-bottom-width: 2px; border-right-width: 2px; }
+
+.ep-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(150, 226, 246, 0.82);
+  animation: ep-rise 0.8s ease-out 0.15s both;
+}
+.ep-boot {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.85;
+  color: #9fc0cd;
+  text-align: left;
+  min-width: 248px;
+}
+.ep-boot p {
+  margin: 0;
+  opacity: 0;
+  animation: ep-rise 0.5s ease-out var(--d) both;
+}
+.ep-boot .arrow { color: rgba(94, 234, 255, 0.7); }
+.ep-boot b {
+  color: #6ee7b7;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.ep-progress {
+  position: relative;
+  width: 232px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(94, 234, 255, 0.14);
+  overflow: hidden;
+  animation: ep-rise 0.8s ease-out 0.3s both;
+}
+.ep-progress > i {
+  position: absolute;
+  top: 0;
+  left: -45%;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+  animation: ep-sweep 1.25s ease-in-out infinite;
+}
+@keyframes ep-sweep { to { left: 100%; } }
+
 /* ——— Viewport frame: the signature. Four glowing brackets pin the screen
    corners so the live globe sits inside a spacecraft viewport, with a faint
    scanline veil and a mission-control status read-out along the bottom. ——— */
@@ -265,10 +327,10 @@ body {
   gap: 10px;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-size: 11px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(148, 197, 214, 0.72);
+  color: rgba(186, 213, 224, 0.9);
 }
 .vf-status b {
   color: #7fe3f5;
@@ -288,10 +350,10 @@ body {
 /* The console eyebrow above the world switcher. */
 .vf-eyebrow {
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.34em;
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(94, 234, 255, 0.5);
+  color: rgba(140, 224, 245, 0.78);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -305,7 +367,13 @@ body {
   .ep-globe,
   .ep-globe::after,
   .ep-stars,
-  .ep-dots::after {
+  .ep-dots::after,
+  .ep-frame,
+  .ep-subtitle,
+  .ep-boot p,
+  .ep-progress,
+  .ep-progress > i {
     animation: none !important;
   }
+  .ep-boot p { opacity: 1; }
 }

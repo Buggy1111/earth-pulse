@@ -88,13 +88,13 @@ export function SolarNavTree({
       </h2>
 
       {/* locked-target read-out — the console's “what am I looking at” line */}
-      <div className="num mt-1 flex items-baseline justify-between border-b border-white/10 pb-1.5 text-[10px] tracking-widest text-slate-500 uppercase">
+      <div className="num mt-1 flex items-baseline justify-between border-b border-white/10 pb-1.5 text-[11px] tracking-wide text-slate-400 uppercase">
         <span>
           ▸ target{' '}
           <span className="text-cyan-300">{focus ? (NAME[focus] ?? focus) : 'none'}</span>
         </span>
         {focus && rangeOf(focus) && rangeOf(focus) !== 'home' && (
-          <span className="text-slate-400">{rangeOf(focus)}</span>
+          <span className="text-slate-300">{rangeOf(focus)}</span>
         )}
       </div>
 
@@ -124,7 +124,7 @@ export function SolarNavTree({
                   />
                   <span className="flex-1 truncate">{body.name}</span>
                   {r && (
-                    <span className={`num text-[10px] ${active ? 'text-cyan-200/80' : 'text-slate-500'}`}>{r}</span>
+                    <span className={`num text-[11px] ${active ? 'text-cyan-200' : 'text-slate-400'}`}>{r}</span>
                   )}
                 </button>
                 {moons.length > 0 && (

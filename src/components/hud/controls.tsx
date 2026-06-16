@@ -1,6 +1,6 @@
 /** Interactive HUD controls: the mode dock, the quake timeline, loading. */
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 /** Persistent world switcher — always visible in every mode, so you never get
  * stranded: jump straight Earth ↔ Moon ↔ Solar without backing out first. */
@@ -234,14 +234,27 @@ export function LoadingOverlay({ done = false }: { done?: boolean }) {
     return () => clearTimeout(t)
   }, [fade])
   if (gone) return null
+  // a short boot log that types itself in, line by line — the staggered delay
+  // is set per row so it reads like a console coming online
+  const boot: [string, string][] = [
+    ['satellite catalogue · linked', 'ok'],
+    ['USGS seismic feed · live', 'ok'],
+    ['NOAA space weather · online', 'ok'],
+    ['NASA imagery layers · ready', 'ok'],
+  ]
   return (
     <div
-      className={`ep-loader fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 bg-[#02030a] ${
+      className={`ep-loader fixed inset-0 z-50 flex flex-col items-center justify-center gap-9 bg-[#02030a] ${
         fade ? 'ep-loader-done' : ''
       }`}
     >
       <div className="ep-stars" />
-      <div className="relative h-44 w-44 [perspective:600px]">
+      <span className="ep-frame ep-frame-tl" />
+      <span className="ep-frame ep-frame-tr" />
+      <span className="ep-frame ep-frame-bl" />
+      <span className="ep-frame ep-frame-br" />
+
+      <div className="relative h-40 w-40 [perspective:600px]">
         <div className="absolute inset-0" style={{ transform: 'rotateX(72deg)' }}>
           <div className="ep-orbit ep-orbit-a">
             <i />
@@ -254,11 +267,27 @@ export function LoadingOverlay({ done = false }: { done?: boolean }) {
         </div>
         <div className="ep-globe absolute inset-7 rounded-full" />
       </div>
-      <div className="relative flex flex-col items-center gap-2">
-        <h1 className="ep-wordmark text-2xl font-semibold tracking-[0.4em] sm:text-3xl">EARTH PULSE</h1>
-        <p className="ep-tagline text-[11px] tracking-wide text-slate-500">
-          loading the planet<span className="ep-dots" />
-        </p>
+
+      <div className="relative flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-1.5">
+          <h1 className="ep-wordmark text-2xl font-semibold tracking-[0.38em] sm:text-3xl">EARTH PULSE</h1>
+          <p className="ep-subtitle">orbital telemetry console</p>
+        </div>
+
+        <div className="ep-boot">
+          {boot.map(([label, tag], i) => (
+            <p key={label} style={{ '--d': `${0.2 + i * 0.22}s` } as CSSProperties}>
+              <span className="arrow">▸</span> {label} <b>{tag}</b>
+            </p>
+          ))}
+          <p style={{ '--d': `${0.2 + boot.length * 0.22}s` } as CSSProperties}>
+            <span className="arrow">▸</span> rendering globe<span className="ep-dots" />
+          </p>
+        </div>
+
+        <div className="ep-progress">
+          <i />
+        </div>
       </div>
     </div>
   )
