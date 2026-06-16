@@ -1,6 +1,7 @@
 /** Interactive HUD controls: the mode dock, the quake timeline, loading. */
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { LoaderGlobe } from './LoaderGlobe'
 
 /** Persistent world switcher — always visible in every mode, so you never get
  * stranded: jump straight Earth ↔ Moon ↔ Solar without backing out first. */
@@ -254,19 +255,7 @@ export function LoadingOverlay({ done = false }: { done?: boolean }) {
       <span className="ep-frame ep-frame-bl" />
       <span className="ep-frame ep-frame-br" />
 
-      <div className="relative h-40 w-40 [perspective:600px]">
-        <div className="absolute inset-0" style={{ transform: 'rotateX(72deg)' }}>
-          <div className="ep-orbit ep-orbit-a">
-            <i />
-          </div>
-        </div>
-        <div className="absolute inset-0" style={{ transform: 'rotateX(72deg) rotateZ(60deg)' }}>
-          <div className="ep-orbit ep-orbit-b">
-            <i />
-          </div>
-        </div>
-        <div className="ep-globe absolute inset-7 rounded-full" />
-      </div>
+      <LoaderGlobe />
 
       <div className="relative flex flex-col items-center gap-4">
         <div className="flex flex-col items-center gap-1.5">
