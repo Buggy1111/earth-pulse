@@ -97,4 +97,18 @@ describe('format + iss', () => {
       parseIss({ latitude: 1, longitude: 2, altitude: 425.4, velocity: 27586, visibility: 'daylight' }),
     ).toEqual({ lat: 1, lng: 2, altitudeKm: 425.4, velocityKmh: 27586, visibility: 'daylight' })
   })
+
+  it('parseIss odmítne nevalidní data (null, NaN lat/lng)', () => {
+    expect(parseIss(null)).toBeNull()
+    expect(parseIss({})).toBeNull()
+    expect(parseIss({ latitude: NaN, longitude: 2 })).toBeNull()
+    // missing altitude/velocity fall back to 0, not NaN
+    expect(parseIss({ latitude: 1, longitude: 2 })).toEqual({
+      lat: 1,
+      lng: 2,
+      altitudeKm: 0,
+      velocityKmh: 0,
+      visibility: 'unknown',
+    })
+  })
 })

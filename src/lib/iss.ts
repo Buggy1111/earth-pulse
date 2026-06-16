@@ -18,12 +18,17 @@ interface IssResponse {
   visibility: string
 }
 
-export function parseIss(data: IssResponse): IssState {
+/** Validate the live API payload before it reaches the renderer: a malformed
+ * or error response must not put NaN/undefined into the follow-ISS camera
+ * (`globe.pointOfView`) — one NaN there breaks the view. Returns null on bad
+ * data; callers already treat ISS as `IssState | null`. */
+export function parseIss(data: Partial<IssResponse> | null | undefined): IssState | null {
+  if (!data || !Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) return null
   return {
-    lat: data.latitude,
-    lng: data.longitude,
-    altitudeKm: data.altitude,
-    velocityKmh: data.velocity,
-    visibility: data.visibility,
+    lat: data.latitude as number,
+    lng: data.longitude as number,
+    altitudeKm: Number.isFinite(data.altitude) ? (data.altitude as number) : 0,
+    velocityKmh: Number.isFinite(data.velocity) ? (data.velocity as number) : 0,
+    visibility: typeof data.visibility === 'string' ? data.visibility : 'unknown',
   }
 }

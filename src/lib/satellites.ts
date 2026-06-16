@@ -81,7 +81,16 @@ export function propagateSats(sats: TrackedSat[], date: Date): SatPos[] {
       const pv = propagate(s.satrec, date)
       if (!pv || typeof pv.position === 'boolean') continue
       const geo = eciToGeodetic(pv.position, gmst)
-      if (!Number.isFinite(geo.height) || geo.height < 80) continue
+      // guard EVERY component, not just height: a finite-height but NaN lat/lng
+      // (possible far from the TLE epoch under extreme time-warp) would write a
+      // NaN mesh position and one NaN can freeze the whole WebGL globe
+      if (
+        !Number.isFinite(geo.height) ||
+        geo.height < 80 ||
+        !Number.isFinite(geo.latitude) ||
+        !Number.isFinite(geo.longitude)
+      )
+        continue
       out.push({
         id: s.id,
         name: s.name,
