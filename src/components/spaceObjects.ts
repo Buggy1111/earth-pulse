@@ -28,13 +28,13 @@ const DISH_MAT = new THREE.MeshLambertMaterial({
 const FEED_GEO = new THREE.CylinderGeometry(0.025, 0.025, 0.4, 5)
 
 // eco: a single low-poly glint — the detailed model is ~10 meshes (= 10 draw
-// calls) and 148 of those choke integrated GPUs while a sat is a dot anyway
+// calls) and a swarm of those taxes integrated GPUs while a sat is a dot anyway
 const SIMPLE_GEO = new THREE.OctahedronGeometry(0.62)
 const SIMPLE_MAT = new THREE.MeshLambertMaterial({ color: '#dde3ec', emissive: '#8b94a3' })
 
 /** Boxy bus + big dish + two three-segment solar wings, randomly tumbled.
  * In `simple` (eco) mode it collapses to one mesh — one draw call instead of
- * ten — so 148 of them stop hammering weak GPUs during globe rotation. */
+ * ten — so the swarm stops hammering weak GPUs during globe rotation. */
 export function makeSatelliteObject(simple = false): THREE.Object3D {
   if (simple) {
     const sat = new THREE.Mesh(SIMPLE_GEO, SIMPLE_MAT)

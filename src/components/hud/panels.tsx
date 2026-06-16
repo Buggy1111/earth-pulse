@@ -417,7 +417,9 @@ export const WikiPanel = memo(function WikiPanel({
         {edits.map((e, i) => (
           <li key={`${e.url}-${i}`} className={i === 0 ? 'slide-in' : ''}>
             <a
-              href={e.url}
+              // only follow https links — never let a javascript:/data: URL from
+              // the live stream become a clickable href
+              href={e.url.startsWith('https://') ? e.url : undefined}
               target="_blank"
               rel="noreferrer"
               className="block truncate text-xs text-slate-300 hover:text-sky-300"

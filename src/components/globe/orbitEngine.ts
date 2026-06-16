@@ -234,8 +234,12 @@ export function startOrbitEngine(
     .objectThreeObject((d) => {
       const o = d as OrbitObject
       if (o.kind === 'iss') return makeIssObject()
-      // a curated cast of ~26, so every sat keeps its detailed model + a name tag
-      const model = makeSatelliteObject()
+      // a curated cast of ~26, so every sat keeps its detailed model + a name
+      // tag — except in eco mode (weak GPU), where each collapses to one mesh.
+      // Eco is resolved by the GPU heuristic before the TLE set loads, so the
+      // weak-GPU case gets the cheap model at build; a later manual toggle keeps
+      // the existing models (not worth rebuilding the engine for ~26 sats).
+      const model = makeSatelliteObject(deps.ecoRef.current)
       model.add(makeNameSprite(o.name, 2, true, o.color))
       return model
     })
