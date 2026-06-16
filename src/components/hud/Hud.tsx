@@ -20,6 +20,8 @@ import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
 import { PlanetPanel } from '../PlanetPanel'
 import { SolarNavTree } from './SolarNavTree'
+import { TimeWarp } from './TimeWarp'
+import { ViewportFrame } from './ViewportFrame'
 import type { LayerState, OrbitEntry } from './types'
 
 interface HudProps {
@@ -155,6 +157,21 @@ export function Hud(p: HudProps) {
         onLocate={p.onLocate}
       />
     ) : null
+  // ⏩ time-warp: in the Earth view the Moon drifts at its true ~14°/h, so live
+  // it looks frozen — this lets you speed time up and watch it orbit (also sweeps
+  // the day/night terminator and the satellites). Solar view has its own copy.
+  const timeWarpEl =
+    p.mode === 'earth' ? (
+      <div className="hud pointer-events-auto px-4 py-2">
+        <TimeWarp
+          now={p.solarSimNow}
+          realNow={p.now}
+          warp={p.warp}
+          onWarp={p.onWarp}
+          onWarpReset={p.onWarpReset}
+        />
+      </div>
+    ) : null
   const aboveEl =
     p.mode === 'earth' && p.userLoc ? (
       <AbovePanel overhead={p.overhead} onPickSat={p.onPickSat} />
@@ -223,8 +240,12 @@ export function Hud(p: HudProps) {
 
   return (
     <>
+      {/* signature viewport chrome — corner brackets + telemetry status line */}
+      <ViewportFrame mode={p.mode} now={p.now} satCount={p.satCount} />
+
       {/* world switcher — always visible above everything, both layouts */}
-      <div className="pointer-events-none fixed top-3 left-1/2 z-40 -translate-x-1/2 sm:top-4">
+      <div className="pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 sm:top-4">
+        <span className="vf-eyebrow hidden sm:block">◂ orbital telemetry console ▸</span>
         <ModeSwitcher mode={p.mode} onEarth={p.onEarth} onMoon={p.onMoon} onSolar={p.onSolar} />
       </div>
 
@@ -236,6 +257,7 @@ export function Hud(p: HudProps) {
             <div className="flex flex-col items-start gap-3">
               {titleEl}
               {primaryEl}
+              {timeWarpEl}
               {settingsEl}
               <div className="hide-short">{aboveEl}</div>
             </div>
@@ -261,6 +283,7 @@ export function Hud(p: HudProps) {
           <SideDrawer side="left" open={p.drawer === 'left'} onToggle={p.onToggleLeft} icon="📊" title="data">
             {titleEl}
             {primaryEl}
+            {timeWarpEl}
             {timelineEl}
             {quakeEl}
             {eventsEl}

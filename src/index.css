@@ -1,8 +1,14 @@
 @import '@fontsource-variable/inter';
+@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
 
 @theme {
   --font-sans: 'Inter Variable', system-ui, sans-serif;
+  /* display = the wordmark / panel titles (geometric, technical, not a sci-fi cliché);
+     mono = every readout, label and digit, like a real telemetry console */
+  --font-display: 'Space Grotesk Variable', var(--font-sans);
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
 }
 
 html,
@@ -17,11 +23,57 @@ body {
   color: #e7e9ee;
 }
 
+/* ——— Instrument panel: every .hud is a precision console cell. One sharp,
+   cyan-lit glass plate with faint scanlines, a top inner light and two
+   diagonal corner brackets — so the whole UI reads as one spacecraft HUD. ——— */
 .hud {
-  background: linear-gradient(160deg, rgba(8, 12, 24, 0.72), rgba(8, 12, 24, 0.55));
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  backdrop-filter: blur(14px);
-  border-radius: 1rem;
+  position: relative;
+  background:
+    repeating-linear-gradient(0deg, rgba(94, 234, 255, 0.022) 0, rgba(94, 234, 255, 0.022) 1px, transparent 1px, transparent 3px),
+    linear-gradient(158deg, rgba(7, 13, 26, 0.86), rgba(6, 10, 22, 0.64));
+  border: 1px solid rgba(94, 234, 255, 0.14);
+  border-radius: 3px;
+  backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow:
+    0 12px 44px -18px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(125, 211, 252, 0.07);
+}
+/* diagonal corner brackets (top-left + bottom-right) — the HUD signature, sat
+   in the padding gutter so they frame without crowding the content */
+.hud::before,
+.hud::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(94, 234, 255, 0.5);
+  pointer-events: none;
+}
+.hud::before {
+  top: 4px;
+  left: 4px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.hud::after {
+  right: 4px;
+  bottom: 4px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* Telemetry typography: titles in the display face, section labels & every
+   numeric readout in mono — the look of an instrument, not a web page. */
+.hud h1 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+.hud :is(h2, h3) {
+  font-family: var(--font-mono);
+}
+.hud h2 {
+  color: #7fe3f5;
+  letter-spacing: 0.14em;
 }
 
 /* On phones a fixed 18rem panel can overrun a narrow viewport — cap it so
@@ -42,7 +94,9 @@ body {
 }
 
 .num {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 @keyframes pulse-dot {
@@ -142,6 +196,7 @@ body {
 .ep-orbit-b > i { background: #f5d0fe; box-shadow: 0 0 10px 3px rgba(192, 132, 252, 0.9); }
 
 .ep-wordmark {
+  font-family: var(--font-display);
   background: linear-gradient(90deg, #38bdf8, #a5f3fc 35%, #e0f2fe 50%, #a5f3fc 65%, #38bdf8);
   background-size: 200% auto;
   -webkit-background-clip: text;
@@ -151,3 +206,106 @@ body {
 }
 .ep-tagline { animation: ep-rise 0.8s ease-out 0.15s both; }
 .ep-dots::after { content: ''; animation: ep-ellipsis 1.6s steps(1) infinite; }
+
+/* ——— Viewport frame: the signature. Four glowing brackets pin the screen
+   corners so the live globe sits inside a spacecraft viewport, with a faint
+   scanline veil and a mission-control status read-out along the bottom. ——— */
+.vf {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.vf-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(94, 234, 255, 0.025) 0,
+    rgba(94, 234, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 48%, transparent 55%, #000 100%);
+  mask-image: radial-gradient(ellipse 80% 75% at 50% 48%, transparent 55%, #000 100%);
+}
+.vf-corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 0 solid rgba(94, 234, 255, 0.55);
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
+}
+.vf-tl { top: 14px; left: 14px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.vf-tr { top: 14px; right: 14px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.vf-bl { bottom: 14px; left: 14px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.vf-br { bottom: 14px; right: 14px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+/* a short tick growing inward from each corner — the "machined" detail */
+.vf-corner::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 0 solid rgba(94, 234, 255, 0.4);
+}
+.vf-tl::after { top: 7px; left: 7px; border-top-width: 1px; border-left-width: 1px; }
+.vf-tr::after { top: 7px; right: 7px; border-top-width: 1px; border-right-width: 1px; }
+.vf-bl::after { bottom: 7px; left: 7px; border-bottom-width: 1px; border-left-width: 1px; }
+.vf-br::after { bottom: 7px; right: 7px; border-bottom-width: 1px; border-right-width: 1px; }
+
+.vf-status {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(148, 197, 214, 0.72);
+}
+.vf-status b {
+  color: #7fe3f5;
+  font-weight: 500;
+}
+.vf-status .sep {
+  color: rgba(94, 234, 255, 0.3);
+}
+.vf-online {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #4ade80;
+  box-shadow: 0 0 8px 1px rgba(74, 222, 128, 0.8);
+}
+
+/* The console eyebrow above the world switcher. */
+.vf-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: rgba(94, 234, 255, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot,
+  .vf-online,
+  .slide-in,
+  .fade-up,
+  .ep-wordmark,
+  .ep-orbit-a,
+  .ep-orbit-b,
+  .ep-globe,
+  .ep-globe::after,
+  .ep-stars,
+  .ep-dots::after {
+    animation: none !important;
+  }
+}
