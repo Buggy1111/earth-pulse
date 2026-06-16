@@ -20,12 +20,16 @@ export const ARROW_MAT = new THREE.MeshBasicMaterial({
 export interface OrbitObject extends SatPos {
   kind: 'sat' | 'iss'
   sat?: TrackedSat
+  /** This body's own colour — its orbit line, trail and name tag all share it. */
+  color?: string
 }
 
 /** Two overlaid strokes per orbit: a wide soft halo + a bright animated core. */
 export interface TrailPath {
   points: [number, number, number][]
   kind: 'halo' | 'core'
+  /** The satellite's colour, so the trail matches its body & orbit line. */
+  color: string
 }
 
 /** One shown orbit: its path pair + the direction arrow riding the ring. */

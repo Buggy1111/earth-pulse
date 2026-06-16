@@ -339,7 +339,11 @@ export function GlobeView(props: Props) {
   // sync shown orbit trails with the user's list (settings panel or clicks)
   useEffect(() => {
     const globe = globeRef.current
-    if (globe && sats.length > 0) syncTrails(globe, trailsRef.current, selectedOrbitIds, sats)
+    if (globe && sats.length > 0) {
+      const t = solarTimeRef.current
+      const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
+      syncTrails(globe, trailsRef.current, selectedOrbitIds, sats, now)
+    }
   }, [selectedOrbitIds, sats])
 
   // user's own location: pulsing pin + camera flight on every locate click
