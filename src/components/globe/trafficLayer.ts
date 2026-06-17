@@ -1,36 +1,42 @@
 /** Live traffic layers: aircraft (airplanes.live, around a centre) and ships
- * (Fintraffic digitraffic AIS, the Baltic) as two point clouds living in the
- * globe scene. Both are opt-in and only poll their free, keyless APIs while
- * their layer is on and the tab is visible — so an idle or hidden globe makes
- * no network calls. Mirrors the orbit-engine pattern: own the THREE objects,
- * run a self-contained loop, return a disposer. */
+ * (Fintraffic digitraffic AIS, the Baltic), drawn as proper plane & ship icons
+ * — not dots. Each icon lies flat on the globe and points the way it's
+ * travelling. Rendered with one InstancedMesh per layer (a single draw call for
+ * hundreds of planes or thousands of ships, so even a weak GPU copes), coloured
+ * per instance by altitude / motion. Both are opt-in-cheap: they only poll
+ * their free, keyless APIs while their layer is on and the tab is visible.
+ * Mirrors the orbit-engine pattern: own the THREE objects, self-contained loop,
+ * return a disposer. */
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { fetchAircraft, type Aircraft } from '../../lib/aircraft'
 import { fetchShips, type Ship } from '../../lib/ships'
 import { globeAltitude } from '../../lib/satellites'
-import { getGlowTexture } from './helpers'
 import type { LayerState } from '../hud/types'
 
 export interface TrafficDeps {
   layersRef: { current: LayerState }
   solarModeRef: { current: boolean }
   /** Aircraft are queried around this point (the viewer's location) or, when
-   * null, a default over central Europe. */
+   * null, a default over Czechia. */
   userLocRef: { current: { lat: number; lng: number } | null }
 }
 
 const AIRCRAFT_POLL_MS = 8_000
 const SHIPS_POLL_MS = 45_000
-const DEFAULT_CENTER = { lat: 50, lng: 14 } // Prague — covers Czechia until the user shares a location
+const DEFAULT_CENTER = { lat: 50, lng: 14 } // Prague — covers Czechia until a location is shared
+const AIRCRAFT_CAP = 1_000
+const SHIPS_CAP = 2_600
+const AIRCRAFT_SIZE = 5.5
+const SHIP_SIZE = 3.6
 
 // aircraft altitude → colour: low = warm amber, cruising = cyan, high = pale
 const ALT_LOW = new THREE.Color('#fbbf24')
-const ALT_MID = new THREE.Color('#22d3ee')
+const ALT_MID = new THREE.Color('#34d3ee')
 const ALT_HIGH = new THREE.Color('#f0f9ff')
-const SHIP_MOVING = new THREE.Color('#38bdf8')
-const SHIP_IDLE = new THREE.Color('#a8b6c8')
+const SHIP_MOVING = new THREE.Color('#4ad6ff')
+const SHIP_IDLE = new THREE.Color('#b8c6d8')
 
 function altColor(out: THREE.Color, altKm: number): void {
   const t = Math.min(1, altKm / 12)
@@ -38,70 +44,149 @@ function altColor(out: THREE.Color, altKm: number): void {
   else out.lerpColors(ALT_MID, ALT_HIGH, (t - 0.5) / 0.5)
 }
 
-function makePoints(size: number): THREE.Points {
-  const geom = new THREE.BufferGeometry()
-  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3))
-  geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3))
-  // SOLID points (alphaTest, normal blending) — NOT additive, which washes out
-  // to invisible over the bright daylit side of the globe. Mirrors the volcano
-  // layer so traffic reads clearly on both the day and night hemispheres.
-  const material = new THREE.PointsMaterial({
-    size,
-    map: getGlowTexture(),
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    alphaTest: 0.4,
-    sizeAttenuation: true,
+/** Top-down white airplane silhouette, nose toward the top of the canvas. */
+function planeTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = '#fff'
+  ctx.beginPath()
+  ctx.moveTo(32, 5) // nose
+  ctx.lineTo(36, 22)
+  ctx.lineTo(60, 38) // right wingtip
+  ctx.lineTo(60, 44)
+  ctx.lineTo(36, 34)
+  ctx.lineTo(35, 50)
+  ctx.lineTo(46, 58) // right tailplane
+  ctx.lineTo(46, 61)
+  ctx.lineTo(32, 55) // tail
+  ctx.lineTo(18, 61)
+  ctx.lineTo(18, 58)
+  ctx.lineTo(29, 50)
+  ctx.lineTo(28, 34)
+  ctx.lineTo(4, 44) // left wingtip
+  ctx.lineTo(4, 38)
+  ctx.lineTo(28, 22)
+  ctx.closePath()
+  ctx.fill()
+  const tex = new THREE.CanvasTexture(c)
+  tex.anisotropy = 4
+  return tex
+}
+
+/** Top-down white ship silhouette, pointed bow toward the top of the canvas. */
+function shipTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = '#fff'
+  ctx.beginPath()
+  ctx.moveTo(32, 4) // bow
+  ctx.quadraticCurveTo(46, 18, 45, 34)
+  ctx.lineTo(45, 56)
+  ctx.quadraticCurveTo(45, 60, 41, 60) // stern corner
+  ctx.lineTo(23, 60)
+  ctx.quadraticCurveTo(19, 60, 19, 56)
+  ctx.lineTo(19, 34)
+  ctx.quadraticCurveTo(18, 18, 32, 4)
+  ctx.closePath()
+  ctx.fill()
+  const tex = new THREE.CanvasTexture(c)
+  tex.anisotropy = 4
+  return tex
+}
+
+function makeInstanced(texture: THREE.Texture, cap: number, size: number): THREE.InstancedMesh {
+  const geom = new THREE.PlaneGeometry(size, size)
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: false,
+    alphaTest: 0.5,
+    side: THREE.DoubleSide,
+    depthWrite: true,
   })
-  const points = new THREE.Points(geom, material)
-  points.renderOrder = 2
-  points.frustumCulled = false
-  return points
+  const mesh = new THREE.InstancedMesh(geom, mat, cap)
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  mesh.count = 0
+  mesh.frustumCulled = false // bounds come from the single quad — never auto-cull
+  mesh.renderOrder = 2
+  return mesh
 }
 
 export function startTraffic(globe: GlobeInstance, deps: TrafficDeps): () => void {
   const scene = globe.scene()
-  const aircraftPts = makePoints(4.2)
-  const shipPts = makePoints(3.2)
-  scene.add(aircraftPts, shipPts)
+  const planeTex = planeTexture()
+  const shipTex = shipTexture()
+  const aircraftMesh = makeInstanced(planeTex, AIRCRAFT_CAP, AIRCRAFT_SIZE)
+  const shipMesh = makeInstanced(shipTex, SHIPS_CAP, SHIP_SIZE)
+  if (!aircraftMesh.instanceColor) {
+    aircraftMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(AIRCRAFT_CAP * 3), 3)
+  }
+  if (!shipMesh.instanceColor) {
+    shipMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(SHIPS_CAP * 3), 3)
+  }
+  scene.add(aircraftMesh, shipMesh)
 
-  const tmp = new THREE.Color()
-  // aircraft hug the surface at globe scale; lift them a touch so they read as
-  // airborne and sit clearly above the ships
+  // scratch objects reused for every instance so the update allocates nothing
+  const P = new THREE.Vector3()
+  const N = new THREE.Vector3()
+  const east = new THREE.Vector3()
+  const north = new THREE.Vector3()
+  const fwd = new THREE.Vector3()
+  const xAxis = new THREE.Vector3()
+  const worldUp = new THREE.Vector3(0, 1, 0)
+  const m = new THREE.Matrix4()
+  const scaleV = new THREE.Vector3(1, 1, 1)
+  const tmpC = new THREE.Color()
+
+  /** Lay an icon flat on the sphere at lat/lng/alt, pointing along `headingDeg`
+   * (0 = north, 90 = east), and write it into the instanced mesh slot. */
+  const place = (
+    mesh: THREE.InstancedMesh,
+    i: number,
+    lat: number,
+    lng: number,
+    altUnits: number,
+    headingDeg: number,
+  ) => {
+    const { x, y, z } = globe.getCoords(lat, lng, altUnits)
+    P.set(x, y, z)
+    N.copy(P).normalize() // surface normal (icon faces outward along this)
+    east.crossVectors(worldUp, N).normalize()
+    if (east.lengthSq() < 1e-6) east.set(1, 0, 0) // at the poles
+    north.crossVectors(N, east)
+    const a = (headingDeg * Math.PI) / 180
+    fwd.copy(north).multiplyScalar(Math.cos(a)).addScaledVector(east, Math.sin(a)) // +Y of the quad
+    xAxis.crossVectors(fwd, N).normalize()
+    fwd.crossVectors(N, xAxis) // re-orthogonalise
+    m.makeBasis(xAxis, fwd, N)
+    m.scale(scaleV)
+    m.setPosition(P)
+    mesh.setMatrixAt(i, m)
+  }
+
   const setAircraft = (list: Aircraft[]) => {
-    const n = list.length
-    const pos = new Float32Array(n * 3)
-    const col = new Float32Array(n * 3)
+    const n = Math.min(list.length, AIRCRAFT_CAP)
     for (let i = 0; i < n; i++) {
       const a = list[i]
-      const { x, y, z } = globe.getCoords(a.lat, a.lng, globeAltitude(a.altKm) + 0.012)
-      pos[i * 3] = x
-      pos[i * 3 + 1] = y
-      pos[i * 3 + 2] = z
-      altColor(tmp, a.altKm)
-      col[i * 3] = tmp.r
-      col[i * 3 + 1] = tmp.g
-      col[i * 3 + 2] = tmp.b
+      place(aircraftMesh, i, a.lat, a.lng, globeAltitude(a.altKm) + 0.012, a.headingDeg)
+      altColor(tmpC, a.altKm)
+      aircraftMesh.setColorAt(i, tmpC)
     }
-    swap(aircraftPts, pos, col)
+    aircraftMesh.count = n
+    aircraftMesh.instanceMatrix.needsUpdate = true
+    if (aircraftMesh.instanceColor) aircraftMesh.instanceColor.needsUpdate = true
   }
   const setShips = (list: Ship[]) => {
-    const n = list.length
-    const pos = new Float32Array(n * 3)
-    const col = new Float32Array(n * 3)
+    const n = Math.min(list.length, SHIPS_CAP)
     for (let i = 0; i < n; i++) {
       const s = list[i]
-      const { x, y, z } = globe.getCoords(s.lat, s.lng, 0.001)
-      pos[i * 3] = x
-      pos[i * 3 + 1] = y
-      pos[i * 3 + 2] = z
-      const c = s.moving ? SHIP_MOVING : SHIP_IDLE
-      col[i * 3] = c.r
-      col[i * 3 + 1] = c.g
-      col[i * 3 + 2] = c.b
+      place(shipMesh, i, s.lat, s.lng, 0.0015, s.headingDeg)
+      shipMesh.setColorAt(i, s.moving ? SHIP_MOVING : SHIP_IDLE)
     }
-    swap(shipPts, pos, col)
+    shipMesh.count = n
+    shipMesh.instanceMatrix.needsUpdate = true
+    if (shipMesh.instanceColor) shipMesh.instanceColor.needsUpdate = true
   }
 
   let disposed = false
@@ -125,7 +210,7 @@ export function startTraffic(globe: GlobeInstance, deps: TrafficDeps): () => voi
     shipCtl?.abort()
     shipCtl = new AbortController()
     try {
-      const list = await fetchShips(shipCtl.signal)
+      const list = await fetchShips(shipCtl.signal, SHIPS_CAP)
       if (!disposed) setShips(list)
     } catch {
       // keep the last good positions
@@ -135,8 +220,8 @@ export function startTraffic(globe: GlobeInstance, deps: TrafficDeps): () => voi
   const tick = () => {
     const solar = deps.solarModeRef.current
     const L = deps.layersRef.current
-    aircraftPts.visible = !solar && L.aircraft
-    shipPts.visible = !solar && L.ships
+    aircraftMesh.visible = !solar && L.aircraft
+    shipMesh.visible = !solar && L.ships
     if (solar || document.hidden) return
     const now = Date.now()
     if (L.aircraft && now - lastAir >= AIRCRAFT_POLL_MS) {
@@ -148,8 +233,6 @@ export function startTraffic(globe: GlobeInstance, deps: TrafficDeps): () => voi
       void loadShips()
     }
   }
-  // a 1 s scheduler keeps each feed on its own cadence and reacts within a
-  // second of a layer being switched on
   const timer = setInterval(tick, 1_000)
   tick()
 
@@ -158,16 +241,13 @@ export function startTraffic(globe: GlobeInstance, deps: TrafficDeps): () => voi
     clearInterval(timer)
     airCtl?.abort()
     shipCtl?.abort()
-    scene.remove(aircraftPts, shipPts)
-    for (const p of [aircraftPts, shipPts]) {
-      p.geometry.dispose()
-      ;(p.material as THREE.Material).dispose()
+    scene.remove(aircraftMesh, shipMesh)
+    for (const mesh of [aircraftMesh, shipMesh]) {
+      mesh.geometry.dispose()
+      ;(mesh.material as THREE.Material).dispose()
+      mesh.dispose()
     }
+    planeTex.dispose()
+    shipTex.dispose()
   }
-}
-
-function swap(points: THREE.Points, pos: Float32Array, col: Float32Array): void {
-  points.geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  points.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  points.geometry.computeBoundingSphere()
 }
