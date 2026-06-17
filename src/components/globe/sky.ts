@@ -57,14 +57,22 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
       depthWrite: false,
     }),
   )
-  sunSprite.scale.set(160, 160, 1)
+  // far enough that the Sun→Moon and Earth→Sun directions nearly coincide (so the
+  // Moon's phase stays physically right) while the apparent size is unchanged —
+  // scale grows with distance (160·6000/900). Was 900/160, which put the Sun so
+  // close to the Moon that its lit limb pointed visibly off from the Sun sprite.
+  sunSprite.scale.set(1067, 1067, 1)
   globe.scene().add(sunSprite)
 
-  // textured, terminator-shaded Moon — the lit fraction matches the real phase
+  // textured, terminator-shaded Moon. It gets its OWN sun direction (not the
+  // Earth's sunUniform), computed as the real Moon→Sun vector, so the bright limb
+  // points at the Sun you actually see in the scene rather than at the Earth→Sun
+  // direction (the two differ because the Moon orbits ~480 units off-centre).
+  const moonSunUniform = { value: new THREE.Vector3(1, 0, 0) }
   const moonTex = new THREE.TextureLoader().load('moon-2k.jpg')
   const moonMesh = new THREE.Mesh(
     new THREE.SphereGeometry(5, 64, 48),
-    makeMoonMaterial(moonTex, sunUniform),
+    makeMoonMaterial(moonTex, moonSunUniform),
   )
 
   // Apollo landing sites as small silver flags pinned to the lunar surface
@@ -128,10 +136,13 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
     const sun = subsolarPoint(now)
     const { x, y, z } = globe.getCoords(sun.lat, sun.lng, 0)
     sunUniform.value.set(x, y, z).normalize()
-    sunSprite.position.copy(sunUniform.value).multiplyScalar(900)
+    sunSprite.position.copy(sunUniform.value).multiplyScalar(6000)
     const moon = subLunarPoint(now)
     const mc = globe.getCoords(moon.lat, moon.lng, 0)
     moonMesh.position.set(mc.x, mc.y, mc.z).normalize().multiplyScalar(480)
+    // light the Moon from where the Sun actually is relative to it (Moon→Sun),
+    // so the visible phase matches the Sun sprite's position in the scene
+    moonSunUniform.value.copy(sunSprite.position).sub(moonMesh.position).normalize()
     toEarth.copy(moonMesh.position).normalize().negate()
     moonMesh.quaternion.setFromUnitVectors(MOON_NEAR_AXIS, toEarth)
     // brighter glow around fuller moon
