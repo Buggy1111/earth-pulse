@@ -7,6 +7,7 @@
 
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 
 interface ModelDef {
   file: string
@@ -38,7 +39,10 @@ const MODELS: Record<string, ModelDef> = {
 const BASE = 'models/sats/'
 const TARGET_SIZE = 4.2
 
-const loader = new GLTFLoader()
+// the NASA models are Draco-compressed, so the loader needs a Draco decoder
+// (self-hosted in public/draco — no external CDN)
+const dracoLoader = new DRACOLoader().setDecoderPath('draco/')
+const loader = new GLTFLoader().setDRACOLoader(dracoLoader)
 const templates = new Map<string, THREE.Object3D>() // file → prepared template
 const loading = new Map<string, Promise<void>>()
 

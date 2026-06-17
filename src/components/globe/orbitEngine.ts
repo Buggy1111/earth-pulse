@@ -229,11 +229,12 @@ export function startOrbitEngine(
     raf = requestAnimationFrame(frame)
   }
 
-  // each datum's 3D model: the real NASA glb once it's loaded (skipped in eco
-  // for the weak-GPU case), otherwise a hand-built primitive placeholder
+  // each datum's 3D model: the real NASA glb once it's loaded, otherwise a
+  // hand-built primitive placeholder (the models are the whole point now, so
+  // they're used even in eco — they're tiny on screen anyway)
   const buildObj = (d: object): THREE.Object3D => {
     const o = d as OrbitObject
-    const real = deps.ecoRef.current ? null : cloneSatModel(o.name)
+    const real = cloneSatModel(o.name)
     if (real) {
       real.add(makeNameSprite(o.name, 3, true, o.color))
       return real
@@ -368,12 +369,21 @@ export function startOrbitEngine(
   globe.objectsData(objects)
   raf = requestAnimationFrame(frame)
 
-  // load the real NASA models in the background, then rebuild the objects layer
-  // so they replace the primitive placeholders (a fresh accessor reference makes
-  // three-globe re-run it for every datum)
+  // load the real NASA models in the background, then swap them in PLACE —
+  // three-globe caches each datum's object and won't re-run the accessor, so we
+  // keep the positioned root node and just replace its contents with the glb.
   void preloadSatModels(new Set(objects.map((o) => o.name))).then(() => {
     if (disposed) return
-    globe.objectThreeObject((d) => buildObj(d)).objectsData(objects)
+    for (const o of objects) {
+      const model = cloneSatModel(o.name)
+      const root = (o as WithMesh).__threeObjObject ?? (o as WithMesh).__threeObj
+      if (!model || !root) continue
+      root.clear() // drop the primitive placeholder + its label
+      root.scale.setScalar(1)
+      root.rotation.set(0, 0, 0)
+      model.add(makeNameSprite(o.name, 3, true, o.color))
+      root.add(model)
+    }
   })
 
   return () => {
