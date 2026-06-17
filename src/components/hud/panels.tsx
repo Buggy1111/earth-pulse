@@ -308,6 +308,7 @@ export function MissionCard({ name, onClose }: { name: string; onClose: () => vo
       </p>
       <p className="mt-1.5 text-xs text-slate-400">🏛 {m.agency}</p>
       <p className="mt-0.5 text-xs text-slate-400">🚀 launched {m.launched}</p>
+      <p className="mt-0.5 text-xs text-slate-400">🛰 {m.orbit}</p>
       <p className="mt-1.5 text-xs text-slate-300">✨ {m.fact}</p>
     </div>
   )
