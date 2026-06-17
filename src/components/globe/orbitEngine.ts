@@ -15,6 +15,7 @@ import {
 } from '../../lib/satellites'
 import type { LayerState } from '../hud/types'
 import { makeHubbleObject, makeIssObject, makeNameSprite, makeSatelliteObject } from '../spaceObjects'
+import { cloneSatModel, preloadSatModels } from './spaceModels'
 import {
   ARROW_GEO,
   ARROW_MAT,
@@ -112,6 +113,7 @@ export function startOrbitEngine(
   type WithMesh = { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D }
   let raf = 0
   let frameNo = 0
+  let disposed = false
   // trails are rebuilt off the warped clock; throttle by real time (≥250 ms)
   // and rebuild sooner once the simulated clock has jumped (time-warp)
   let lastBuildReal = Date.now()
@@ -227,28 +229,31 @@ export function startOrbitEngine(
     raf = requestAnimationFrame(frame)
   }
 
+  // each datum's 3D model: the real NASA glb once it's loaded (skipped in eco
+  // for the weak-GPU case), otherwise a hand-built primitive placeholder
+  const buildObj = (d: object): THREE.Object3D => {
+    const o = d as OrbitObject
+    const real = deps.ecoRef.current ? null : cloneSatModel(o.name)
+    if (real) {
+      real.add(makeNameSprite(o.name, 3, true, o.color))
+      return real
+    }
+    if (o.kind === 'iss') return makeIssObject() // carries its own label
+    if (o.name === 'Hubble') {
+      const hub = makeHubbleObject()
+      hub.add(makeNameSprite(o.name, 2, true, o.color))
+      return hub
+    }
+    const model = makeSatelliteObject(deps.ecoRef.current)
+    model.add(makeNameSprite(o.name, 2, true, o.color))
+    return model
+  }
+
   globe
     .objectLat((d) => (d as OrbitObject).lat)
     .objectLng((d) => (d as OrbitObject).lng)
     .objectAltitude((d) => globeAltitude((d as OrbitObject).altKm))
-    .objectThreeObject((d) => {
-      const o = d as OrbitObject
-      if (o.kind === 'iss') return makeIssObject()
-      // Hubble gets its own iconic telescope model
-      if (o.name === 'Hubble') {
-        const hub = makeHubbleObject()
-        hub.add(makeNameSprite(o.name, 2, true, o.color))
-        return hub
-      }
-      // a curated cast of ~26, so every sat keeps its detailed model + a name
-      // tag — except in eco mode (weak GPU), where each collapses to one mesh.
-      // Eco is resolved by the GPU heuristic before the TLE set loads, so the
-      // weak-GPU case gets the cheap model at build; a later manual toggle keeps
-      // the existing models (not worth rebuilding the engine for ~26 sats).
-      const model = makeSatelliteObject(deps.ecoRef.current)
-      model.add(makeNameSprite(o.name, 2, true, o.color))
-      return model
-    })
+    .objectThreeObject(buildObj)
     .objectLabel((d) => {
       const o = d as OrbitObject
       if (o.kind === 'iss') {
@@ -362,7 +367,17 @@ export function startOrbitEngine(
 
   globe.objectsData(objects)
   raf = requestAnimationFrame(frame)
+
+  // load the real NASA models in the background, then rebuild the objects layer
+  // so they replace the primitive placeholders (a fresh accessor reference makes
+  // three-globe re-run it for every datum)
+  void preloadSatModels(new Set(objects.map((o) => o.name))).then(() => {
+    if (disposed) return
+    globe.objectThreeObject((d) => buildObj(d)).objectsData(objects)
+  })
+
   return () => {
+    disposed = true
     cancelAnimationFrame(raf)
     for (const c of orbitGroup.children) {
       ;(c as THREE.Line).geometry.dispose()
