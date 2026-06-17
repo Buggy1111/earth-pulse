@@ -126,6 +126,40 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   moonMesh.add(moonGlow)
   globe.scene().add(moonMesh)
 
+  // faint ring tracing the Moon's path around Earth — like the satellites' orbit
+  // lines, drawn in the same Earth-fixed view. Rebuilt only when the Moon's
+  // declination drifts enough to matter (it changes slowly over the month).
+  const MOON_ORBIT_PTS = 128
+  const MOON_DIST = 480
+  const moonOrbitGeo = new THREE.BufferGeometry()
+  moonOrbitGeo.setAttribute(
+    'position',
+    new THREE.BufferAttribute(new Float32Array(MOON_ORBIT_PTS * 3), 3),
+  )
+  const moonOrbit = new THREE.LineLoop(
+    moonOrbitGeo,
+    new THREE.LineBasicMaterial({
+      color: '#aac4ea',
+      transparent: true,
+      opacity: 0.28,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  )
+  globe.scene().add(moonOrbit)
+  let lastMoonDecl = NaN
+  const moonOrbitTmp = new THREE.Vector3()
+  const rebuildMoonOrbit = (declDeg: number) => {
+    const pos = moonOrbitGeo.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < MOON_ORBIT_PTS; i++) {
+      const lng = -180 + (360 * i) / MOON_ORBIT_PTS
+      const c = globe.getCoords(declDeg, lng, 0)
+      moonOrbitTmp.set(c.x, c.y, c.z).normalize().multiplyScalar(MOON_DIST)
+      pos.setXYZ(i, moonOrbitTmp.x, moonOrbitTmp.y, moonOrbitTmp.z)
+    }
+    pos.needsUpdate = true
+  }
+
   // tidal lock: the Moon's near side (its flag-bearing face — the Apollo sites
   // sit around selenographic 0,0 which the marker layout places at local −Z)
   // always turns toward Earth, exactly as the real Moon does. The far side then
@@ -139,7 +173,13 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
     sunSprite.position.copy(sunUniform.value).multiplyScalar(6000)
     const moon = subLunarPoint(now)
     const mc = globe.getCoords(moon.lat, moon.lng, 0)
-    moonMesh.position.set(mc.x, mc.y, mc.z).normalize().multiplyScalar(480)
+    moonMesh.position.set(mc.x, mc.y, mc.z).normalize().multiplyScalar(MOON_DIST)
+    // the orbit ring follows the Moon's declination (skip the per-frame rebuild
+    // unless it drifted — also catches the first NaN pass)
+    if (!(Math.abs(moon.lat - lastMoonDecl) < 0.25)) {
+      rebuildMoonOrbit(moon.lat)
+      lastMoonDecl = moon.lat
+    }
     // light the Moon from where the Sun actually is relative to it (Moon→Sun),
     // so the visible phase matches the Sun sprite's position in the scene
     moonSunUniform.value.copy(sunSprite.position).sub(moonMesh.position).normalize()
@@ -165,6 +205,9 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
       globe.scene().remove(moonMesh)
       moonMesh.geometry.dispose()
       ;(moonMesh.material as THREE.ShaderMaterial).dispose()
+      globe.scene().remove(moonOrbit)
+      moonOrbitGeo.dispose()
+      ;(moonOrbit.material as THREE.Material).dispose()
       moonTex.dispose()
       moonGlow.material.dispose()
       poleGeo.dispose()
