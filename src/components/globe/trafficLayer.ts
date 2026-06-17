@@ -23,14 +23,14 @@ export interface TrafficDeps {
 
 const AIRCRAFT_POLL_MS = 8_000
 const SHIPS_POLL_MS = 45_000
-const DEFAULT_CENTER = { lat: 50, lng: 8 } // central Europe — busy airspace
+const DEFAULT_CENTER = { lat: 50, lng: 14 } // Prague — covers Czechia until the user shares a location
 
 // aircraft altitude → colour: low = warm amber, cruising = cyan, high = pale
 const ALT_LOW = new THREE.Color('#fbbf24')
 const ALT_MID = new THREE.Color('#22d3ee')
 const ALT_HIGH = new THREE.Color('#f0f9ff')
 const SHIP_MOVING = new THREE.Color('#38bdf8')
-const SHIP_IDLE = new THREE.Color('#64748b')
+const SHIP_IDLE = new THREE.Color('#a8b6c8')
 
 function altColor(out: THREE.Color, altKm: number): void {
   const t = Math.min(1, altKm / 12)
@@ -42,13 +42,16 @@ function makePoints(size: number): THREE.Points {
   const geom = new THREE.BufferGeometry()
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3))
   geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3))
+  // SOLID points (alphaTest, normal blending) — NOT additive, which washes out
+  // to invisible over the bright daylit side of the globe. Mirrors the volcano
+  // layer so traffic reads clearly on both the day and night hemispheres.
   const material = new THREE.PointsMaterial({
     size,
     map: getGlowTexture(),
     vertexColors: true,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    alphaTest: 0.4,
     sizeAttenuation: true,
   })
   const points = new THREE.Points(geom, material)
@@ -59,8 +62,8 @@ function makePoints(size: number): THREE.Points {
 
 export function startTraffic(globe: GlobeInstance, deps: TrafficDeps): () => void {
   const scene = globe.scene()
-  const aircraftPts = makePoints(2.6)
-  const shipPts = makePoints(1.9)
+  const aircraftPts = makePoints(4.2)
+  const shipPts = makePoints(3.2)
   scene.add(aircraftPts, shipPts)
 
   const tmp = new THREE.Color()

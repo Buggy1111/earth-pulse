@@ -56,9 +56,10 @@ export default function App() {
       sats: true,
       orbits: true,
       iss: true,
-      // off by default: these poll free third-party APIs, so only on demand
-      aircraft: false,
-      ships: false,
+      // on by default so the traffic shows up without hunting for the toggle;
+      // they still only poll their free APIs while the tab is visible
+      aircraft: true,
+      ships: true,
       quakes: true,
       events: true,
       aurora: true,
