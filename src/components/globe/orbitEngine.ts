@@ -236,18 +236,21 @@ export function startOrbitEngine(
     const o = d as OrbitObject
     const real = cloneSatModel(o.name)
     if (real) {
-      real.add(makeNameSprite(o.name, 3, true, o.color))
-      return real
+      // label goes on an UNSCALED outer group, not inside the model — each glb is
+      // normalised by a different factor (TARGET_SIZE / its native size), so a
+      // child label would inherit that and blow up (e.g. GOES). Sibling = consistent.
+      const g = new THREE.Group()
+      g.add(real)
+      g.add(makeNameSprite(o.name, 3, true, o.color))
+      return g
     }
     if (o.kind === 'iss') return makeIssObject() // carries its own label
-    if (o.name === 'Hubble') {
-      const hub = makeHubbleObject()
-      hub.add(makeNameSprite(o.name, 2, true, o.color))
-      return hub
-    }
-    const model = makeSatelliteObject(deps.ecoRef.current)
-    model.add(makeNameSprite(o.name, 2, true, o.color))
-    return model
+    // primitives are internally scaled too (sat ×1.7, Hubble ×1.2) → same outer-
+    // group trick so the label stays a consistent on-screen size across all sats.
+    const g = new THREE.Group()
+    g.add(o.name === 'Hubble' ? makeHubbleObject() : makeSatelliteObject(deps.ecoRef.current))
+    g.add(makeNameSprite(o.name, 2, true, o.color))
+    return g
   }
 
   globe
@@ -381,8 +384,8 @@ export function startOrbitEngine(
       root.clear() // drop the primitive placeholder + its label
       root.scale.setScalar(1)
       root.rotation.set(0, 0, 0)
-      model.add(makeNameSprite(o.name, 3, true, o.color))
-      root.add(model)
+      root.add(model) // scaled glb
+      root.add(makeNameSprite(o.name, 3, true, o.color)) // label on unscaled root
     }
   })
 

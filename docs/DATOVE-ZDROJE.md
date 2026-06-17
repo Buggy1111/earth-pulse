@@ -75,5 +75,14 @@ Polohy a fáze se počítají čistou matematikou v `src/lib/` — bez sítě:
 - **Portréty/textury měsíců** — NASA / USGS (public domain), stahuje `npm run fetch-moons`
 - **Vesmírné pozadí** — skutečná Mléčná dráha `public/stars-milky-way.webp` (8K equirect, SSS CC BY; zjasněná multiplikativně, max anisotropy)
 
+## 3D modely satelitů (`public/models/sats/*.glb`, atribuce)
+Reálné modely 20 z 26 satelitů; zbytek (Sentinel-1/2/3, TanDEM-X, GCOM-W1) =
+ručně stavěný „zlatý" primitiv (žádný volně šiřitelný model neexistuje).
+- **NASA 3D Resources** (public domain) — ISS, Hubble, Terra, Fermi, Aqua, Aura,
+  Suomi NPP (i pro NOAA-20/21 = stejný JPSS bus), Landsat 8 (i 9), Sentinel-6,
+  Jason-3, ICESat-2, GRACE-FO, OCO-2, GOES-16/18, Tiangong (model ISS).
+- **SWOT** © NASA/JPL-Caltech (public domain) — [swot.jpl.nasa.gov](https://swot.jpl.nasa.gov/resources/86/swot-3d-model/)
+- Draco-komprimované modely dekóduje self-hostovaný dekodér v `public/draco/`.
+
 Žádný feed nevyžaduje klíč ani autentizaci; vše je veřejné a CORS-friendly nebo
 přibalené jako statický snapshot.

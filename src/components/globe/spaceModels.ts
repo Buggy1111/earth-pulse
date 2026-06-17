@@ -15,18 +15,21 @@ interface ModelDef {
   scale?: number
 }
 
-// satellite name (from famous.txt) → its real NASA model (only self-contained
-// glbs are used — Terra's model references external textures, so it keeps the
-// gold primitive, as do the ESA/NOAA sats NASA doesn't model). Several share a
-// model where the real thing is near-identical (Landsat 8/9, GOES-16/18, stations).
+// satellite name (from famous.txt) → its real NASA model (public-domain glbs).
+// Several share a model where the real thing is near-identical: Landsat 8/9,
+// GOES-16/18, stations (ISS/Tiangong), and the three JPSS sats (Suomi NPP /
+// NOAA-20 / NOAA-21) which fly the same Ball BCP-2000 bus.
 const MODELS: Record<string, ModelDef> = {
   ISS: { file: 'iss.glb', scale: 2.0 },
   Tiangong: { file: 'iss.glb', scale: 1.5 }, // a station — the ISS model stands in
   Hubble: { file: 'hubble.glb', scale: 1.15 },
+  Terra: { file: 'terra.glb' },
   Fermi: { file: 'fermi.glb' },
   Aqua: { file: 'aqua.glb' },
   Aura: { file: 'aura.glb' },
   'Suomi NPP': { file: 'suomi-npp.glb' },
+  'NOAA-20': { file: 'suomi-npp.glb' }, // JPSS-1 — same bus as Suomi NPP
+  'NOAA-21': { file: 'suomi-npp.glb' }, // JPSS-2 — same bus as Suomi NPP
   'Landsat 8': { file: 'landsat8.glb' },
   'Landsat 9': { file: 'landsat8.glb' },
   'Sentinel-6': { file: 'sentinel6.glb' },
@@ -34,6 +37,7 @@ const MODELS: Record<string, ModelDef> = {
   'ICESat-2': { file: 'icesat2.glb' },
   'GRACE-FO 1': { file: 'grace.glb' },
   'OCO-2': { file: 'oco2.glb' },
+  SWOT: { file: 'swot.glb' }, // NASA/JPL public-domain model
   'GOES-16': { file: 'goes.glb' },
   'GOES-18': { file: 'goes.glb' }, // same bus as GOES-16
 }
