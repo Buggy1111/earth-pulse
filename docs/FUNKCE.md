@@ -56,17 +56,20 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
   živý seznam **„above you now"** (satelity aktuálně nad tvým obzorem).
 
 ### Živá doprava ✈🚢
-- **✈ Letadla** (`src/lib/aircraft.ts`) — živý ADS-B z airplanes.live, dotaz
-  bod + rádius 250 NM kolem **tvojí polohy** (nebo defaultně střední Evropa).
-  Body obarvené dle výšky (nízko jantarová → výška cyan/bílá). Poll 8 s.
-- **🚢 Lodě** (`src/lib/ships.ts`) — živé AIS z Fintraffic digitraffic,
-  **Baltské moře** (~18k lodí, podvzorkováno). Modrá = v pohybu, šedá = stojící.
-  Poll 45 s.
-- Obě jako **vlastní point-cloud vrstvy** (`trafficLayer.ts`), reálná data bez
-  klíče a backendu. **Default vypnuté** (šetří free API) — zapínají se v
-  nastavení a pollují jen když jsou ON a záložka je viditelná.
-- Pozn.: rozsah je poctivý — letadla regionálně (bod+rádius), lodě Baltik;
-  globální keyless free feed bez backendu pro ani jedno neexistuje.
+- **✈ Letadla celosvětově** (`src/lib/aircraft.ts`) — živý ADS-B z
+  airplanes.live. `trafficLayer` round-robin pollуje **grid ~35 bodů** přes
+  vytížený vzdušný prostor světa (+ tvoji polohu), akumuluje do mapy →
+  postupně naskáče provoz nad všemi kontinenty. Ikona letadla **natočená dle
+  směru letu**, barva dle výšky (nízko jantarová → výška cyan/bílá).
+- **🚢 Lodě** (`src/lib/aisstream.ts` / `ships.ts`) — s free klíčem
+  `VITE_AISSTREAM_KEY` jedou **globálně** (aisstream.io WebSocket); bez klíče
+  fallback na Fintraffic AIS (Baltik, ~18k lodí). Ikona lodi dle kurzu, modrá =
+  pluje / světlá = stojí.
+- Vykreslení: **InstancedMesh** (jeden draw call na vrstvu, až 4000 ikon),
+  ikony s tmavým obrysem (čitelné na denní i noční straně), barva per-instance.
+  Reálná data, jen když je vrstva ON a záložka viditelná.
+- Pozn.: keyless globální AIS s CORS neexistuje → lodě globálně jen s free
+  aisstream klíčem, jinak poctivě Baltik.
 
 ### Latest Events 🔥
 - **NASA EONET** (Earth Observatory Natural Event Tracker, `src/lib/events.ts`,
