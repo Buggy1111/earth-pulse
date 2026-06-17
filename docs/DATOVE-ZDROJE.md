@@ -12,9 +12,6 @@ aby aplikace nezávisela na dostupnosti API za běhu.
 | Zemětřesení (katalog) | USGS | `earthquake.usgs.gov/.../all_day.geojson` | 60 s poll | GeoJSON |
 | Zemětřesení (live) | EMSC SeismicPortal | `wss://www.seismicportal.eu/standing_order/websocket` | WebSocket (push) | JSON events |
 | ISS poloha | Where The ISS At | `api.wheretheiss.at/v1/satellites/25544` | 3 s poll | JSON |
-| Letadla (live, celý svět) | airplanes.live (ADS-B) | `api.airplanes.live/v2/point/{lat}/{lng}/250` | round-robin grid ~1,4 s/bod (jen když ON) | JSON |
-| Lodě (live, global) | aisstream.io (AIS) | `wss://stream.aisstream.io/v0/stream` | WebSocket (push) | JSON — **vyžaduje free klíč** `VITE_AISSTREAM_KEY` |
-| Lodě (live, fallback Baltik) | Fintraffic digitraffic (AIS) | `meri.digitraffic.fi/api/ais/v1/locations` | 45 s poll (jen když ON, bez klíče) | GeoJSON |
 | Kosmické počasí — Kp | NOAA SWPC | `services.swpc.noaa.gov/json/planetary_k_index_1m.json` | 60 s poll | JSON |
 | Kosmické počasí — sluneční vítr | NOAA SWPC | `services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json` | 60 s poll | JSON (products) |
 | Editace Wikipedie | Wikimedia EventStreams | `stream.wikimedia.org/v2/stream/recentchange` | SSE (push) | JSON events |
@@ -30,18 +27,6 @@ aby aplikace nezávisela na dostupnosti API za běhu.
 - **USGS** (`useQuakes`): poll 60 s, nově viděné otřesy dostanou 15s flash.
 - **ISS** (`useIss`): poll 3 s (API žádá ≥1 s mezi voláními). Payload se
   validuje (`parseIss`) — nevalidní odpověď → `null`, nikdy NaN do kamery.
-- **Letadla** (`aircraft.ts`, vrstva `trafficLayer.ts`): airplanes.live ADS-B,
-  **celosvětově** — `trafficLayer` round-robin pollуje grid ~35 bodů přes
-  vytíženou vzdušnou prostor světa (+ polohu uživatele), bod+rádius 250 NM,
-  akumuluje kontakty do mapy (prune po 100 s). ~40 s na celý sweep. Barva dle
-  výšky, ikona letadla natočená dle kurzu. Bez klíče, jen když vrstva ON + tab
-  viditelný.
-- **Lodě** (`aisstream.ts` / `ships.ts`): s klíčem `VITE_AISSTREAM_KEY` →
-  **aisstream.io WebSocket, globálně** (akumulace do mapy, prune 180 s, rebuild
-  á 2 s). Bez klíče → fallback **Fintraffic digitraffic** (Baltik, ~18k lodí,
-  poll 45 s). Barva dle pohybu (modrá=pluje, světlá=stojí), ikona lodi dle
-  kurzu. ⚠️ Klíč je v klientském bundlu (browser WS) → použít **free**, ne
-  placený.
 - **Wikipedia** (`wiki.ts`): jen lidské editace článků (namespace 0, ne-bot,
   `*.wikipedia.org`). V tickeru se jako `href` použije jen `https://` URL.
 - **NASA EONET** (`events.ts`, hook `useEvents`): přírodní události (požáry,

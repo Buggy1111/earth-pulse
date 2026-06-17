@@ -22,7 +22,6 @@ import { setupPointer } from './globe/pointer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
 import { startOrbitEngine, syncTrails, type SolarAnimEntry } from './globe/orbitEngine'
-import { startTraffic } from './globe/trafficLayer'
 import { ensureSolarSystem, focusSolarBody, SUNLIT_LAYER } from './globe/solar'
 
 interface Props {
@@ -100,8 +99,6 @@ export function GlobeView(props: Props) {
   const timeOffsetMsRef = useRef(0)
   const ecoRef = useRef(eco)
   const issStateRef = useRef<IssState | null>(null)
-  // the aircraft layer is queried around the viewer's location (or a default)
-  const userLocRef = useRef(userLoc)
   useEffect(() => {
     cb.current = { ...props }
     layersRef.current = layers
@@ -112,7 +109,6 @@ export function GlobeView(props: Props) {
     solarModeRef.current = solarMode
     solarTimeRef.current = solarTime
     issStateRef.current = iss
-    userLocRef.current = userLoc
   })
   const initialPovRef = useRef(props.initialPov)
 
@@ -202,9 +198,6 @@ export function GlobeView(props: Props) {
       onPovChange: (p) => cb.current.onPovChange(p),
     })
 
-    // live aircraft + ship layers (opt-in, poll only while their layer is on)
-    const disposeTraffic = startTraffic(globe, { layersRef, solarModeRef, userLocRef })
-
     const onResize = () => globe.width(window.innerWidth).height(window.innerHeight)
     onResize()
     window.addEventListener('resize', onResize)
@@ -214,7 +207,6 @@ export function GlobeView(props: Props) {
     ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
     return () => {
       globeRef.current = null
-      disposeTraffic()
       disposePointer()
       surface.dispose()
       sky.dispose()

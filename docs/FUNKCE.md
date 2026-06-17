@@ -55,22 +55,6 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
 - Po sdílení polohy: **predikce přeletu** („ISS nad tebou za 2 h 14 min") +
   živý seznam **„above you now"** (satelity aktuálně nad tvým obzorem).
 
-### Živá doprava ✈🚢
-- **✈ Letadla celosvětově** (`src/lib/aircraft.ts`) — živý ADS-B z
-  airplanes.live. `trafficLayer` round-robin pollуje **grid ~35 bodů** přes
-  vytížený vzdušný prostor světa (+ tvoji polohu), akumuluje do mapy →
-  postupně naskáče provoz nad všemi kontinenty. Ikona letadla **natočená dle
-  směru letu**, barva dle výšky (nízko jantarová → výška cyan/bílá).
-- **🚢 Lodě** (`src/lib/aisstream.ts` / `ships.ts`) — s free klíčem
-  `VITE_AISSTREAM_KEY` jedou **globálně** (aisstream.io WebSocket); bez klíče
-  fallback na Fintraffic AIS (Baltik, ~18k lodí). Ikona lodi dle kurzu, modrá =
-  pluje / světlá = stojí.
-- Vykreslení: **InstancedMesh** (jeden draw call na vrstvu, až 4000 ikon),
-  ikony s tmavým obrysem (čitelné na denní i noční straně), barva per-instance.
-  Reálná data, jen když je vrstva ON a záložka viditelná.
-- Pozn.: keyless globální AIS s CORS neexistuje → lodě globálně jen s free
-  aisstream klíčem, jinak poctivě Baltik.
-
 ### Latest Events 🔥
 - **NASA EONET** (Earth Observatory Natural Event Tracker, `src/lib/events.ts`,
   `src/components/globe/eventsLayer.ts`) — živé přírodní události: požáry,

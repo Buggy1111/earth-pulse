@@ -175,8 +175,6 @@ Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-frie
   od Země v AU. Hodiny v **lokálním čase** uživatele.
 - **Luxusní loader** — rotující drátěný (wireframe) glóbus na canvasu s
   hloubkovým fadem a obíhajícími družicemi + telemetrický boot-log.
-- **✈🚢 Živá doprava** — letadla (airplanes.live ADS-B, okolí polohy) a lodě
-  (Fintraffic AIS, Baltské moře) jako opt-in vrstvy, reálná data bez klíče.
 - **🛡 Robustnost (audit)** — NaN guardy v `propagateSats` (lat/lng) a
   `parseIss`; eco „simple" model satelitů konečně zapojen; bezpečný `href` v
   Wikipedia tickeru.
