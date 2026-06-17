@@ -135,6 +135,122 @@ const ISS_CROSS_GEO = new THREE.CylinderGeometry(0.22, 0.22, 1.6, 8)
 const ISS_RADIATOR_GEO = new THREE.BoxGeometry(0.55, 0.02, 1.5)
 const ISS_RADIATOR_MAT = new THREE.MeshLambertMaterial({ color: '#f4f7fa', emissive: '#b7c1cc' })
 
+// ——— ESA / DLR / JAXA sats: no public-domain glb exists for these, so they're
+// hand-built like the generic bus but shaped to each spacecraft's silhouette
+// (Sentinel-1 = big flat SAR panel; Sentinel-2/3 = single wing; TanDEM-X =
+// hex bus + radar panel; GCOM-W1 = single wing + big AMSR2 dish). Same
+// MeshLambert + strong emissive so they read on the night side.
+const ESA_BUS_GEO = new THREE.BoxGeometry(0.55, 0.55, 1.05)
+const WING_SEG_GEO = new THREE.BoxGeometry(0.8, 0.035, 0.58)
+const WING_BOOM_GEO = new THREE.CylinderGeometry(0.022, 0.022, 2.5, 5)
+const SAR_MAT = new THREE.MeshLambertMaterial({ color: '#cfd6e0', emissive: '#828b98' }) // light radar antenna
+const S1_SAR_GEO = new THREE.BoxGeometry(0.5, 0.09, 2.5) // long flat C-SAR panel
+const TDX_BUS_GEO = new THREE.CylinderGeometry(0.4, 0.4, 1.7, 6) // hexagonal bus
+const TDX_SAR_GEO = new THREE.BoxGeometry(0.1, 0.5, 1.55) // X-band SAR panel
+const TDX_SOLAR_GEO = new THREE.BoxGeometry(0.06, 0.46, 1.45) // body-fixed solar
+const INSTR_GEO = new THREE.BoxGeometry(0.3, 0.28, 0.34)
+const GCOM_DISH_GEO = new THREE.SphereGeometry(0.6, 14, 9, 0, Math.PI * 2, 0, Math.PI / 2)
+
+/** One deployed solar wing: a thin boom with three dark-blue panel segments
+ * marching out from the bus along ±x. */
+function addSolarWing(g: THREE.Group, side: number): void {
+  const boom = new THREE.Mesh(WING_BOOM_GEO, BOOM_MAT)
+  boom.rotation.z = Math.PI / 2
+  boom.position.x = side * 1.4
+  g.add(boom)
+  for (let i = 0; i < 3; i++) {
+    const seg = new THREE.Mesh(WING_SEG_GEO, PANEL_MAT)
+    seg.position.x = side * (0.7 + i * 0.82)
+    g.add(seg)
+  }
+}
+
+function tumble(o: THREE.Object3D, scale: number): THREE.Object3D {
+  o.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
+  o.scale.setScalar(scale)
+  return o
+}
+
+/** Sentinel-1 — radar imager: gold bus, two solar wings, the iconic long flat
+ * C-SAR antenna panel running along the body. */
+export function makeSentinel1Object(): THREE.Object3D {
+  const s = new THREE.Group()
+  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  addSolarWing(s, -1)
+  addSolarWing(s, 1)
+  const sar = new THREE.Mesh(S1_SAR_GEO, SAR_MAT)
+  sar.position.y = 0.42
+  s.add(sar)
+  return tumble(s, 1.25)
+}
+
+/** Sentinel-2 — optical imager: gold bus, a single deployed solar wing, dark
+ * MSI telescope aperture on the nadir face. */
+export function makeSentinel2Object(): THREE.Object3D {
+  const s = new THREE.Group()
+  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  addSolarWing(s, 1)
+  const ap = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), HUB_APERTURE_MAT)
+  ap.position.y = -0.29
+  ap.rotation.x = -Math.PI / 2
+  s.add(ap)
+  return tumble(s, 1.3)
+}
+
+/** Sentinel-3 — ocean/land: gold bus, single solar wing, a couple of instrument
+ * boxes and a small antenna on the nadir face. */
+export function makeSentinel3Object(): THREE.Object3D {
+  const s = new THREE.Group()
+  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  addSolarWing(s, 1)
+  for (const z of [-0.3, 0.32]) {
+    const instr = new THREE.Mesh(INSTR_GEO, SAR_MAT)
+    instr.position.set(0, -0.4, z)
+    s.add(instr)
+  }
+  const ant = new THREE.Mesh(FEED_GEO, BOOM_MAT)
+  ant.position.set(0.15, -0.55, -0.4)
+  s.add(ant)
+  return tumble(s, 1.3)
+}
+
+/** TanDEM-X — German X-band radar sat: compact hexagonal bus, one flat SAR
+ * antenna panel, body-fixed solar cells on the opposite face (no big wings). */
+export function makeTanDEMObject(): THREE.Object3D {
+  const s = new THREE.Group()
+  const bus = new THREE.Mesh(TDX_BUS_GEO, BUS_MAT)
+  bus.rotation.x = Math.PI / 2 // lie the hex prism along z
+  s.add(bus)
+  const sar = new THREE.Mesh(TDX_SAR_GEO, SAR_MAT)
+  sar.position.x = 0.46
+  s.add(sar)
+  const solar = new THREE.Mesh(TDX_SOLAR_GEO, PANEL_MAT)
+  solar.position.x = -0.44
+  solar.rotation.z = 0.18 // slightly slanted, like the real bus face
+  s.add(solar)
+  const horn = new THREE.Mesh(FEED_GEO, BOOM_MAT)
+  horn.position.set(0, 0.35, -0.6)
+  s.add(horn)
+  return tumble(s, 1.15)
+}
+
+/** GCOM-W1 "Shizuku" — JAXA water-cycle sat: gold bus, one solar wing, and the
+ * big AMSR2 offset parabolic dish on top. */
+export function makeGcomObject(): THREE.Object3D {
+  const s = new THREE.Group()
+  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  addSolarWing(s, 1)
+  const dish = new THREE.Mesh(GCOM_DISH_GEO, DISH_MAT)
+  dish.position.set(-0.15, 0.5, 0.1)
+  dish.rotation.set(-0.6, 0, 0.25)
+  s.add(dish)
+  const feed = new THREE.Mesh(FEED_GEO, BOOM_MAT)
+  feed.position.set(-0.15, 0.85, 0.0)
+  feed.rotation.x = -0.6
+  s.add(feed)
+  return tumble(s, 1.3)
+}
+
 /** Name tag sprite for celestial bodies (planets in solar mode). */
 export function makeNameSprite(
   text: string,

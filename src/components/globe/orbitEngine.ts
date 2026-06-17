@@ -14,7 +14,17 @@ import {
   type TrackedSat,
 } from '../../lib/satellites'
 import type { LayerState } from '../hud/types'
-import { makeHubbleObject, makeIssObject, makeNameSprite, makeSatelliteObject } from '../spaceObjects'
+import {
+  makeGcomObject,
+  makeHubbleObject,
+  makeIssObject,
+  makeNameSprite,
+  makeSatelliteObject,
+  makeSentinel1Object,
+  makeSentinel2Object,
+  makeSentinel3Object,
+  makeTanDEMObject,
+} from '../spaceObjects'
 import { cloneSatModel, preloadSatModels } from './spaceModels'
 import {
   ARROW_GEO,
@@ -31,6 +41,28 @@ import {
  * tag. The ISS keeps its iconic cyan. */
 export function satColor(i: number): string {
   return `hsl(${Math.round((i * 137.508) % 360)}, 78%, 63%)`
+}
+
+// the hand-built primitive for a satellite with no real glb model — shaped per
+// spacecraft where we have a distinct silhouette, else the generic gold bus.
+function primitiveFor(name: string, eco: boolean): THREE.Object3D {
+  switch (name) {
+    case 'Hubble':
+      return makeHubbleObject()
+    case 'Sentinel-1A':
+      return makeSentinel1Object()
+    case 'Sentinel-2A':
+    case 'Sentinel-2B':
+      return makeSentinel2Object()
+    case 'Sentinel-3A':
+      return makeSentinel3Object()
+    case 'TanDEM-X':
+      return makeTanDEMObject()
+    case 'GCOM-W1':
+      return makeGcomObject()
+    default:
+      return makeSatelliteObject(eco)
+  }
 }
 
 // reused to turn any CSS colour into an rgba() stop for the trail gradients
@@ -245,10 +277,10 @@ export function startOrbitEngine(
       return g
     }
     if (o.kind === 'iss') return makeIssObject() // carries its own label
-    // primitives are internally scaled too (sat ×1.7, Hubble ×1.2) → same outer-
-    // group trick so the label stays a consistent on-screen size across all sats.
+    // primitives are internally scaled too → same outer-group trick so the label
+    // stays a consistent on-screen size across all sats.
     const g = new THREE.Group()
-    g.add(o.name === 'Hubble' ? makeHubbleObject() : makeSatelliteObject(deps.ecoRef.current))
+    g.add(primitiveFor(o.name, deps.ecoRef.current))
     g.add(makeNameSprite(o.name, 2, true, o.color))
     return g
   }
