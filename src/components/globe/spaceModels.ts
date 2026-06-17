@@ -17,8 +17,8 @@ interface ModelDef {
 
 // satellite name (from famous.txt) → its real NASA model (only self-contained
 // glbs are used — Terra's model references external textures, so it keeps the
-// gold primitive, as do the ESA/NOAA/GOES sats NASA doesn't model). Several
-// share a model where the real thing is near-identical (Landsat 8/9, stations).
+// gold primitive, as do the ESA/NOAA sats NASA doesn't model). Several share a
+// model where the real thing is near-identical (Landsat 8/9, GOES-16/18, stations).
 const MODELS: Record<string, ModelDef> = {
   ISS: { file: 'iss.glb', scale: 2.0 },
   Tiangong: { file: 'iss.glb', scale: 1.5 }, // a station — the ISS model stands in
@@ -34,6 +34,8 @@ const MODELS: Record<string, ModelDef> = {
   'ICESat-2': { file: 'icesat2.glb' },
   'GRACE-FO 1': { file: 'grace.glb' },
   'OCO-2': { file: 'oco2.glb' },
+  'GOES-16': { file: 'goes.glb' },
+  'GOES-18': { file: 'goes.glb' }, // same bus as GOES-16
 }
 
 const BASE = 'models/sats/'
@@ -60,7 +62,18 @@ function prepare(scene: THREE.Object3D): THREE.Group {
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
     for (const mat of mats) {
       const m = mat as THREE.MeshStandardMaterial
-      if (m.color && m.emissive) {
+      if (!m.color) continue
+      // Untextured parts get a subtle spacecraft-metal finish so the colourless
+      // white/grey models read like real foil/aluminium next to the textured
+      // ones. Real colours are kept — only near-white/grey gets a warm MLI tint.
+      if (!m.map) {
+        const hsl = { h: 0, s: 0, l: 0 }
+        m.color.getHSL(hsl)
+        if (hsl.s < 0.15) m.color.setHSL(0.09, 0.22, Math.min(0.7, Math.max(0.42, hsl.l)))
+        m.metalness = Math.max(m.metalness ?? 0, 0.55)
+        m.roughness = Math.min(m.roughness ?? 1, 0.45)
+      }
+      if (m.emissive) {
         m.emissive.copy(m.color).multiplyScalar(0.45)
         m.emissiveIntensity = 1
       }
