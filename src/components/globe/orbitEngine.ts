@@ -14,7 +14,7 @@ import {
   type TrackedSat,
 } from '../../lib/satellites'
 import type { LayerState } from '../hud/types'
-import { makeIssObject, makeNameSprite, makeSatelliteObject } from '../spaceObjects'
+import { makeHubbleObject, makeIssObject, makeNameSprite, makeSatelliteObject } from '../spaceObjects'
 import {
   ARROW_GEO,
   ARROW_MAT,
@@ -234,6 +234,12 @@ export function startOrbitEngine(
     .objectThreeObject((d) => {
       const o = d as OrbitObject
       if (o.kind === 'iss') return makeIssObject()
+      // Hubble gets its own iconic telescope model
+      if (o.name === 'Hubble') {
+        const hub = makeHubbleObject()
+        hub.add(makeNameSprite(o.name, 2, true, o.color))
+        return hub
+      }
       // a curated cast of ~26, so every sat keeps its detailed model + a name
       // tag — except in eco mode (weak GPU), where each collapses to one mesh.
       // Eco is resolved by the GPU heuristic before the TLE set loads, so the

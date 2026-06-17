@@ -11,18 +11,19 @@
 
 import * as THREE from 'three'
 
-// ——— generic satellite: white/grey bus + parabolic dish + 2×3-segment wings
+// ——— generic satellite: real spacecraft look — gold MLI-foil bus, near-black
+// solar wings, silver dish/antenna (emissive so it isn't black on the night side)
 const BUS_GEO = new THREE.BoxGeometry(0.6, 0.6, 0.85)
-const BUS_MAT = new THREE.MeshLambertMaterial({ color: '#dde3ec', emissive: '#8b94a3' })
+const BUS_MAT = new THREE.MeshLambertMaterial({ color: '#c79a3e', emissive: '#6b5020' }) // gold foil
 const PANEL_GEO = new THREE.BoxGeometry(0.62, 0.04, 0.5)
-const PANEL_MAT = new THREE.MeshLambertMaterial({ color: '#1e3a8a', emissive: '#27418f' })
+const PANEL_MAT = new THREE.MeshLambertMaterial({ color: '#1a2444', emissive: '#202f57' }) // dark blue solar cells
 const BOOM_GEO = new THREE.CylinderGeometry(0.03, 0.03, 2.6, 5)
 const BOOM_MAT = new THREE.MeshLambertMaterial({ color: '#9aa3b0', emissive: '#5d6571' })
 // dish: open hemisphere facing forward, plus a feed horn
 const DISH_GEO = new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)
 const DISH_MAT = new THREE.MeshLambertMaterial({
-  color: '#f1f5f9',
-  emissive: '#aab4c2',
+  color: '#eef2f7',
+  emissive: '#9aa6b6',
   side: THREE.DoubleSide,
 })
 const FEED_GEO = new THREE.CylinderGeometry(0.025, 0.025, 0.4, 5)
@@ -30,7 +31,7 @@ const FEED_GEO = new THREE.CylinderGeometry(0.025, 0.025, 0.4, 5)
 // eco: a single low-poly glint — the detailed model is ~10 meshes (= 10 draw
 // calls) and a swarm of those taxes integrated GPUs while a sat is a dot anyway
 const SIMPLE_GEO = new THREE.OctahedronGeometry(0.62)
-const SIMPLE_MAT = new THREE.MeshLambertMaterial({ color: '#dde3ec', emissive: '#8b94a3' })
+const SIMPLE_MAT = new THREE.MeshLambertMaterial({ color: '#c79a3e', emissive: '#6b5020' })
 
 /** Boxy bus + big dish + two three-segment solar wings, randomly tumbled.
  * In `simple` (eco) mode it collapses to one mesh — one draw call instead of
@@ -74,12 +75,60 @@ export function makeSatelliteObject(simple = false): THREE.Object3D {
   return sat
 }
 
+// ——— Hubble: silver aluminium tube, open dark aperture at the front, a gold
+// aft skirt and two dark solar wings — the most recognisable telescope in orbit
+const HUB_TUBE_GEO = new THREE.CylinderGeometry(0.6, 0.6, 3.4, 18, 1, true)
+const HUB_TUBE_MAT = new THREE.MeshLambertMaterial({ color: '#c3c9d2', emissive: '#7c8590', side: THREE.DoubleSide })
+const HUB_APERTURE_GEO = new THREE.CircleGeometry(0.58, 18)
+const HUB_APERTURE_MAT = new THREE.MeshBasicMaterial({ color: '#0a0d14', side: THREE.DoubleSide })
+const HUB_CAP_GEO = new THREE.CircleGeometry(0.6, 18)
+const HUB_SKIRT_GEO = new THREE.CylinderGeometry(0.62, 0.62, 0.5, 18, 1, true)
+const HUB_SKIRT_MAT = new THREE.MeshLambertMaterial({ color: '#c79a3e', emissive: '#6b5020', side: THREE.DoubleSide }) // gold aft
+const HUB_WING_GEO = new THREE.BoxGeometry(2.7, 0.04, 1.05)
+const HUB_WING_MAT = new THREE.MeshLambertMaterial({ color: '#1a2444', emissive: '#202f57' })
+const HUB_ANT_GEO = new THREE.CylinderGeometry(0.02, 0.02, 1.1, 5)
+
+/** The Hubble Space Telescope — silver tube, dark aperture, gold skirt, wings. */
+export function makeHubbleObject(): THREE.Object3D {
+  const hub = new THREE.Group()
+  const tube = new THREE.Mesh(HUB_TUBE_GEO, HUB_TUBE_MAT)
+  tube.rotation.x = Math.PI / 2 // lie the tube along Z (forward)
+  hub.add(tube)
+  // open aperture at the front (−Z), aft cap at the back (+Z) with gold skirt
+  const aperture = new THREE.Mesh(HUB_APERTURE_GEO, HUB_APERTURE_MAT)
+  aperture.position.z = -1.7
+  hub.add(aperture)
+  const cap = new THREE.Mesh(HUB_CAP_GEO, HUB_TUBE_MAT)
+  cap.position.z = 1.7
+  hub.add(cap)
+  const skirt = new THREE.Mesh(HUB_SKIRT_GEO, HUB_SKIRT_MAT)
+  skirt.rotation.x = Math.PI / 2
+  skirt.position.z = 1.45
+  hub.add(skirt)
+  // two solar wings to the sides
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(HUB_WING_GEO, HUB_WING_MAT)
+    wing.position.x = side * 1.8
+    hub.add(wing)
+  }
+  // high-gain antenna booms
+  for (const side of [-1, 1]) {
+    const ant = new THREE.Mesh(HUB_ANT_GEO, BOOM_MAT)
+    ant.position.set(0, side * 0.7, 0.8)
+    hub.add(ant)
+  }
+  hub.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
+  hub.scale.setScalar(1.2)
+  return hub
+}
+
 // ——— ISS: long lattice truss, 4 wing blocks of PAIRED steel-blue arrays,
 // white pressurized module stack, radiators
 const ISS_TRUSS_GEO = new THREE.BoxGeometry(7.2, 0.16, 0.16)
 const ISS_TRUSS_MAT = new THREE.MeshLambertMaterial({ color: '#cbd5e1', emissive: '#76818f' })
 const ISS_ARRAY_GEO = new THREE.BoxGeometry(1.05, 0.03, 2.9)
-const ISS_ARRAY_MAT = new THREE.MeshLambertMaterial({ color: '#41599c', emissive: '#3f5694' })
+// the ISS's iconic gold/amber solar wings (the MLI-backed side everyone knows)
+const ISS_ARRAY_MAT = new THREE.MeshLambertMaterial({ color: '#bd8838', emissive: '#6e4f22' })
 const ISS_MODULE_GEO = new THREE.CylinderGeometry(0.26, 0.26, 3.6, 10)
 const ISS_MODULE_MAT = new THREE.MeshLambertMaterial({ color: '#e8edf4', emissive: '#9aa6b5' })
 const ISS_CROSS_GEO = new THREE.CylinderGeometry(0.22, 0.22, 1.6, 8)
