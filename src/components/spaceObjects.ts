@@ -144,6 +144,12 @@ const ESA_BUS_GEO = new THREE.BoxGeometry(0.55, 0.55, 1.05)
 const WING_SEG_GEO = new THREE.BoxGeometry(0.8, 0.035, 0.58)
 const WING_BOOM_GEO = new THREE.CylinderGeometry(0.022, 0.022, 2.5, 5)
 const SAR_MAT = new THREE.MeshLambertMaterial({ color: '#cfd6e0', emissive: '#828b98' }) // light radar antenna
+// GCOM-W1's AMSR2 reflector is an iconic gold-mesh parabola (brighter than the bus gold)
+const GCOM_DISH_MAT = new THREE.MeshLambertMaterial({
+  color: '#d4a93f',
+  emissive: '#7a5a1e',
+  side: THREE.DoubleSide,
+})
 const S1_SAR_GEO = new THREE.BoxGeometry(0.5, 0.09, 2.5) // long flat C-SAR panel
 const TDX_BUS_GEO = new THREE.CylinderGeometry(0.4, 0.4, 1.7, 6) // hexagonal bus
 const TDX_SAR_GEO = new THREE.BoxGeometry(0.1, 0.5, 1.55) // X-band SAR panel
@@ -240,7 +246,7 @@ export function makeGcomObject(): THREE.Object3D {
   const s = new THREE.Group()
   s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
   addSolarWing(s, 1)
-  const dish = new THREE.Mesh(GCOM_DISH_GEO, DISH_MAT)
+  const dish = new THREE.Mesh(GCOM_DISH_GEO, GCOM_DISH_MAT)
   dish.position.set(-0.15, 0.5, 0.1)
   dish.rotation.set(-0.6, 0, 0.25)
   s.add(dish)
