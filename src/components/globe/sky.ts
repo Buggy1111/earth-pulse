@@ -126,38 +126,50 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   moonMesh.add(moonGlow)
   globe.scene().add(moonMesh)
 
-  // faint ring tracing the Moon's path around Earth — like the satellites' orbit
-  // lines, drawn in the same Earth-fixed view. Rebuilt only when the Moon's
-  // declination drifts enough to matter (it changes slowly over the month).
-  const MOON_ORBIT_PTS = 128
+  // a comet-style trail behind the Moon — exactly like the satellites' orbit
+  // trails: the bright head sits on the Moon, fading back along the path it came
+  // from. Buffers are preallocated and updated in place each frame (the colour
+  // fade is static); the head sample uses the same clock as the Moon's position.
   const MOON_DIST = 480
-  const moonOrbitGeo = new THREE.BufferGeometry()
-  moonOrbitGeo.setAttribute(
-    'position',
-    new THREE.BufferAttribute(new Float32Array(MOON_ORBIT_PTS * 3), 3),
-  )
-  const moonOrbit = new THREE.LineLoop(
-    moonOrbitGeo,
+  const MOON_TRAIL_PTS = 60
+  const MOON_TRAIL_MS = 7 * 3600 * 1000 // ~7 h of past arc behind the Moon
+  const moonTrailGeo = new THREE.BufferGeometry()
+  const moonTrailPos = new Float32Array(MOON_TRAIL_PTS * 3)
+  const moonTrailCol = new Float32Array(MOON_TRAIL_PTS * 3)
+  const moonTint = new THREE.Color('#a9c2e8') // moonlight blue-white
+  for (let i = 0; i < MOON_TRAIL_PTS; i++) {
+    const f = (i / (MOON_TRAIL_PTS - 1)) ** 1.6 // black tail → bright head (i=last)
+    moonTrailCol[i * 3] = moonTint.r * f
+    moonTrailCol[i * 3 + 1] = moonTint.g * f
+    moonTrailCol[i * 3 + 2] = moonTint.b * f
+  }
+  moonTrailGeo.setAttribute('position', new THREE.BufferAttribute(moonTrailPos, 3))
+  moonTrailGeo.setAttribute('color', new THREE.BufferAttribute(moonTrailCol, 3))
+  const moonTrail = new THREE.Line(
+    moonTrailGeo,
     new THREE.LineBasicMaterial({
-      color: '#aac4ea',
+      vertexColors: true,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     }),
   )
-  globe.scene().add(moonOrbit)
-  let lastMoonDecl = NaN
-  const moonOrbitTmp = new THREE.Vector3()
-  const rebuildMoonOrbit = (declDeg: number) => {
-    const pos = moonOrbitGeo.attributes.position as THREE.BufferAttribute
-    for (let i = 0; i < MOON_ORBIT_PTS; i++) {
-      const lng = -180 + (360 * i) / MOON_ORBIT_PTS
-      const c = globe.getCoords(declDeg, lng, 0)
-      moonOrbitTmp.set(c.x, c.y, c.z).normalize().multiplyScalar(MOON_DIST)
-      pos.setXYZ(i, moonOrbitTmp.x, moonOrbitTmp.y, moonOrbitTmp.z)
+  moonTrail.renderOrder = 1
+  globe.scene().add(moonTrail)
+  const moonTrailTmp = new THREE.Vector3()
+  const updateMoonTrail = (now: Date) => {
+    const pos = moonTrailGeo.attributes.position as THREE.BufferAttribute
+    const t0 = now.getTime()
+    const dt = MOON_TRAIL_MS / (MOON_TRAIL_PTS - 1)
+    for (let i = 0; i < MOON_TRAIL_PTS; i++) {
+      const sp = subLunarPoint(new Date(t0 - (MOON_TRAIL_PTS - 1 - i) * dt))
+      const c = globe.getCoords(sp.lat, sp.lng, 0)
+      moonTrailTmp.set(c.x, c.y, c.z).normalize().multiplyScalar(MOON_DIST)
+      pos.setXYZ(i, moonTrailTmp.x, moonTrailTmp.y, moonTrailTmp.z)
     }
     pos.needsUpdate = true
+    moonTrailGeo.computeBoundingSphere()
   }
 
   // tidal lock: the Moon's near side (its flag-bearing face — the Apollo sites
@@ -174,12 +186,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
     const moon = subLunarPoint(now)
     const mc = globe.getCoords(moon.lat, moon.lng, 0)
     moonMesh.position.set(mc.x, mc.y, mc.z).normalize().multiplyScalar(MOON_DIST)
-    // the orbit ring follows the Moon's declination (skip the per-frame rebuild
-    // unless it drifted — also catches the first NaN pass)
-    if (!(Math.abs(moon.lat - lastMoonDecl) < 0.25)) {
-      rebuildMoonOrbit(moon.lat)
-      lastMoonDecl = moon.lat
-    }
+    updateMoonTrail(now) // comet tail behind the Moon, head locked to its position
     // light the Moon from where the Sun actually is relative to it (Moon→Sun),
     // so the visible phase matches the Sun sprite's position in the scene
     moonSunUniform.value.copy(sunSprite.position).sub(moonMesh.position).normalize()
@@ -205,9 +212,9 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
       globe.scene().remove(moonMesh)
       moonMesh.geometry.dispose()
       ;(moonMesh.material as THREE.ShaderMaterial).dispose()
-      globe.scene().remove(moonOrbit)
-      moonOrbitGeo.dispose()
-      ;(moonOrbit.material as THREE.Material).dispose()
+      globe.scene().remove(moonTrail)
+      moonTrailGeo.dispose()
+      ;(moonTrail.material as THREE.Material).dispose()
       moonTex.dispose()
       moonGlow.material.dispose()
       poleGeo.dispose()
