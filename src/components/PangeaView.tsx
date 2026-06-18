@@ -48,7 +48,8 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const maRef = useRef(MAX_MA) // start at Pangaea
   const [ma, setMa] = useState(MAX_MA)
-  const [playing, setPlaying] = useState(true)
+  // start paused on Pangaea — the user presses ▶ (or scrubs) to set it in motion
+  const [playing, setPlaying] = useState(false)
 
   // keep a ref in sync so the rAF loop reads the latest scrub value
   useEffect(() => {

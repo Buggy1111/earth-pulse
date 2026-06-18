@@ -72,6 +72,11 @@ export function SideDrawer({
   children: ReactNode
 }) {
   const isLeft = side === 'left'
+  // data drawer reads sky-cyan, the live/controls drawer reads amber — a glowing
+  // edge tab + an accent-lit panel, so the mobile menu matches the sci-fi HUD.
+  const accent = isLeft ? '#7dd3fc' : '#fbbf24'
+  const scanline =
+    'repeating-linear-gradient(0deg, rgba(94,234,255,0.022) 0, rgba(94,234,255,0.022) 1px, transparent 1px, transparent 3px), linear-gradient(158deg, rgba(8,14,28,0.96), rgba(5,9,20,0.9))'
   return (
     <>
       {!open && (
@@ -79,26 +84,58 @@ export function SideDrawer({
           type="button"
           onClick={onToggle}
           aria-label={`Open ${title}`}
-          className={`hud pointer-events-auto fixed top-1/2 z-30 -translate-y-1/2 px-2.5 py-5 text-lg text-slate-300 ${
-            isLeft ? 'left-0 rounded-l-none' : 'right-0 rounded-r-none'
+          style={{
+            background: scanline,
+            borderColor: `${accent}66`,
+            boxShadow: `0 0 22px -6px ${accent}80, inset 0 1px 0 rgba(125,211,252,0.08)`,
+          }}
+          className={`pointer-events-auto fixed top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-2 border py-4 backdrop-blur-md transition-all duration-200 active:scale-95 ${
+            isLeft ? 'left-0 rounded-r-xl border-l-0 pr-2 pl-1.5' : 'right-0 rounded-l-xl border-r-0 pr-1.5 pl-2'
           }`}
         >
-          {icon}
+          <span className="text-lg drop-shadow">{icon}</span>
+          <span
+            className="text-[9px] font-semibold tracking-[0.25em] uppercase"
+            style={{ writingMode: 'vertical-rl', color: accent }}
+          >
+            {title}
+          </span>
+          <span className="text-[10px]" style={{ color: accent }}>
+            {isLeft ? '▸' : '◂'}
+          </span>
         </button>
       )}
       <aside
-        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto bg-[#02030a]/85 p-3 backdrop-blur-md transition-transform duration-300 ${
-          isLeft ? 'left-0 border-r border-white/10' : 'right-0 border-l border-white/10'
+        style={{
+          background: scanline,
+          boxShadow: `${isLeft ? '' : '-'}1px 0 0 ${accent}80, 0 0 60px -10px ${accent}40, 0 24px 60px -20px rgba(0,0,0,0.9)`,
+          [isLeft ? 'borderRight' : 'borderLeft']: `2px solid ${accent}aa`,
+        }}
+        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto p-3 backdrop-blur-xl transition-transform duration-300 ease-out ${
+          isLeft ? 'left-0' : 'right-0'
         } ${open ? 'translate-x-0' : isLeft ? '-translate-x-full' : 'translate-x-full'}`}
         aria-hidden={!open}
       >
-        <div className="flex items-center justify-between px-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-          <span>{icon} {title}</span>
+        {/* corner brackets — the HUD signature */}
+        <span
+          className="pointer-events-none absolute top-1.5 h-2.5 w-2.5 border-t"
+          style={{ [isLeft ? 'left' : 'right']: 6, [isLeft ? 'borderLeft' : 'borderRight']: `1px solid ${accent}`, borderTopColor: accent }}
+        />
+        <div
+          className="sticky top-0 -mx-3 -mt-3 mb-1 flex items-center justify-between border-b px-4 py-2.5"
+          style={{ borderColor: `${accent}33`, background: 'linear-gradient(180deg, rgba(6,10,22,0.95), rgba(6,10,22,0.4))' }}
+        >
+          <span
+            className="flex items-center gap-1.5 font-[var(--font-mono)] text-[11px] font-semibold tracking-[0.18em] uppercase"
+            style={{ color: accent }}
+          >
+            <span className="text-sm">{icon}</span> {title}
+          </span>
           <button
             type="button"
             onClick={onToggle}
             aria-label={`Close ${title}`}
-            className="cursor-pointer px-1 text-slate-400 hover:text-slate-100"
+            className="cursor-pointer rounded px-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-100"
           >
             ✕
           </button>
