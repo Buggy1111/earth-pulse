@@ -8,13 +8,15 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-// frames live every 10 Myr from 0 (today) to 340 Mya (public/planets/paleo)
+// past frames live every 10 Myr from 0 (today) to 340 Mya (public/planets/paleo);
+// the future is one reprojected frame at −250 Myr (Pangaea Proxima)
 const STEP = 10
 const MAX_MA = 340
+const FUTURE_MA = -250
 const FRAMES = Array.from({ length: MAX_MA / STEP + 1 }, (_, i) => i * STEP) // 0,10,…,340
 const pad = (n: number) => String(n).padStart(3, '0')
 
-// milestone captions (Ma → what the map shows), shown for the nearest stage
+// milestone captions (Ma → what the map shows; negative = future), nearest wins
 const MILESTONES: { ma: number; title: string; text: string }[] = [
   { ma: 335, title: 'Pangaea forming', text: 'The last great supercontinent locks together; one world-ocean, Panthalassa, surrounds it.' },
   { ma: 250, title: 'Peak Pangaea', text: 'All land is joined pole to pole at the Permian–Triassic boundary — Earth’s largest mass extinction.' },
@@ -23,6 +25,8 @@ const MILESTONES: { ma: number; title: string; text: string }[] = [
   { ma: 100, title: 'A familiar shape', text: 'The Atlantic widens; India breaks free and races north across the Tethys.' },
   { ma: 50, title: 'India hits Asia', text: 'The collision begins to raise the Himalaya; continents near their modern positions.' },
   { ma: 0, title: 'Today', text: 'The Atlantic still widens ~2 cm/yr, the Pacific is closing, India still pushes north.' },
+  { ma: -100, title: 'The Atlantic turns', text: 'In one leading scenario the Atlantic stops widening and begins to close again.' },
+  { ma: -250, title: 'Pangaea Proxima', text: 'The Atlantic shuts and the continents reunite into a new supercontinent — a projected future.' },
 ]
 const nearestMilestone = (ma: number) =>
   MILESTONES.reduce((best, m) => (Math.abs(m.ma - ma) < Math.abs(best.ma - ma) ? m : best))
@@ -88,6 +92,15 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       textures[i] = t
       return t
     }
+    // the projected future supercontinent (Pangaea Proxima), loaded lazily
+    let futureTex: THREE.Texture | null = null
+    const getFuture = (): THREE.Texture => {
+      if (!futureTex) {
+        futureTex = loader.load('planets/paleo/paleo-fut250.webp')
+        futureTex.colorSpace = THREE.SRGBColorSpace
+      }
+      return futureTex
+    }
 
     const uniforms = {
       texA: { value: blank as THREE.Texture },
@@ -112,11 +125,18 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const loop = () => {
       if (disposed) return
       const m = maRef.current
-      const f = m / STEP // continuous frame index
-      const i = Math.min(Math.floor(f), FRAMES.length - 2)
-      uniforms.texA.value = getTex(i)
-      uniforms.texB.value = getTex(i + 1)
-      uniforms.mixf.value = f - i
+      if (m <= 0) {
+        // future: cross-fade from today (0 Ma) to the projected Pangaea Proxima
+        uniforms.texA.value = getTex(0)
+        uniforms.texB.value = getFuture()
+        uniforms.mixf.value = Math.min(-m / -FUTURE_MA, 1)
+      } else {
+        const f = m / STEP // continuous frame index
+        const i = Math.min(Math.floor(f), FRAMES.length - 2)
+        uniforms.texA.value = getTex(i)
+        uniforms.texB.value = getTex(i + 1)
+        uniforms.mixf.value = f - i
+      }
       controls.update()
       renderer.render(scene, camera)
       raf = requestAnimationFrame(loop)
@@ -133,6 +153,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       starTex.dispose()
       blank.dispose()
       for (const t of textures) t?.dispose()
+      futureTex?.dispose()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
@@ -147,9 +168,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       if (last) {
         setMa((prev) => {
           const next = prev - ((t - last) / 1000) * 14 // ~14 Myr per second
-          if (next <= 0) {
+          if (next <= FUTURE_MA) {
             setPlaying(false)
-            return 0
+            return FUTURE_MA
           }
           return next
         })
@@ -162,59 +183,85 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
   }, [playing])
 
   const milestone = nearestMilestone(ma)
-  const label = ma < 1 ? 'today' : `${Math.round(ma)} million years ago`
+  const label =
+    Math.abs(ma) < 1
+      ? 'today'
+      : ma > 0
+        ? `${Math.round(ma)} million years ago`
+        : `${Math.round(-ma)} million years from now`
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#01030a]">
+    <div className="fixed inset-0 z-50 h-dvh w-dvw bg-[#01030a]">
       <div ref={mountRef} className="absolute inset-0" />
 
-      {/* title + back */}
-      <div className="pointer-events-none absolute inset-x-0 top-4 flex flex-col items-center gap-1">
+      {/* title + date (centred; sits below the back button row on phones) */}
+      <div className="pointer-events-none absolute inset-x-0 top-14 flex flex-col items-center gap-0.5 px-4 text-center sm:top-4 sm:gap-1">
         <span className="vf-eyebrow">◂ continental drift ▸</span>
-        <h1 className="font-[var(--font-display)] text-lg tracking-wide text-slate-100">
+        <h1 className="font-[var(--font-display)] text-base tracking-wide text-slate-100 sm:text-lg">
           {milestone.title}
         </h1>
-        <p className="font-[var(--font-mono)] text-2xl text-amber-300">{label}</p>
+        <p className="font-[var(--font-mono)] text-xl text-amber-300 sm:text-2xl">{label}</p>
+        {/* on phones the caption text lives here (the side card is desktop-only) */}
+        <p className="mt-1 max-w-md text-xs text-slate-300 sm:hidden">{milestone.text}</p>
       </div>
       <button
         type="button"
         onClick={onClose}
-        className="hud pointer-events-auto absolute top-4 left-4 px-3 py-1.5 text-xs text-slate-200"
+        style={{ position: 'absolute' }}
+        className="hud pointer-events-auto top-3 left-3 px-2.5 py-1.5 text-xs text-slate-200 sm:top-4 sm:left-4"
       >
-        ← back to Earth
+        <span className="sm:hidden">←</span>
+        <span className="hidden sm:inline">← back to Earth</span>
       </button>
 
-      {/* caption card */}
-      <div className="hud pointer-events-none absolute top-20 right-4 w-72 px-4 py-3">
+      {/* caption card — desktop only (top-right); phones show the text in the header */}
+      <div
+        style={{ position: 'absolute' }}
+        className="hud pointer-events-none top-20 right-4 hidden w-72 px-4 py-3 sm:block"
+      >
         <h2 className="text-xs font-semibold tracking-wide text-amber-300 uppercase">
           {milestone.title}
         </h2>
         <p className="mt-1 text-xs text-slate-300">{milestone.text}</p>
         <p className="mt-2 text-[10px] text-slate-500">
-          Maps © Scotese et al., PALEOMAP (Zenodo) · CC-BY-4.0
+          {ma < 0
+            ? 'Future = projected concept · Pangaea Proxima, Wikimedia Commons · CC-BY-SA 4.0'
+            : 'Maps © Scotese et al., PALEOMAP (Zenodo) · CC-BY-4.0'}
         </p>
       </div>
+      {/* compact attribution for phones (bottom, above the scrubber) */}
+      <p className="pointer-events-none absolute inset-x-0 bottom-20 px-4 text-center text-[10px] text-slate-500 sm:hidden">
+        {ma < 0
+          ? 'Pangaea Proxima · Wikimedia · CC-BY-SA 4.0 — projected'
+          : 'Maps © Scotese, PALEOMAP · CC-BY-4.0'}
+      </p>
 
-      {/* timeline scrubber */}
-      <div className="hud pointer-events-auto absolute inset-x-0 bottom-6 mx-auto flex w-[min(40rem,92vw)] items-center gap-3 px-4 py-3">
+      {/* timeline scrubber: Pangaea (340 Ma) → today → projected future (+250 My) */}
+      <div
+        style={{ position: 'absolute' }}
+        className="hud pointer-events-auto inset-x-0 bottom-5 mx-auto flex w-[min(42rem,94vw)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4"
+      >
         <button
           type="button"
           onClick={() => {
-            if (ma < 1) setMa(MAX_MA)
+            if (ma <= FUTURE_MA) setMa(MAX_MA)
             setPlaying((p) => !p)
           }}
-          className="text-lg text-slate-200"
+          className="shrink-0 text-lg text-slate-200"
           aria-label={playing ? 'Pause' : 'Play'}
         >
           {playing ? '⏸' : '▶'}
         </button>
-        <span className="font-[var(--font-mono)] text-[10px] text-slate-500">340 Ma</span>
+        <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
+          340 Ma
+        </span>
         <input
           type="range"
           min={0}
-          max={MAX_MA}
+          max={MAX_MA - FUTURE_MA}
           step={1}
-          // slider left = oldest (Pangaea), right = today → invert the value
+          aria-label="Geological time"
+          // slider left = oldest (Pangaea), right = projected future → invert
           value={MAX_MA - ma}
           onChange={(e) => {
             setPlaying(false)
@@ -222,7 +269,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
           }}
           className="grow accent-amber-400"
         />
-        <span className="font-[var(--font-mono)] text-[10px] text-slate-500">today</span>
+        <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
+          +250 My
+        </span>
       </div>
     </div>
   )
