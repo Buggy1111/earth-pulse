@@ -41,6 +41,39 @@ export function startTour(
   return () => clearInterval(id)
 }
 
+/** Lock onto a satellite: snap the camera up close, pin it so it flies along
+ * with the satellite, and re-target the controls so dragging orbits AROUND it
+ * (scroll zooms). Cleanup releases it and glides back to the Earth view. Mirrors
+ * enterMoonMode for a small, fast-moving body. */
+export function followSatellite(
+  globe: GlobeInstance,
+  target: THREE.Object3D,
+  pinTargetRef: { current: THREE.Object3D | null },
+): () => void {
+  const controls = globe.controls()
+  const prevMin = controls.minDistance
+  const prevAuto = controls.autoRotate
+  controls.autoRotate = false
+  controls.minDistance = 6 // the sat models are ~5 units across
+  const cam = globe.camera() as THREE.PerspectiveCamera
+  const p = new THREE.Vector3()
+  target.getWorldPosition(p)
+  const dir = p.clone().normalize() // Earth-centre → satellite
+  // sit just beyond and above the satellite, looking back at it (Earth below)
+  cam.position.copy(p).addScaledVector(dir, 14).add(new THREE.Vector3(0, 7, 0))
+  pinTargetRef.current = target // the rAF chase keeps the camera flying with it
+  controls.target.copy(p)
+  controls.update()
+  return () => {
+    pinTargetRef.current = null
+    controls.minDistance = prevMin
+    controls.autoRotate = prevAuto
+    controls.target.set(0, 0, 0)
+    controls.update()
+    globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 800)
+  }
+}
+
 /** Re-target the orbit controls from Earth to the Moon — drag orbits the
  * Moon, Earth hangs in its sky. Cleanup restores the Earth view. */
 export function enterMoonMode(

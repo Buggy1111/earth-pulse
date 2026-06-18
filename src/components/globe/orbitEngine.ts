@@ -335,7 +335,7 @@ export function startOrbitEngine(
         const speed = v ? ` · ${Math.round(v).toLocaleString('en-US')} km/h` : ''
         return tooltip(`🛰 <b>ISS</b> · ${Math.round(o.altKm)} km${speed} · click to follow`)
       }
-      return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km · click for orbit`)
+      return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km · click to fly with it`)
     })
     .onObjectClick((d) => {
       const o = d as OrbitObject

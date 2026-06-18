@@ -12,7 +12,7 @@ import type { ApolloSite } from '../lib/moon'
 import { EARTH_DISPLAY } from '../lib/planets'
 import { globeAltitude, type TrackedSat } from '../lib/satellites'
 import type { LayerState } from './hud/types'
-import { enterMoonMode, startTour } from './globe/cameraModes'
+import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
 import { type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers } from './globe/quakesLayer'
@@ -48,6 +48,8 @@ interface Props {
   onPovChange: (pov: { lat: number; lng: number; altitude: number }) => void
   /** Satellite picked in the search box — fly the camera to it. */
   focusSat: { id: string; v: number } | null
+  /** Satellite to lock onto: camera flies with it & orbits around it; null releases. */
+  followSat: { id: string; name: string } | null
   /** Quake picked in the HUD — fly the camera there. */
   flyTo: { lat: number; lng: number; v: number } | null
   /** Bumped to recenter the camera on the default Earth view. */
@@ -497,6 +499,21 @@ export function GlobeView(props: Props) {
       1_400,
     )
   }, [focusSat])
+
+  // 🛰 lock onto a clicked satellite: snap in, fly with it, orbit around it.
+  // Clearing followSat (or switching sats) runs the cleanup → releases & glides out.
+  const { followSat } = props
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !followSat) return
+    const o = orbitObjectsRef.current.get(followSat.id) as
+      | (OrbitObject & { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D })
+      | undefined
+    const mesh = o?.__threeObjObject ?? o?.__threeObj
+    if (!mesh) return
+    userInteractedRef.current = true
+    return followSatellite(globe, mesh, pinTargetRef)
+  }, [followSat])
 
   // HUD quake click: fly the camera to the epicenter
   useEffect(() => {

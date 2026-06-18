@@ -72,6 +72,8 @@ export default function App() {
   const [orbits, setOrbits] = useState<OrbitEntry[]>([])
   const { userLoc, locating, locVersion, onLocate } = useGeolocate()
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
+  // 🛰 satellite the camera is locked onto (flies with it, orbit around it)
+  const [followSat, setFollowSat] = useState<{ id: string; name: string } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   const { eco, onToggleEco } = useEcoMode(ready)
   // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
@@ -174,6 +176,7 @@ export default function App() {
     setMoonMode(false)
     setApolloSite(null)
     setFollowIss(false)
+    setFollowSat(null)
     setTourOn(false)
   }, [onWarpReset])
   const goDrift = useCallback(() => {
@@ -181,6 +184,7 @@ export default function App() {
     setSolarMode(false)
     setMoonMode(false)
     setFollowIss(false)
+    setFollowSat(null)
     setTourOn(false)
   }, [])
   const goMoon = useCallback(() => {
@@ -188,6 +192,7 @@ export default function App() {
     onWarpReset()
     setFocusPlanet(null)
     setDriftMode(false)
+    setFollowSat(null)
   }, [onMoonEnter, onWarpReset])
   const goSolar = useCallback(() => {
     setSolarMode(true)
@@ -195,6 +200,7 @@ export default function App() {
     setApolloSite(null)
     setFocusPlanet(null)
     setFollowIss(false)
+    setFollowSat(null)
     setTourOn(false)
     setDriftMode(false)
   }, [])
@@ -267,10 +273,12 @@ export default function App() {
 
   const [selectedMission, setSelectedMission] = useState<string | null>(null)
   const onSatClick = useCallback((id: string, name: string) => {
-    setOrbits((list) =>
-      list.some((o) => o.id === id) ? list.filter((o) => o.id !== id) : [...list, { id, name }],
-    )
+    // click a satellite → lock the camera onto it; click it again → release.
+    // Its orbit line + mission card come along for the ride.
+    setOrbits((list) => (list.some((o) => o.id === id) ? list : [...list, { id, name }]))
     setSelectedMission(name)
+    setFollowIss(false) // the pin-follow and the ISS-follow are mutually exclusive
+    setFollowSat((prev) => (prev?.id === id ? null : { id, name }))
   }, [])
   const onRemoveOrbit = useCallback(
     (id: string) => setOrbits((list) => list.filter((o) => o.id !== id)),
@@ -305,7 +313,10 @@ export default function App() {
 
   const onReady = useCallback(() => setReady(true), [])
   const onFollowBroken = useCallback(() => setFollowIss(false), [])
-  const onIssClick = useCallback(() => setFollowIss((f) => !f), [])
+  const onIssClick = useCallback(() => {
+    setFollowSat(null) // ISS-follow and satellite pin-follow are exclusive
+    setFollowIss((f) => !f)
+  }, [])
 
   return (
     <>
@@ -327,6 +338,7 @@ export default function App() {
         eco={eco}
         earthSpin={earthSpin}
         focusSat={focusSat}
+          followSat={followSat}
         flyTo={flyTo}
         resetView={resetView}
         simNow={simNow}
