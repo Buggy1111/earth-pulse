@@ -1,7 +1,7 @@
 // Builds the continental-drift frames in public/planets/paleo/*.webp from the
 // Scotese PALEOMAP "Rectilinear" (equirectangular) paleogeographic maps —
 // public-domain-friendly CC-BY-4.0 on Zenodo. Run: npm run fetch-paleo
-// (rarely — ~387 MB download, then it keeps every 10 Myr frame 0→340 Ma).
+// (rarely — ~387 MB download, then it keeps every 5 Myr frame 0→340 Ma).
 //
 // Source (CC-BY-4.0, verified): Scotese, C.R., Vérard, C., Burgener, L.,
 // Elling, R.P. & Kocsis, Á.T. (2024). PALEOMAP, Zenodo.
@@ -16,7 +16,7 @@ import sharp from 'sharp'
 
 const ZIP_URL =
   'https://zenodo.org/api/records/10659112/files/4b1.%20Paleogeographic%20Maps%20(Rectilinear).zip/content'
-const STEP = 10
+const STEP = 5
 const MAX_MA = 340
 const out = new URL('../public/planets/paleo/', import.meta.url)
 const zip = join(tmpdir(), 'scotese_rect.zip')

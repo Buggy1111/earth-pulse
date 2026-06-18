@@ -10,10 +10,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // past frames live every 10 Myr from 0 (today) to 340 Mya (public/planets/paleo);
 // the future is one reprojected frame at −250 Myr (Pangaea Proxima)
-const STEP = 10
+const STEP = 5 // 5-Myr frames → the drift reads as smooth motion, not stepped
 const MAX_MA = 340
 const FUTURE_MA = -250
-const FRAMES = Array.from({ length: MAX_MA / STEP + 1 }, (_, i) => i * STEP) // 0,10,…,340
+const FRAMES = Array.from({ length: MAX_MA / STEP + 1 }, (_, i) => i * STEP) // 0,5,…,340
 const pad = (n: number) => String(n).padStart(3, '0')
 
 // milestone captions (Ma → what the map shows; negative = future), nearest wins
@@ -178,7 +178,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const tick = (t: number) => {
       if (last) {
         setMa((prev) => {
-          const next = prev - ((t - last) / 1000) * 14 // ~14 Myr per second
+          const next = prev - ((t - last) / 1000) * 9 // ~9 Myr/s — a graceful glide
           if (next <= FUTURE_MA) {
             setPlaying(false)
             return FUTURE_MA
