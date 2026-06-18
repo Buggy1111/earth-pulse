@@ -31,6 +31,7 @@ import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove } from './lib/satellites'
 import { parseView } from './lib/share'
+import { PangeaView } from './components/PangeaView'
 
 // shared link? restore camera/orbits/layers from the URL hash
 const initialView = parseView(window.location.hash)
@@ -132,6 +133,8 @@ export default function App() {
   const [apolloSite, setApolloSite] = useState<ApolloSite | null>(null)
   // 🪐 solar system mode + ⏩ time-warp (simMs runs warp× faster than real)
   const [solarMode, setSolarMode] = useState(false)
+  // 🌍 continental-drift mode: a full-screen Pangaea→today globe (own scene)
+  const [driftMode, setDriftMode] = useState(false)
   const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
   const { solarTime, onWarp, onWarpReset, onVisibilityChange } = useSolarTime()
   const solarSimNow = solarTime.simMs + (now - solarTime.realMs) * solarTime.warp
@@ -165,6 +168,7 @@ export default function App() {
   // you're never stranded needing to back out through Earth first.
   const goEarth = useCallback(() => {
     setSolarMode(false)
+    setDriftMode(false)
     setFocusPlanet(null)
     onWarpReset()
     setMoonMode(false)
@@ -172,10 +176,18 @@ export default function App() {
     setFollowIss(false)
     setTourOn(false)
   }, [onWarpReset])
+  const goDrift = useCallback(() => {
+    setDriftMode(true)
+    setSolarMode(false)
+    setMoonMode(false)
+    setFollowIss(false)
+    setTourOn(false)
+  }, [])
   const goMoon = useCallback(() => {
     onMoonEnter()
     onWarpReset()
     setFocusPlanet(null)
+    setDriftMode(false)
   }, [onMoonEnter, onWarpReset])
   const goSolar = useCallback(() => {
     setSolarMode(true)
@@ -184,6 +196,7 @@ export default function App() {
     setFocusPlanet(null)
     setFollowIss(false)
     setTourOn(false)
+    setDriftMode(false)
   }, [])
 
   // 👁 clean view: hide the whole HUD for an unobstructed globe (great for
@@ -231,10 +244,11 @@ export default function App() {
       } else if (e.key === '1') goEarth()
       else if (e.key === '2') goMoon()
       else if (e.key === '3') goSolar()
+      else if (e.key === '4') goDrift()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [hudHidden, goEarth, goMoon, goSolar])
+  }, [hudHidden, goEarth, goMoon, goSolar, goDrift])
 
   // re-anchor the warp clock when the window returns from the background, so a
   // minimized/backgrounded tab never comes back to a frozen scene (see hook).
@@ -341,7 +355,7 @@ export default function App() {
           tablets. Hidden entirely in clean view / kiosk. */}
       {!hudOff && (
         <Hud
-          mode={mode}
+          mode={driftMode ? 'drift' : mode}
           isDesktop={isDesktop}
           drawer={drawer}
           onToggleLeft={toggleLeft}
@@ -349,6 +363,7 @@ export default function App() {
           onEarth={goEarth}
           onMoon={goMoon}
           onSolar={goSolar}
+          onDrift={goDrift}
           now={now}
           satCount={sats.length}
           solarMode={solarMode}
@@ -417,6 +432,8 @@ export default function App() {
           issPass={issPass}
         />
       )}
+
+      {driftMode && <PangeaView onClose={goEarth} />}
     </>
   )
 }

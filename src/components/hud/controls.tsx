@@ -10,16 +10,25 @@ export function ModeSwitcher({
   onEarth,
   onMoon,
   onSolar,
+  onDrift,
 }: {
-  mode: 'earth' | 'moon' | 'solar'
+  mode: 'earth' | 'moon' | 'solar' | 'drift'
   onEarth: () => void
   onMoon: () => void
   onSolar: () => void
+  onDrift: () => void
 }) {
-  const worlds: { id: 'earth' | 'moon' | 'solar'; icon: string; label: string; color: string; go: () => void }[] = [
+  const worlds: {
+    id: 'earth' | 'moon' | 'solar' | 'drift'
+    icon: string
+    label: string
+    color: string
+    go: () => void
+  }[] = [
     { id: 'earth', icon: '🌍', label: 'Earth', color: 'text-sky-300', go: onEarth },
     { id: 'moon', icon: '🌙', label: 'Moon', color: 'text-slate-200', go: onMoon },
     { id: 'solar', icon: '🪐', label: 'Solar', color: 'text-violet-300', go: onSolar },
+    { id: 'drift', icon: '🗺', label: 'Drift', color: 'text-amber-300', go: onDrift },
   ]
   return (
     <div className="hud pointer-events-auto flex overflow-hidden text-xs">

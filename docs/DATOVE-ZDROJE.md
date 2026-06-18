@@ -74,6 +74,7 @@ Polohy a fáze se počítají čistou matematikou v `src/lib/` — bez sítě:
 - **Mapový detail při zoomu** © Esri & contributors
 - **Portréty/textury měsíců** — NASA / USGS (public domain), stahuje `npm run fetch-moons`
 - **Vesmírné pozadí** — skutečná Mléčná dráha `public/stars-milky-way.webp` (8K equirect, SSS CC BY; zjasněná multiplikativně, max anisotropy)
+- **Kontinentální drift (🗺 Drift režim)** — paleogeografické mapy `public/planets/paleo/paleo-*.webp` (Pangea 340 Ma → dnešek, po 10 Myr) © Scotese et al., PALEOMAP, Zenodo `10.5281/zenodo.10659112` — **CC-BY-4.0**, stahuje `npm run fetch-paleo` (rectilinear/equirektangulární set, downscale na 1024×512). Pozn.: budoucí superkontinenty (Pangaea Ultima ad.) nemají volně šiřitelnou equirekt mapu → zatím nezahrnuto.
 
 ## 3D modely satelitů (`public/models/sats/*.glb`, atribuce)
 Reálné modely 20 z 26 satelitů; zbytek (Sentinel-1/2/3, TanDEM-X, GCOM-W1) =

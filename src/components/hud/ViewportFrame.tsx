@@ -6,10 +6,11 @@
 
 import { formatLocalClock } from '../../lib/format'
 
-const MODE_LABEL: Record<'earth' | 'moon' | 'solar', string> = {
+const MODE_LABEL: Record<'earth' | 'moon' | 'solar' | 'drift', string> = {
   earth: 'earth orbit',
   moon: 'lunar approach',
   solar: 'heliocentric',
+  drift: 'deep time',
 }
 
 export function ViewportFrame({
@@ -17,7 +18,7 @@ export function ViewportFrame({
   now,
   satCount,
 }: {
-  mode: 'earth' | 'moon' | 'solar'
+  mode: 'earth' | 'moon' | 'solar' | 'drift'
   now: number
   /** Tracked-object count, shown as the telemetry payload. */
   satCount: number

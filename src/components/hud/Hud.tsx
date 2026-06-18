@@ -25,7 +25,7 @@ import { ViewportFrame } from './ViewportFrame'
 import type { LayerState, OrbitEntry } from './types'
 
 interface HudProps {
-  mode: 'earth' | 'moon' | 'solar'
+  mode: 'earth' | 'moon' | 'solar' | 'drift'
   isDesktop: boolean
   drawer: 'left' | 'right' | null
   onToggleLeft: () => void
@@ -34,6 +34,7 @@ interface HudProps {
   onEarth: () => void
   onMoon: () => void
   onSolar: () => void
+  onDrift: () => void
   // title + clock
   now: number
   satCount: number
@@ -250,7 +251,13 @@ export function Hud(p: HudProps) {
       {/* world switcher — always visible above everything, both layouts */}
       <div className="pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 sm:top-4">
         <span className="vf-eyebrow hidden sm:block">◂ orbital telemetry console ▸</span>
-        <ModeSwitcher mode={p.mode} onEarth={p.onEarth} onMoon={p.onMoon} onSolar={p.onSolar} />
+        <ModeSwitcher
+          mode={p.mode}
+          onEarth={p.onEarth}
+          onMoon={p.onMoon}
+          onSolar={p.onSolar}
+          onDrift={p.onDrift}
+        />
       </div>
 
       {p.isDesktop ? (
