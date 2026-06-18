@@ -13,34 +13,47 @@ interface ModelDef {
   file: string
   /** size multiplier on top of the normalised ~4-unit fit (stations are big) */
   scale?: number
+  /** real MLI/bus body colour — bare light parts are tinted to it (real photos) */
+  tint?: string
 }
+
+// real spacecraft body colours (from reference imagery) — they are NOT all gold
+const GOLD = '#c79a3e' // gold MLI foil
+const SILVER = '#c2ccd8' // bare aluminium / light grey
+const WHITE = '#e4e7ec' // white thermal blankets / panels
 
 // satellite name (from famous.txt) → its real NASA model (public-domain glbs).
 // Several share a model where the real thing is near-identical: Landsat 8/9,
 // GOES-16/18, stations (ISS/Tiangong), and the three JPSS sats (Suomi NPP /
-// NOAA-20 / NOAA-21) which fly the same Ball BCP-2000 bus.
+// NOAA-20 / NOAA-21) which fly the same Ball BCP-2000 bus. `tint` is the real
+// body colour each bus reads as in photos.
 const MODELS: Record<string, ModelDef> = {
-  ISS: { file: 'iss.glb', scale: 2.0 },
-  Tiangong: { file: 'iss.glb', scale: 1.5 }, // a station — the ISS model stands in
-  Hubble: { file: 'hubble.glb', scale: 1.15 },
-  Terra: { file: 'terra.glb' },
-  Fermi: { file: 'fermi.glb' },
-  Aqua: { file: 'aqua.glb' },
-  Aura: { file: 'aura.glb' },
-  'Suomi NPP': { file: 'suomi-npp.glb' },
-  'NOAA-20': { file: 'suomi-npp.glb' }, // JPSS-1 — same bus as Suomi NPP
-  'NOAA-21': { file: 'suomi-npp.glb' }, // JPSS-2 — same bus as Suomi NPP
-  'Landsat 8': { file: 'landsat8.glb' },
-  'Landsat 9': { file: 'landsat8.glb' },
-  'Sentinel-6': { file: 'sentinel6.glb' },
-  'Jason-3': { file: 'jason.glb' },
-  'ICESat-2': { file: 'icesat2.glb' },
-  'GRACE-FO 1': { file: 'grace.glb' },
-  'OCO-2': { file: 'oco2.glb' },
-  SWOT: { file: 'swot.glb' }, // NASA/JPL public-domain model
-  'GOES-16': { file: 'goes.glb' },
-  'GOES-18': { file: 'goes.glb' }, // same bus as GOES-16
+  ISS: { file: 'iss.glb', scale: 2.0, tint: WHITE },
+  Tiangong: { file: 'iss.glb', scale: 1.5, tint: WHITE }, // a station — ISS model stands in
+  Hubble: { file: 'hubble.glb', scale: 1.15, tint: SILVER },
+  Terra: { file: 'terra.glb', tint: SILVER },
+  Fermi: { file: 'fermi.glb', tint: WHITE },
+  Aqua: { file: 'aqua.glb', tint: SILVER },
+  Aura: { file: 'aura.glb', tint: SILVER },
+  'Suomi NPP': { file: 'suomi-npp.glb', tint: GOLD },
+  'NOAA-20': { file: 'suomi-npp.glb', tint: GOLD }, // JPSS-1 — same bus as Suomi NPP
+  'NOAA-21': { file: 'suomi-npp.glb', tint: GOLD }, // JPSS-2 — same bus as Suomi NPP
+  'Landsat 8': { file: 'landsat8.glb', tint: SILVER },
+  'Landsat 9': { file: 'landsat8.glb', tint: SILVER },
+  'Sentinel-6': { file: 'sentinel6.glb', tint: GOLD },
+  'Jason-3': { file: 'jason.glb', tint: GOLD },
+  'ICESat-2': { file: 'icesat2.glb', tint: SILVER },
+  'GRACE-FO 1': { file: 'grace.glb', tint: GOLD },
+  'OCO-2': { file: 'oco2.glb', tint: SILVER },
+  SWOT: { file: 'swot.glb', tint: SILVER }, // NASA/JPL public-domain model
+  'GOES-16': { file: 'goes.glb', tint: WHITE },
+  'GOES-18': { file: 'goes.glb', tint: WHITE }, // same bus as GOES-16
 }
+
+// file → its body tint (shared-model files all read the same colour)
+const FILE_TINT = new Map<string, string | undefined>()
+for (const def of Object.values(MODELS)) if (!FILE_TINT.has(def.file)) FILE_TINT.set(def.file, def.tint)
+const _tintCol = new THREE.Color()
 
 const BASE = 'models/sats/'
 const TARGET_SIZE = 4.2
@@ -54,12 +67,14 @@ const loading = new Map<string, Promise<void>>()
 
 /** Centre, scale to TARGET_SIZE and boost emissive so the model is visible
  * without scene lighting (the orbit layer is self-lit, like the primitives). */
-function prepare(scene: THREE.Object3D): THREE.Group {
+function prepare(scene: THREE.Object3D, tint?: string): THREE.Group {
   const box = new THREE.Box3().setFromObject(scene)
   const size = box.getSize(new THREE.Vector3())
   const center = box.getCenter(new THREE.Vector3())
   const maxDim = Math.max(size.x, size.y, size.z) || 1
   scene.position.sub(center)
+  const t = { h: 0, s: 0, l: 0 }
+  if (tint) _tintCol.set(tint).getHSL(t)
   scene.traverse((o) => {
     const mesh = o as THREE.Mesh
     if (!mesh.material) return
@@ -67,13 +82,15 @@ function prepare(scene: THREE.Object3D): THREE.Group {
     for (const mat of mats) {
       const m = mat as THREE.MeshStandardMaterial
       if (!m.color) continue
-      // Untextured parts get a subtle spacecraft-metal finish so the colourless
-      // white/grey models read like real foil/aluminium next to the textured
-      // ones. Real colours are kept — only near-white/grey gets a warm MLI tint.
+      // Untextured parts get a spacecraft-metal finish; the light/grey MLI skin is
+      // recoloured to the satellite's REAL body colour (gold / silver / white),
+      // while dark parts (solar panels, black instruments) keep their colour.
       if (!m.map) {
         const hsl = { h: 0, s: 0, l: 0 }
         m.color.getHSL(hsl)
-        if (hsl.s < 0.15) m.color.setHSL(0.09, 0.22, Math.min(0.7, Math.max(0.42, hsl.l)))
+        if (tint && hsl.s < 0.2 && hsl.l > 0.3) {
+          m.color.setHSL(t.h, t.s, Math.min(0.72, Math.max(0.45, hsl.l)))
+        }
         m.metalness = Math.max(m.metalness ?? 0, 0.55)
         m.roughness = Math.min(m.roughness ?? 1, 0.45)
       }
@@ -100,7 +117,7 @@ export function preloadSatModels(names: Iterable<string>): Promise<void> {
       job = loader
         .loadAsync(BASE + file)
         .then((g) => {
-          templates.set(file, prepare(g.scene))
+          templates.set(file, prepare(g.scene, FILE_TINT.get(file)))
         })
         .catch(() => {
           // model unavailable — the primitive stays
