@@ -92,14 +92,16 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       textures[i] = t
       return t
     }
-    // the projected future supercontinent (Pangaea Proxima), loaded lazily
-    let futureTex: THREE.Texture | null = null
-    const getFuture = (): THREE.Texture => {
-      if (!futureTex) {
-        futureTex = loader.load('planets/paleo/paleo-fut250.webp')
-        futureTex.colorSpace = THREE.SRGBColorSpace
-      }
-      return futureTex
+    // projected future: morph frames every 50 Myr (today → Pangaea Proxima),
+    // index k = 1..5 → paleo-fut050…fut250; k=0 is today (the detailed frame)
+    const futureTex: (THREE.Texture | null)[] = [null, null, null, null, null, null]
+    const getFutureTex = (k: number): THREE.Texture => {
+      if (k <= 0) return getTex(0)
+      if (futureTex[k]) return futureTex[k] as THREE.Texture
+      const t = loader.load(`planets/paleo/paleo-fut${pad(k * 50)}.webp`)
+      t.colorSpace = THREE.SRGBColorSpace
+      futureTex[k] = t
+      return t
     }
 
     const uniforms = {
@@ -126,10 +128,12 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       if (disposed) return
       const m = maRef.current
       if (m <= 0) {
-        // future: cross-fade from today (0 Ma) to the projected Pangaea Proxima
-        uniforms.texA.value = getTex(0)
-        uniforms.texB.value = getFuture()
-        uniforms.mixf.value = Math.min(-m / -FUTURE_MA, 1)
+        // future: step through the 50-Myr morph frames (today → Pangaea Proxima)
+        const g = Math.min(-m / 50, 5) // 0..5 across the future steps
+        const k = Math.min(Math.floor(g), 4)
+        uniforms.texA.value = getFutureTex(k)
+        uniforms.texB.value = getFutureTex(k + 1)
+        uniforms.mixf.value = g - k
       } else {
         const f = m / STEP // continuous frame index
         const i = Math.min(Math.floor(f), FRAMES.length - 2)
@@ -153,7 +157,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       starTex.dispose()
       blank.dispose()
       for (const t of textures) t?.dispose()
-      futureTex?.dispose()
+      for (const t of futureTex) t?.dispose()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
