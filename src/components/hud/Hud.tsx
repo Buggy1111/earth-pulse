@@ -6,15 +6,11 @@ import type { ComponentProps } from 'react'
 import {
   AbovePanel,
   DataLayerPanel,
-  EventsPanel,
-  IssPanel,
-  MissionCard,
-  QuakeDetail,
   QuakePanel,
   SpaceWeatherPanel,
   TitleCard,
-  WikiPanel,
 } from './panels'
+import { EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
 import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
