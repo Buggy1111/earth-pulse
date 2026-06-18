@@ -41,6 +41,8 @@ interface Props {
   locVersion: number
   /** Eco/performance mode: 4K textures, 1× pixel ratio, 30 Hz propagation. */
   eco: boolean
+  /** "Earth spins" view: camera follows the Sun so the Earth appears to rotate. */
+  earthSpin: boolean
   /** Camera restored from a shared link — overrides the default opening view. */
   initialPov: { lat: number; lng: number; altitude: number } | null
   onPovChange: (pov: { lat: number; lng: number; altitude: number }) => void
@@ -98,6 +100,9 @@ export function GlobeView(props: Props) {
   // the 24 h earthquake replay — not just the quakes
   const timeOffsetMsRef = useRef(0)
   const ecoRef = useRef(eco)
+  // "Earth spins" is active only in the plain Earth view — never while a body is
+  // followed/toured or in moon/solar mode (those drive the camera themselves).
+  const earthSpinRef = useRef(false)
   const issStateRef = useRef<IssState | null>(null)
   useEffect(() => {
     cb.current = { ...props }
@@ -108,6 +113,7 @@ export function GlobeView(props: Props) {
     moonModeRef.current = moonMode
     solarModeRef.current = solarMode
     solarTimeRef.current = solarTime
+    earthSpinRef.current = props.earthSpin && !followIss && !tour && !moonMode && !solarMode
     issStateRef.current = iss
   })
   const initialPovRef = useRef(props.initialPov)
@@ -328,6 +334,7 @@ export function GlobeView(props: Props) {
       applySkyRef,
       timeOffsetMsRef,
       pinTargetRef,
+      earthSpinRef,
       trailsRef,
       issStateRef,
       orbitObjectsRef,

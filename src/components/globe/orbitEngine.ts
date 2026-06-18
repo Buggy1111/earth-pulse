@@ -6,6 +6,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { IssState } from '../../lib/iss'
 import type { MoonDef } from '../../lib/planets'
+import { subsolarPoint } from '../../lib/sun'
 import {
   globeAltitude,
   isIss,
@@ -102,6 +103,9 @@ export interface OrbitEngineDeps {
    * rewinds with the earthquake timeline. */
   timeOffsetMsRef: { current: number }
   pinTargetRef: { current: THREE.Object3D | null }
+  /** "Earth spins" view: rotate the camera to follow the Sun so the Sun parks
+   * and the Earth appears to rotate (already gated for solar/follow/tour/moon). */
+  earthSpinRef: { current: boolean }
   trailsRef: { current: Map<string, Trail> }
   issStateRef: { current: IssState | null }
   orbitObjectsRef: { current: Map<string, OrbitObject> }
@@ -157,6 +161,7 @@ export function startOrbitEngine(
   const prevPinWorld = new THREE.Vector3()
   let prevPinObj: THREE.Object3D | null = null
   let satsParked = false
+  let lastSunAz = NaN // for the "Earth spins" camera follow (Sun's world azimuth)
   const frame = () => {
     frameNo++
     // warped clock: everything physical follows it (sats speed up too)
@@ -206,6 +211,39 @@ export function startOrbitEngine(
       // clock plus the 24 h-replay offset, so live drifts smoothly and a
       // scrub/replay sweeps the day/night around the globe with the quakes.
       deps.applySkyRef.current(new Date(now.getTime() + deps.timeOffsetMsRef.current))
+      // 🌍 "Earth spins" mode: under time-warp, rotate the camera about the
+      // polar axis to track the Sun's azimuth, so the Sun parks and the Earth
+      // visibly rotates under it (physics untouched — just the viewpoint). At 1×
+      // the spin is imperceptible, so we leave globe.gl's gentle idle auto-rotate
+      // alone. Skipped while a body is pinned (the chase block owns the camera).
+      const warp = deps.solarTimeRef.current.warp
+      const ctrl = globe.controls() as unknown as { autoRotate: boolean; enableDamping: boolean }
+      if (deps.earthSpinRef.current && warp !== 1 && !deps.pinTargetRef.current) {
+        // our Sun-tracking IS the rotation — turn off BOTH the idle auto-rotate
+        // and damping, which each otherwise nudge the camera every frame and make
+        // the Sun drift off-screen. Restored in the else branch for normal drag.
+        ctrl.autoRotate = false
+        ctrl.enableDamping = false
+        // track the Sun's WORLD azimuth (not its longitude — globe.gl maps lng to
+        // azimuth with a sign flip) and rotate the camera by the same delta.
+        const s = subsolarPoint(new Date(now.getTime() + deps.timeOffsetMsRef.current))
+        const c = globe.getCoords(s.lat, s.lng, 0)
+        const az = Math.atan2(c.x, c.z)
+        if (Number.isFinite(lastSunAz)) {
+          let d = az - lastSunAz
+          if (d > Math.PI) d -= 2 * Math.PI
+          else if (d < -Math.PI) d += 2 * Math.PI
+          if (d !== 0) {
+            const cam = globe.camera() as THREE.PerspectiveCamera
+            const tgt = globe.controls().target
+            cam.position.sub(tgt).applyAxisAngle(Y_UP, d).add(tgt)
+          }
+        }
+        lastSunAz = az
+      } else {
+        if (!ctrl.enableDamping) ctrl.enableDamping = true // restore smooth drag
+        lastSunAz = NaN
+      }
     }
     // bodies drift — keep the orbit pivot glued to whatever we're orbiting,
     // and CHASE it: the camera translates with the body, so a focused planet

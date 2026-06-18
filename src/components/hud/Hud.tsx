@@ -64,6 +64,8 @@ interface HudProps {
   onPickSat: (id: string, name: string) => void
   eco: boolean
   onToggleEco: () => void
+  earthSpin: boolean
+  onToggleEarthSpin: () => void
   kioskEnabled: boolean
   onToggleKiosk: () => void
   userLoc: { lat: number; lng: number } | null
@@ -150,6 +152,8 @@ export function Hud(p: HudProps) {
         onPickSat={p.onPickSat}
         eco={p.eco}
         onToggleEco={p.onToggleEco}
+        earthSpin={p.earthSpin}
+        onToggleEarthSpin={p.onToggleEarthSpin}
         kioskEnabled={p.kioskEnabled}
         onToggleKiosk={p.onToggleKiosk}
         userLoc={p.userLoc}

@@ -73,6 +73,17 @@ export default function App() {
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   const { eco, onToggleEco } = useEcoMode(ready)
+  // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
+  const [earthSpin, setEarthSpin] = useState(
+    () => localStorage.getItem('earth-pulse-spin') !== 'off',
+  )
+  const onToggleEarthSpin = useCallback(() => {
+    setEarthSpin((v) => {
+      const next = !v
+      localStorage.setItem('earth-pulse-spin', next ? 'on' : 'off')
+      return next
+    })
+  }, [])
   const orbitIds = useMemo(() => orbits.map((o) => o.id), [orbits])
   const satList = useMemo(
     () => sats.filter((s) => !isIss(s.name)).map((s) => ({ id: s.id, name: s.name })),
@@ -295,6 +306,7 @@ export default function App() {
         userLoc={userLoc}
         locVersion={locVersion}
         eco={eco}
+        earthSpin={earthSpin}
         focusSat={focusSat}
         flyTo={flyTo}
         resetView={resetView}
@@ -364,6 +376,8 @@ export default function App() {
           onPickSat={onPickSat}
           eco={eco}
           onToggleEco={onToggleEco}
+          earthSpin={earthSpin}
+          onToggleEarthSpin={onToggleEarthSpin}
           kioskEnabled={kioskEnabled}
           onToggleKiosk={onToggleKiosk}
           userLoc={userLoc}

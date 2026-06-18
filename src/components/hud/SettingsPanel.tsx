@@ -14,6 +14,8 @@ export function SettingsPanel({
   onPickSat,
   eco,
   onToggleEco,
+  earthSpin,
+  onToggleEarthSpin,
   kioskEnabled,
   onToggleKiosk,
   userLoc,
@@ -29,6 +31,8 @@ export function SettingsPanel({
   onPickSat: (id: string, name: string) => void
   eco: boolean
   onToggleEco: () => void
+  earthSpin: boolean
+  onToggleEarthSpin: () => void
   kioskEnabled: boolean
   onToggleKiosk: () => void
   userLoc: { lat: number; lng: number } | null
@@ -124,6 +128,18 @@ export function SettingsPanel({
             >
               <input type="checkbox" checked={eco} onChange={onToggleEco} className="accent-emerald-400" />
               ⚡ fast mode (2K)
+            </label>
+            <label
+              className="flex cursor-pointer items-center gap-2 text-xs text-slate-300"
+              title="Earth spins on its axis while the Sun stays put (the textbook view). Off = the Sun travels around a fixed Earth. Most visible when you speed up time."
+            >
+              <input
+                type="checkbox"
+                checked={earthSpin}
+                onChange={onToggleEarthSpin}
+                className="accent-sky-400"
+              />
+              🌍 Earth spins (Sun fixed)
             </label>
             <label
               className="flex cursor-pointer items-center gap-2 text-xs text-slate-300"
