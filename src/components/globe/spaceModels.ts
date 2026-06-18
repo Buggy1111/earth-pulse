@@ -82,17 +82,22 @@ function prepare(scene: THREE.Object3D, tint?: string): THREE.Group {
     for (const mat of mats) {
       const m = mat as THREE.MeshStandardMaterial
       if (!m.color) continue
-      // Untextured parts get a spacecraft-metal finish; the light/grey MLI skin is
-      // recoloured to the satellite's REAL body colour (gold / silver / white),
-      // while dark parts (solar panels, black instruments) keep their colour.
-      if (!m.map) {
-        const hsl = { h: 0, s: 0, l: 0 }
-        m.color.getHSL(hsl)
-        if (tint && hsl.s < 0.2 && hsl.l > 0.3) {
-          m.color.setHSL(t.h, t.s, Math.min(0.72, Math.max(0.45, hsl.l)))
-        }
-        m.metalness = Math.max(m.metalness ?? 0, 0.55)
-        m.roughness = Math.min(m.roughness ?? 1, 0.45)
+      const hsl = { h: 0, s: 0, l: 0 }
+      m.color.getHSL(hsl)
+      // The grey/silver bus skin (low-saturation base) is recoloured to the
+      // satellite's REAL body colour — gold / silver / white — EVEN when it has a
+      // texture (those textures are greyscale detail, so the tint multiplies in
+      // and recolours them). This is why Hubble & ISS used to stay flat grey.
+      // Already-coloured parts (GOES gold, Landsat instruments, solar panels) and
+      // dark parts keep their own colour, just get the metal sheen.
+      const greyBus = hsl.s < 0.12 && hsl.l > 0.22
+      if (tint && greyBus) {
+        m.color.setHSL(t.h, t.s, Math.min(0.82, Math.max(0.52, hsl.l)))
+        m.metalness = Math.max(m.metalness ?? 0, 0.62)
+        m.roughness = Math.min(m.roughness ?? 1, 0.4)
+      } else if (!m.map) {
+        m.metalness = Math.max(m.metalness ?? 0, 0.5)
+        m.roughness = Math.min(m.roughness ?? 1, 0.5)
       }
       if (m.emissive) {
         m.emissive.copy(m.color).multiplyScalar(0.45)
