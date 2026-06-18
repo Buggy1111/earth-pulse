@@ -309,8 +309,13 @@ export default function App() {
 
   return (
     <>
-      <GlobeView
-        quakes={displayQuakes}
+      {/* On phones/tablets the Drift view runs its OWN WebGL context — keeping the
+          main globe's context alive too exhausts mobile GPU memory and crashes the
+          tab. So unmount the main globe while drifting on small screens (desktop
+          has the memory to keep both). It re-inits on exit. */}
+      {(isDesktop || !driftMode) && (
+        <GlobeView
+          quakes={displayQuakes}
         flashes={timelineActive ? [] : flashes}
         iss={iss}
         sats={sats}
@@ -346,7 +351,8 @@ export default function App() {
         gibsLayer={gibsLayer}
         gibsDate={gibsImageryDate}
         onReady={onReady}
-      />
+        />
+      )}
       <LoadingOverlay done={ready} />
 
       {hudHidden && !kioskActive && <ShowHudButton onShow={() => setHudHidden(false)} />}

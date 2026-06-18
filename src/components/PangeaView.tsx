@@ -63,8 +63,14 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 2000)
     camera.position.set(0, 60, 320)
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // phones/tablets: lighter renderer to stay well inside the mobile GPU budget
+    const mobile =
+      matchMedia('(pointer: coarse)').matches && matchMedia('(max-width: 1024px)').matches
+    const renderer = new THREE.WebGLRenderer({
+      antialias: !mobile,
+      powerPreference: mobile ? 'low-power' : 'high-performance',
+    })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2))
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     mount.appendChild(renderer.domElement)
 
