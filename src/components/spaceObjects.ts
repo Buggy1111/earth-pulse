@@ -144,6 +144,10 @@ const ESA_BUS_GEO = new THREE.BoxGeometry(0.55, 0.55, 1.05)
 const WING_SEG_GEO = new THREE.BoxGeometry(0.8, 0.035, 0.58)
 const WING_BOOM_GEO = new THREE.CylinderGeometry(0.022, 0.022, 2.5, 5)
 const SAR_MAT = new THREE.MeshLambertMaterial({ color: '#cfd6e0', emissive: '#828b98' }) // light radar antenna
+// real spacecraft are NOT all gold — silver-aluminium bus + near-black panels too
+const SILVER_BUS_MAT = new THREE.MeshLambertMaterial({ color: '#cfd6e0', emissive: '#5a6470' }) // aluminium MLI
+const DARK_PANEL_MAT = new THREE.MeshLambertMaterial({ color: '#12131a', emissive: '#171b2b' }) // near-black GaAs
+const NADIR_MAT = new THREE.MeshLambertMaterial({ color: '#1a1a1a', emissive: '#202024' }) // black instrument
 // GCOM-W1's AMSR2 reflector is an iconic gold-mesh parabola (brighter than the bus gold)
 const GCOM_DISH_MAT = new THREE.MeshLambertMaterial({
   color: '#d4a93f',
@@ -159,13 +163,13 @@ const GCOM_DISH_GEO = new THREE.SphereGeometry(0.6, 14, 9, 0, Math.PI * 2, 0, Ma
 
 /** One deployed solar wing: a thin boom with three dark-blue panel segments
  * marching out from the bus along ±x. */
-function addSolarWing(g: THREE.Group, side: number): void {
+function addSolarWing(g: THREE.Group, side: number, panelMat: THREE.Material = PANEL_MAT): void {
   const boom = new THREE.Mesh(WING_BOOM_GEO, BOOM_MAT)
   boom.rotation.z = Math.PI / 2
   boom.position.x = side * 1.4
   g.add(boom)
   for (let i = 0; i < 3; i++) {
-    const seg = new THREE.Mesh(WING_SEG_GEO, PANEL_MAT)
+    const seg = new THREE.Mesh(WING_SEG_GEO, panelMat)
     seg.position.x = side * (0.7 + i * 0.82)
     g.add(seg)
   }
@@ -177,24 +181,24 @@ function tumble(o: THREE.Object3D, scale: number): THREE.Object3D {
   return o
 }
 
-/** Sentinel-1 — radar imager: gold bus, two solar wings, the iconic long flat
- * C-SAR antenna panel running along the body. */
+/** Sentinel-1 — radar imager: gold bus, two solar wings (near-black cells), the
+ * iconic long flat light-grey C-SAR antenna panel running along the body. */
 export function makeSentinel1Object(): THREE.Object3D {
   const s = new THREE.Group()
-  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
-  addSolarWing(s, -1)
-  addSolarWing(s, 1)
+  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT)) // gold MLI
+  addSolarWing(s, -1, DARK_PANEL_MAT)
+  addSolarWing(s, 1, DARK_PANEL_MAT)
   const sar = new THREE.Mesh(S1_SAR_GEO, SAR_MAT)
   sar.position.y = 0.42
   s.add(sar)
   return tumble(s, 1.25)
 }
 
-/** Sentinel-2 — optical imager: gold bus, a single deployed solar wing, dark
- * MSI telescope aperture on the nadir face. */
+/** Sentinel-2 — optical imager: silver-aluminium bus, a single deployed solar
+ * wing, dark MSI telescope aperture on the nadir face. */
 export function makeSentinel2Object(): THREE.Object3D {
   const s = new THREE.Group()
-  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  s.add(new THREE.Mesh(ESA_BUS_GEO, SILVER_BUS_MAT))
   addSolarWing(s, 1)
   const ap = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), HUB_APERTURE_MAT)
   ap.position.y = -0.29
@@ -203,14 +207,14 @@ export function makeSentinel2Object(): THREE.Object3D {
   return tumble(s, 1.3)
 }
 
-/** Sentinel-3 — ocean/land: gold bus, single solar wing, a couple of instrument
- * boxes and a small antenna on the nadir face. */
+/** Sentinel-3 — ocean/land: silver-aluminium bus, single solar wing, a couple of
+ * black nadir instrument boxes (SRAL/SLSTR) and a small antenna. */
 export function makeSentinel3Object(): THREE.Object3D {
   const s = new THREE.Group()
-  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  s.add(new THREE.Mesh(ESA_BUS_GEO, SILVER_BUS_MAT))
   addSolarWing(s, 1)
   for (const z of [-0.3, 0.32]) {
-    const instr = new THREE.Mesh(INSTR_GEO, SAR_MAT)
+    const instr = new THREE.Mesh(INSTR_GEO, NADIR_MAT)
     instr.position.set(0, -0.4, z)
     s.add(instr)
   }
@@ -240,11 +244,11 @@ export function makeTanDEMObject(): THREE.Object3D {
   return tumble(s, 1.15)
 }
 
-/** GCOM-W1 "Shizuku" — JAXA water-cycle sat: gold bus, one solar wing, and the
- * big AMSR2 offset parabolic dish on top. */
+/** GCOM-W1 "Shizuku" — JAXA water-cycle sat: silver-aluminium bus, one solar
+ * wing, and the big iconic gold-mesh AMSR2 offset parabolic dish on top. */
 export function makeGcomObject(): THREE.Object3D {
   const s = new THREE.Group()
-  s.add(new THREE.Mesh(ESA_BUS_GEO, BUS_MAT))
+  s.add(new THREE.Mesh(ESA_BUS_GEO, SILVER_BUS_MAT))
   addSolarWing(s, 1)
   const dish = new THREE.Mesh(GCOM_DISH_GEO, GCOM_DISH_MAT)
   dish.position.set(-0.15, 0.5, 0.1)
