@@ -55,6 +55,7 @@ interface Marker {
   x: number
   y: number
   elevationDeg: number
+  rangeKm: number
   iss: boolean
   kind: 'named' | 'starlink'
   label?: boolean // show a name tag (the few Starlinks nearest where you look)
@@ -78,7 +79,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   const [markers, setMarkers] = useState<Marker[]>([])
   const [heading, setHeading] = useState(0)
   const [hasMotion, setHasMotion] = useState(false)
-  const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; starlink: boolean } | null>(null)
+  const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; rangeKm: number; starlink: boolean } | null>(null)
   // live sensor diagnostics, surfaced in a debug strip so we can see whether the
   // phone is actually feeding orientation data (and what raw values)
   const orientRaw = useRef<{ alpha: number | null; beta: number | null; gamma: number | null; compass: number | null }>({ alpha: null, beta: null, gamma: null, compass: null })
@@ -235,7 +236,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         if (la.elevationDeg <= 0) continue
         const proj = projectToView(la, pose, view)
         if (!proj.visible) continue
-        named.push({ id: p.id, name: p.name, x: proj.x, y: proj.y, elevationDeg: la.elevationDeg, iss: isIss(p.name), kind: 'named' })
+        named.push({ id: p.id, name: p.name, x: proj.x, y: proj.y, elevationDeg: la.elevationDeg, rangeKm: la.rangeKm, iss: isIss(p.name), kind: 'named' })
       }
       named.sort((a, b) => b.elevationDeg - a.elevationDeg)
       // Starlink: the worker refreshes the constellation on its own interval;
@@ -246,7 +247,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       for (let i = 0; i < sl.length && starlink.length < 120; i++) {
         const proj = projectToView(sl[i], pose, view)
         if (!proj.visible) continue
-        starlink.push({ id: 'sl' + i, name: sl[i].name, x: proj.x, y: proj.y, elevationDeg: sl[i].elevationDeg, iss: false, kind: 'starlink' })
+        starlink.push({ id: 'sl' + i, name: sl[i].name, x: proj.x, y: proj.y, elevationDeg: sl[i].elevationDeg, rangeKm: sl[i].rangeKm, iss: false, kind: 'starlink' })
       }
       // tag the few Starlinks nearest the centre so you can read names while
       // looking around (not all 60 at once — that's an unreadable mess)
@@ -272,7 +273,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
           best = m
         }
       }
-      setPointed(best ? { name: best.name, elevationDeg: best.elevationDeg, starlink: best.kind === 'starlink' } : null)
+      setPointed(best ? { name: best.name, elevationDeg: best.elevationDeg, rangeKm: best.rangeKm, starlink: best.kind === 'starlink' } : null)
       setDbg({ heading: Math.round(heading), pitch: Math.round(pitch), events: orientCount.current, raw: orientRaw.current })
     }
     raf = requestAnimationFrame(tick)
@@ -331,7 +332,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
           <div style={{ width: 36, height: 36, border: `2px solid ${pointed ? (pointed.starlink ? '#8fb6ef' : '#fbbf24') : 'rgba(255,255,255,0.45)'}`, borderRadius: '50%', boxSizing: 'border-box' }} />
           {pointed && (
             <div style={{ marginTop: 8, font: '700 14px system-ui', color: '#fff', textShadow: '0 0 6px #000', whiteSpace: 'nowrap' }}>
-              {pointed.name || 'Starlink'} · {Math.round(pointed.elevationDeg)}°
+              {pointed.name || 'Starlink'} · {Math.round(pointed.elevationDeg)}° · {Math.round(pointed.rangeKm).toLocaleString('en-US')} km
             </div>
           )}
         </div>

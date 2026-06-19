@@ -14,6 +14,8 @@ export interface LookAngles {
   azimuthDeg: number
   /** Angle above the horizon, degrees (negative = below, not visible). */
   elevationDeg: number
+  /** Slant range: straight-line distance observer → satellite, km. */
+  rangeKm: number
 }
 
 function ecef(latDeg: number, lngDeg: number, altKm: number): [number, number, number] {
@@ -47,7 +49,10 @@ export function lookAngles(
   let az = Math.atan2(e, n) * DEG
   if (az < 0) az += 360
   const el = Math.atan2(u, Math.hypot(e, n)) * DEG
-  return { azimuthDeg: az, elevationDeg: el }
+  // line-of-sight distance to the craft — the magnitude of the observer→sat
+  // vector (ENU is a pure rotation of it, so its length is the slant range)
+  const rangeKm = Math.hypot(rx, ry, rz)
+  return { azimuthDeg: az, elevationDeg: el, rangeKm }
 }
 
 /** Shortest signed difference a−b folded into (−180, 180]. */
@@ -68,7 +73,8 @@ export interface ScreenPos {
  * phone points (heading + pitch) and its field of view. A flat gnomonic-ish
  * mapping: good enough that markers track the real sky as you pan the phone. */
 export function projectToView(
-  sat: LookAngles,
+  // only the angles matter for the screen mapping — range is carried elsewhere
+  sat: Pick<LookAngles, 'azimuthDeg' | 'elevationDeg'>,
   device: { headingDeg: number; pitchDeg: number },
   view: { width: number; height: number; hFovDeg: number; vFovDeg: number },
 ): ScreenPos {

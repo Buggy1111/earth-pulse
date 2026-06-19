@@ -2,9 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { angleDelta, lookAngles, projectToView } from './arMath'
 
 describe('lookAngles', () => {
-  it('a satellite straight overhead reads ~90° elevation', () => {
-    const { elevationDeg } = lookAngles({ lat: 49.6, lng: 18 }, { lat: 49.6, lng: 18, altKm: 550 })
+  it('a satellite straight overhead reads ~90° elevation, range ~= altitude', () => {
+    const { elevationDeg, rangeKm } = lookAngles({ lat: 49.6, lng: 18 }, { lat: 49.6, lng: 18, altKm: 550 })
     expect(elevationDeg).toBeGreaterThan(89)
+    // directly above → slant range is just the altitude
+    expect(rangeKm).toBeCloseTo(550, 0)
+  })
+
+  it('a low satellite is farther away (slant) than one overhead', () => {
+    const obs = { lat: 0, lng: 0 }
+    const overhead = lookAngles(obs, { lat: 0, lng: 0, altKm: 550 })
+    const low = lookAngles(obs, { lat: 0, lng: 20, altKm: 550 })
+    expect(low.rangeKm).toBeGreaterThan(overhead.rangeKm)
   })
 
   it('a satellite due east on the horizon reads azimuth ~90°, low elevation', () => {
