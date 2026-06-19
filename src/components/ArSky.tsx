@@ -96,6 +96,17 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   // the gesture for both the permission prompt and getUserMedia)
   async function start(): Promise<void> {
     setStarted(true)
+    // iOS: the Motion & Orientation prompt MUST be requested inside the user
+    // gesture and BEFORE any await — the camera await below would consume the
+    // gesture and the prompt would silently never appear (then the compass
+    // never feeds and the dots can't track). Android has no prompt and just
+    // works. So this goes first, before the camera.
+    const dev = window.DeviceOrientationEvent as unknown as OrientPermission | undefined
+    try {
+      if (dev?.requestPermission) await dev.requestPermission()
+    } catch {
+      // denied — we fall back to a fixed pose and the overhead list
+    }
     startStarlink() // independent of the camera — kick it off right away so a
     // slow/blocked getUserMedia can never hold the satellite overlay hostage
     try {
@@ -109,12 +120,6 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       }
     } catch {
       setCamDenied(true) // no camera → dark sky backdrop, the overlay still works
-    }
-    const dev = window.DeviceOrientationEvent as unknown as OrientPermission | undefined
-    try {
-      if (dev?.requestPermission) await dev.requestPermission()
-    } catch {
-      // denied — we fall back to a fixed pose and the overhead list
     }
   }
 
