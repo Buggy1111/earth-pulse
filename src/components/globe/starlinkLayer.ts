@@ -83,10 +83,22 @@ async function glbParts(): Promise<RenderPart[] | null> {
       const src = mats[0] as THREE.MeshStandardMaterial | undefined
       if (!src) return // a mesh with no material — skip it, keep the rest
       const mat = src.clone()
+      // carry the texture into the self-glow: a textured model has color = white
+      // with the detail in the map, so glowing from the colour washes every panel
+      // into a blank white slab (the bug we hit in the AR view). A mild lift keeps
+      // the swarm readable on Earth's night side, like the named-sat models.
       if (mat.emissive) {
-        mat.emissive.copy(mat.color ?? new THREE.Color('#8fb6ef')).multiplyScalar(0.4)
-        mat.emissiveIntensity = 1
+        if (mat.map) {
+          mat.emissiveMap = mat.map
+          mat.emissive.setRGB(1, 1, 1)
+          mat.emissiveIntensity = 0.45
+        } else {
+          mat.emissive.copy(mat.color ?? new THREE.Color('#8fb6ef')).multiplyScalar(0.4)
+          mat.emissiveIntensity = 1
+        }
       }
+      if (mat.metalness != null) mat.metalness = Math.min(mat.metalness, 0.4)
+      if (mat.roughness != null) mat.roughness = Math.max(mat.roughness, 0.6)
       parts.push({ geometry: mesh.geometry, material: mat, local: mesh.matrixWorld.clone() })
     })
     return parts.length > 0 ? parts : null
