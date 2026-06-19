@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
 import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
+import { createArScene, type ArScene } from './arScene'
 
 function arSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -67,6 +68,9 @@ interface ArSkyProps {
 
 export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const arScene = useRef<ArScene | null>(null)
+  const [model3D, setModel3D] = useState(false) // real 3D models loaded → drop the dots
   const orient = useRef({ heading: 0, pitch: 45, live: false })
   const [started, setStarted] = useState(false)
   const [camDenied, setCamDenied] = useState(false)
@@ -150,6 +154,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         }
         out.sort((a, b) => b.elevationDeg - a.elevationDeg)
         slAzEl.current = out.slice(0, 300) // keep the highest-in-the-sky ones
+        arScene.current?.setSatellites(slAzEl.current.map((s) => ({ az: s.azimuthDeg, el: s.elevationDeg })))
       }
       w.postMessage({ type: 'init', tle })
       slWorker.current = w
@@ -160,6 +165,23 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
 
   // tear the Starlink worker down when the AR overlay closes
   useEffect(() => () => slWorker.current?.terminate(), [])
+
+  // the 3D layer: a transparent WebGL canvas over the camera that draws the real
+  // Starlink model where each satellite is. Built once started; kept in sync via
+  // setPose (camera aim) and setSatellites (positions).
+  useEffect(() => {
+    if (!started || !canvasRef.current || arScene.current) return
+    const s = createArScene(canvasRef.current, () => setModel3D(true))
+    s.resize(window.innerWidth, window.innerHeight)
+    arScene.current = s
+    const onResize = (): void => s.resize(window.innerWidth, window.innerHeight)
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      s.dispose()
+      arScene.current = null
+    }
+  }, [started])
 
   // drive the Starlink worker on its own 1.5 s interval — decoupled from the
   // render loop, so propagation keeps up even if rAF is throttled (background
@@ -184,6 +206,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       orient.current = { heading, pitch, live: true }
       orientRaw.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, compass }
       orientCount.current++
+      arScene.current?.setPose(heading, pitch) // smooth camera aim at sensor rate
       setHasMotion(true)
     }
     window.addEventListener('deviceorientation', onOrient, true)
@@ -257,15 +280,23 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         muted
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: camDenied ? 0 : 1 }}
       />
+      {/* 3D layer: real Starlink models over the camera (DOM labels stay on top) */}
+      <canvas
+        ref={canvasRef}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      />
 
-      {/* satellite markers: Starlink as small bare dots, named sats labelled */}
+      {/* satellite markers: Starlink as small bare dots (replaced by the 3D
+          models once they load), named sats labelled */}
       {started &&
         markers.map((m) =>
           m.kind === 'starlink' ? (
-            <div
-              key={m.id}
-              style={{ position: 'absolute', left: m.x, top: m.y, width: 6, height: 6, transform: 'translate(-50%,-50%)', pointerEvents: 'none', borderRadius: '50%', background: '#9fb8d4', boxShadow: '0 0 6px #8fb6ef' }}
-            />
+            model3D ? null : (
+              <div
+                key={m.id}
+                style={{ position: 'absolute', left: m.x, top: m.y, width: 6, height: 6, transform: 'translate(-50%,-50%)', pointerEvents: 'none', borderRadius: '50%', background: '#9fb8d4', boxShadow: '0 0 6px #8fb6ef' }}
+              />
+            )
           ) : (
             <div
               key={m.id}
