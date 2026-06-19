@@ -11,24 +11,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
 import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
+import { skyBodies } from '../lib/arBodies'
 import { sunElevationDeg } from '../lib/sun'
 import { createArScene, type ArScene } from './arScene'
+import { ArMarkers } from './ArMarkers'
+import type { Marker } from './arTypes'
 import { BTN_BASE } from './arButtonStyle'
 
 interface OrientPermission {
   requestPermission?: () => Promise<'granted' | 'denied'>
-}
-
-interface Marker {
-  id: string
-  name: string
-  x: number
-  y: number
-  elevationDeg: number
-  rangeKm: number
-  iss: boolean
-  kind: 'named' | 'starlink'
-  label?: boolean // show a name tag (the few Starlinks nearest where you look)
 }
 
 interface ArSkyProps {
@@ -49,7 +40,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   const [markers, setMarkers] = useState<Marker[]>([])
   const [heading, setHeading] = useState(0)
   const [hasMotion, setHasMotion] = useState(false)
-  const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; rangeKm: number; starlink: boolean } | null>(null)
+  const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; distanceText: string; accent: string } | null>(null)
   // live sensor diagnostics, surfaced in a debug strip so we can see whether the
   // phone is actually feeding orientation data (and what raw values)
   const orientRaw = useRef<{ alpha: number | null; beta: number | null; gamma: number | null; compass: number | null }>({ alpha: null, beta: null, gamma: null, compass: null })
@@ -243,7 +234,15 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         .sort((a, b) => a.d - b.d)
         .slice(0, 5)
         .forEach((e) => (e.m.label = true))
-      const all = [...starlink, ...named.slice(0, 24)] // named drawn on top
+      // 🌙🪐 the Moon + naked-eye planets above the horizon — same look-angle
+      // maths as the satellites, just with celestial-body ephemerides
+      const bodies: Marker[] = []
+      for (const b of skyBodies(userLoc, new Date())) {
+        const proj = projectToView(b, pose, view)
+        if (!proj.visible) continue
+        bodies.push({ id: 'body-' + b.name, name: b.name, x: proj.x, y: proj.y, elevationDeg: b.elevationDeg, rangeKm: b.rangeKm, iss: false, kind: 'body', label: true, color: b.color, distanceLabel: b.distanceLabel })
+      }
+      const all = [...starlink, ...named.slice(0, 24), ...bodies] // named + bodies on top
       setMarkers(all)
       setHeading(heading)
       // 🎯 identify what you're pointing at: the marker nearest the centre
@@ -259,7 +258,16 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
           best = m
         }
       }
-      setPointed(best ? { name: best.name, elevationDeg: best.elevationDeg, rangeKm: best.rangeKm, starlink: best.kind === 'starlink' } : null)
+      setPointed(
+        best
+          ? {
+              name: best.name,
+              elevationDeg: best.elevationDeg,
+              distanceText: best.distanceLabel ?? `${Math.round(best.rangeKm).toLocaleString('en-US')} km`,
+              accent: best.kind === 'starlink' ? '#8fb6ef' : best.kind === 'body' ? (best.color ?? '#ffffff') : '#fbbf24',
+            }
+          : null,
+      )
       setDbg({ heading: Math.round(heading), pitch: Math.round(pitch), events: orientCount.current, raw: orientRaw.current })
     }
     raf = requestAnimationFrame(tick)
@@ -282,45 +290,45 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
       />
 
-      {/* satellite markers: Starlink as small bare dots (replaced by the 3D
-          models once they load), named sats labelled */}
-      {started &&
-        markers.map((m) =>
-          m.kind === 'starlink' ? (
-            <div
-              key={m.id}
-              style={{ position: 'absolute', left: m.x, top: m.y, transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}
-            >
-              {/* the dot is the visual only until the 3D models load */}
-              {!model3D && <div style={{ width: 6, height: 6, margin: '0 auto', borderRadius: '50%', background: '#9fb8d4', boxShadow: '0 0 6px #8fb6ef' }} />}
-              {m.label && (
-                <div style={{ marginTop: model3D ? 0 : 3, font: '600 10px system-ui', color: '#cbd5e1', textShadow: '0 0 5px #000', whiteSpace: 'nowrap' }}>
-                  {m.name}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div
-              key={m.id}
-              style={{ position: 'absolute', left: m.x, top: m.y, transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}
-            >
-              <div style={{ width: 14, height: 14, margin: '0 auto', borderRadius: '50%', background: m.iss ? '#22d3ee' : '#fbbf24', boxShadow: `0 0 10px ${m.iss ? '#22d3ee' : '#fbbf24'}` }} />
-              <div style={{ marginTop: 3, font: '600 11px system-ui', color: '#e4e7ec', textShadow: '0 0 5px #000', whiteSpace: 'nowrap' }}>
-                {m.name} · {Math.round(m.elevationDeg)}°
-              </div>
-            </div>
-          ),
-        )}
+      {/* satellite + Starlink + Moon/planet markers (pure presentational layer) */}
+      {started && <ArMarkers markers={markers} model3D={model3D} />}
 
-      {/* 🎯 centre crosshair + "what you're pointing at" readout */}
+      {/* 🎯 centre crosshair — always dead centre, its own element so the readout
+          appearing/disappearing can never nudge the ring off-target */}
       {started && (
-        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}>
-          <div style={{ width: 36, height: 36, border: `2px solid ${pointed ? (pointed.starlink ? '#8fb6ef' : '#fbbf24') : 'rgba(255,255,255,0.45)'}`, borderRadius: '50%', boxSizing: 'border-box' }} />
-          {pointed && (
-            <div style={{ marginTop: 8, font: '700 14px system-ui', color: '#fff', textShadow: '0 0 6px #000', whiteSpace: 'nowrap' }}>
-              {pointed.name || 'Starlink'} · {Math.round(pointed.elevationDeg)}° · {Math.round(pointed.rangeKm).toLocaleString('en-US')} km
-            </div>
-          )}
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%,-50%)',
+            width: 36,
+            height: 36,
+            boxSizing: 'border-box',
+            borderRadius: '50%',
+            border: `2px solid ${pointed ? pointed.accent : 'rgba(255,255,255,0.45)'}`,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+      {/* "what you're pointing at" readout — anchored just BELOW centre, laid out
+          independently so it doesn't shift the crosshair */}
+      {started && pointed && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: 'calc(50% + 34px)',
+            transform: 'translateX(-50%)',
+            font: '700 14px system-ui',
+            color: '#fff',
+            textShadow: '0 0 6px #000',
+            whiteSpace: 'nowrap',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          {pointed.name} · {Math.round(pointed.elevationDeg)}° · {pointed.distanceText}
         </div>
       )}
 
