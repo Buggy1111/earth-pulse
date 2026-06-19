@@ -91,10 +91,10 @@ ručně stavěný „zlatý" primitiv (žádný volně šiřitelný model neexis
   vykreslen přes **InstancedMesh s LOD** — celý roj = levné plachetky, reálný
   GLB model jen na ~400 nejbližších satelitů ke kameře (10k× plný model =
   ~140M tris/frame, mimo možnosti i mobilního GPU).
-- ⚠️ **LICENCE K OVĚŘENÍ**: model je drop-in (`public/models/sats/starlink.glb`).
-  Pro veřejný deploy doporučeno použít [Sketchfab model „Starlink (SpaceX
-  satellite)" od Malacodart](https://sketchfab.com/3d-models/starlink-spacex-satellite-0a60f6720c5141c9a1c6d71aac108b31)
-  (zdarma, komerční použití s creditem) a doplnit sem atribuci autora.
+- **Model**: „Starlink (SpaceX satellite)" od **Malacodart** —
+  [Sketchfab](https://sketchfab.com/3d-models/starlink-spacex-satellite-0a60f6720c5141c9a1c6d71aac108b31),
+  zdarma pro komerční i osobní použití s creditem (CC-BY). GLB s 1k texturami
+  (~3 MB, 3 meshe / ~20k trojúhelníků / 3 textury).
 
 Žádný feed nevyžaduje klíč ani autentizaci; vše je veřejné a CORS-friendly nebo
 přibalené jako statický snapshot.
