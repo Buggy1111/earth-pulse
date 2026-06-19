@@ -104,19 +104,25 @@ test('enabling the Starlink layer builds a ~10k InstancedMesh with positioned in
   expect(result.positioned).toBeGreaterThan(result.count * 0.9)
 })
 
-test('the Sky AR overlay opens with its controls and the camera element', async ({ page }) => {
-  await bootGlobe(page)
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /sky AR/i.test(b.textContent || ''))
-    btn?.click()
+// Sky AR is phone/tablet only (touch-primary), so emulate a touch device —
+// otherwise the launch button is correctly hidden and there's nothing to open.
+test.describe('mobile', () => {
+  test.use({ hasTouch: true, isMobile: true })
+
+  test('the Sky AR overlay opens with its controls and the camera element', async ({ page }) => {
+    await bootGlobe(page)
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find((b) => /sky AR/i.test(b.textContent || ''))
+      btn?.click()
+    })
+    await page.waitForTimeout(400)
+    const state = await page.evaluate(() => ({
+      hasClose: [...document.querySelectorAll('button')].some((b) => /close/i.test(b.textContent || '')),
+      hasGate: /location|start/i.test(document.body.innerText),
+      hasVideo: Boolean(document.querySelector('video')),
+    }))
+    expect(state.hasClose).toBe(true)
+    expect(state.hasGate).toBe(true)
+    expect(state.hasVideo).toBe(true)
   })
-  await page.waitForTimeout(400)
-  const state = await page.evaluate(() => ({
-    hasClose: [...document.querySelectorAll('button')].some((b) => /close/i.test(b.textContent || '')),
-    hasGate: /location|start/i.test(document.body.innerText),
-    hasVideo: Boolean(document.querySelector('video')),
-  }))
-  expect(state.hasClose).toBe(true)
-  expect(state.hasGate).toBe(true)
-  expect(state.hasVideo).toBe(true)
 })

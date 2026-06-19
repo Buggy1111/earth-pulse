@@ -15,9 +15,9 @@ import { createArScene, type ArScene } from './arScene'
 
 function arSupported(): boolean {
   if (typeof window === 'undefined') return false
-  const hasOrientation = 'DeviceOrientationEvent' in window
-  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
-  return hasOrientation || coarsePointer
+  // phones/tablets only — a touch-primary device. Desktop (mouse) exposes the
+  // DeviceOrientation API too but has no real sensors, so AR there is pointless.
+  return window.matchMedia('(pointer: coarse)').matches
 }
 const SUPPORTED = arSupported()
 
@@ -57,6 +57,7 @@ interface Marker {
   elevationDeg: number
   iss: boolean
   kind: 'named' | 'starlink'
+  label?: boolean // show a name tag (the few Starlinks nearest where you look)
 }
 
 interface ArSkyProps {
@@ -247,6 +248,14 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         if (!proj.visible) continue
         starlink.push({ id: 'sl' + i, name: sl[i].name, x: proj.x, y: proj.y, elevationDeg: sl[i].elevationDeg, iss: false, kind: 'starlink' })
       }
+      // tag the few Starlinks nearest the centre so you can read names while
+      // looking around (not all 60 at once — that's an unreadable mess)
+      starlink
+        .map((m) => ({ m, d: (m.x - w / 2) ** 2 + (m.y - h / 2) ** 2 }))
+        .filter((e) => e.d < 170 * 170)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 5)
+        .forEach((e) => (e.m.label = true))
       const all = [...starlink, ...named.slice(0, 24)] // named drawn on top
       setMarkers(all)
       setHeading(heading)
@@ -291,12 +300,18 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       {started &&
         markers.map((m) =>
           m.kind === 'starlink' ? (
-            model3D ? null : (
-              <div
-                key={m.id}
-                style={{ position: 'absolute', left: m.x, top: m.y, width: 6, height: 6, transform: 'translate(-50%,-50%)', pointerEvents: 'none', borderRadius: '50%', background: '#9fb8d4', boxShadow: '0 0 6px #8fb6ef' }}
-              />
-            )
+            <div
+              key={m.id}
+              style={{ position: 'absolute', left: m.x, top: m.y, transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}
+            >
+              {/* the dot is the visual only until the 3D models load */}
+              {!model3D && <div style={{ width: 6, height: 6, margin: '0 auto', borderRadius: '50%', background: '#9fb8d4', boxShadow: '0 0 6px #8fb6ef' }} />}
+              {m.label && (
+                <div style={{ marginTop: model3D ? 0 : 3, font: '600 10px system-ui', color: '#cbd5e1', textShadow: '0 0 5px #000', whiteSpace: 'nowrap' }}>
+                  {m.name}
+                </div>
+              )}
+            </div>
           ) : (
             <div
               key={m.id}
