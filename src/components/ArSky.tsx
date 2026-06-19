@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
-import { lookAngles, projectToView } from '../lib/arMath'
+import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
 
 function arSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -55,6 +55,7 @@ interface Marker {
   y: number
   elevationDeg: number
   iss: boolean
+  kind: 'named' | 'starlink'
 }
 
 interface ArSkyProps {
@@ -73,10 +74,23 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   const [heading, setHeading] = useState(0)
   const [hasMotion, setHasMotion] = useState(false)
 
+  // Starlink: the whole constellation is propagated in a worker (off the main
+  // thread) and the above-horizon az/el is cached here; the per-frame loop only
+  // re-projects that cache as the phone turns. userLocRef keeps the worker's
+  // late callbacks reading the current location.
+  const slWorker = useRef<Worker | null>(null)
+  const slAzEl = useRef<LookAngles[]>([])
+  const userLocRef = useRef(userLoc)
+  useEffect(() => {
+    userLocRef.current = userLoc
+  }, [userLoc])
+
   // start the back camera + the orientation sensor on the user's tap (iOS needs
   // the gesture for both the permission prompt and getUserMedia)
   async function start(): Promise<void> {
     setStarted(true)
+    startStarlink() // independent of the camera — kick it off right away so a
+    // slow/blocked getUserMedia can never hold the satellite overlay hostage
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
@@ -96,6 +110,51 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       // denied — we fall back to a fixed pose and the overhead list
     }
   }
+
+  // spin up the Starlink worker (once) and keep the above-horizon az/el cached
+  async function startStarlink(): Promise<void> {
+    if (slWorker.current) return
+    try {
+      const tle = await fetch('tle/starlink.txt').then((r) =>
+        r.ok ? r.text() : Promise.reject(new Error('no tle')),
+      )
+      const w = new Worker(new URL('../workers/starlinkWorker.ts', import.meta.url), {
+        type: 'module',
+      })
+      w.onmessage = (e: MessageEvent<{ type: string; data?: Float32Array }>) => {
+        const obs = userLocRef.current
+        if (e.data.type !== 'positions' || !e.data.data || !obs) return
+        const d = e.data.data
+        const out: LookAngles[] = []
+        for (let i = 0; i < d.length; i += 3) {
+          const altKm = d[i + 2]
+          if (altKm < 0) continue
+          const la = lookAngles(obs, { lat: d[i], lng: d[i + 1], altKm })
+          if (la.elevationDeg > 0) out.push(la)
+        }
+        out.sort((a, b) => b.elevationDeg - a.elevationDeg)
+        slAzEl.current = out.slice(0, 300) // keep the highest-in-the-sky ones
+      }
+      w.postMessage({ type: 'init', tle })
+      slWorker.current = w
+    } catch {
+      // no snapshot / worker failed → AR still shows the named satellites
+    }
+  }
+
+  // tear the Starlink worker down when the AR overlay closes
+  useEffect(() => () => slWorker.current?.terminate(), [])
+
+  // drive the Starlink worker on its own 1.5 s interval — decoupled from the
+  // render loop, so propagation keeps up even if rAF is throttled (background
+  // tab, weak device). Starts ticking as soon as the worker exists.
+  useEffect(() => {
+    if (!started) return
+    const id = setInterval(() => {
+      slWorker.current?.postMessage({ type: 'tick', timeMs: Date.now() })
+    }, 1500)
+    return () => clearInterval(id)
+  }, [started])
 
   // read the phone's pose from the orientation sensor
   useEffect(() => {
@@ -126,16 +185,28 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       const h = window.innerHeight
       const view = { width: w, height: h, hFovDeg: 55, vFovDeg: 55 * (h / w) }
       const { heading, pitch } = orient.current
-      const out: Marker[] = []
+      const pose = { headingDeg: heading, pitchDeg: pitch }
+      // named satellites: propagated fresh each tick (only ~150, cheap)
+      const named: Marker[] = []
       for (const p of propagateSats(sats, new Date())) {
         const la = lookAngles(userLoc, p)
         if (la.elevationDeg <= 0) continue
-        const proj = projectToView(la, { headingDeg: heading, pitchDeg: pitch }, view)
+        const proj = projectToView(la, pose, view)
         if (!proj.visible) continue
-        out.push({ id: p.id, name: p.name, x: proj.x, y: proj.y, elevationDeg: la.elevationDeg, iss: isIss(p.name) })
+        named.push({ id: p.id, name: p.name, x: proj.x, y: proj.y, elevationDeg: la.elevationDeg, iss: isIss(p.name), kind: 'named' })
       }
-      out.sort((a, b) => b.elevationDeg - a.elevationDeg)
-      setMarkers(out.slice(0, 24))
+      named.sort((a, b) => b.elevationDeg - a.elevationDeg)
+      // Starlink: the worker refreshes the constellation on its own interval;
+      // here we just re-project the cached az/el every frame so the dots track
+      // the phone as it pans
+      const starlink: Marker[] = []
+      const sl = slAzEl.current
+      for (let i = 0; i < sl.length && starlink.length < 120; i++) {
+        const proj = projectToView(sl[i], pose, view)
+        if (!proj.visible) continue
+        starlink.push({ id: 'sl' + i, name: '', x: proj.x, y: proj.y, elevationDeg: sl[i].elevationDeg, iss: false, kind: 'starlink' })
+      }
+      setMarkers([...starlink, ...named.slice(0, 24)]) // named drawn on top
       setHeading(heading)
     }
     raf = requestAnimationFrame(tick)
@@ -153,23 +224,35 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: camDenied ? 0 : 1 }}
       />
 
-      {/* satellite markers */}
+      {/* satellite markers: Starlink as small bare dots, named sats labelled */}
       {started &&
-        markers.map((m) => (
-          <div
-            key={m.id}
-            style={{ position: 'absolute', left: m.x, top: m.y, transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}
-          >
-            <div style={{ width: 14, height: 14, margin: '0 auto', borderRadius: '50%', background: m.iss ? '#22d3ee' : '#8fb6ef', boxShadow: `0 0 10px ${m.iss ? '#22d3ee' : '#8fb6ef'}` }} />
-            <div style={{ marginTop: 3, font: '600 11px system-ui', color: '#e4e7ec', textShadow: '0 0 5px #000', whiteSpace: 'nowrap' }}>
-              {m.name} · {Math.round(m.elevationDeg)}°
+        markers.map((m) =>
+          m.kind === 'starlink' ? (
+            <div
+              key={m.id}
+              style={{ position: 'absolute', left: m.x, top: m.y, width: 6, height: 6, transform: 'translate(-50%,-50%)', pointerEvents: 'none', borderRadius: '50%', background: '#9fb8d4', boxShadow: '0 0 6px #8fb6ef' }}
+            />
+          ) : (
+            <div
+              key={m.id}
+              style={{ position: 'absolute', left: m.x, top: m.y, transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}
+            >
+              <div style={{ width: 14, height: 14, margin: '0 auto', borderRadius: '50%', background: m.iss ? '#22d3ee' : '#fbbf24', boxShadow: `0 0 10px ${m.iss ? '#22d3ee' : '#fbbf24'}` }} />
+              <div style={{ marginTop: 3, font: '600 11px system-ui', color: '#e4e7ec', textShadow: '0 0 5px #000', whiteSpace: 'nowrap' }}>
+                {m.name} · {Math.round(m.elevationDeg)}°
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
 
       {/* top status bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(#000a, transparent)', color: '#bae6fd', font: '600 13px system-ui' }}>
-        <span>📡 {started ? `${markers.length} overhead · facing ${compass}` : 'sky AR'}</span>
+        <span>
+          📡{' '}
+          {started
+            ? `${markers.filter((m) => m.kind === 'named').length} named · ${markers.filter((m) => m.kind === 'starlink').length} Starlink · facing ${compass}`
+            : 'sky AR'}
+        </span>
         <button type="button" onClick={onClose} style={{ ...BTN_BASE, padding: '6px 12px' }} aria-label="Close sky AR">
           ✕ close
         </button>

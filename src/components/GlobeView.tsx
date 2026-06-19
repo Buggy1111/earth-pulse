@@ -55,6 +55,9 @@ interface Props {
   flyTo: { lat: number; lng: number; v: number } | null
   /** Bumped to recenter the camera on the default Earth view. */
   resetView: number
+  /** Pause the globe's render loop while a fullscreen overlay (Sky AR) covers
+   * it — saves GPU/battery and frees the main thread for the overlay. */
+  paused?: boolean
   /** Reference "now" for quake age/glow — the timeline slider rewinds it. */
   simNow: number
   tour: boolean
@@ -547,6 +550,15 @@ export function GlobeView(props: Props) {
     globe.controls().autoRotate = false
     globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 900)
   }, [props.resetView])
+
+  // pause the globe's render loop while a fullscreen overlay (Sky AR) hides it —
+  // no point burning GPU on an occluded scene, and it frees the main thread
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe) return
+    if (props.paused) globe.pauseAnimation()
+    else globe.resumeAnimation()
+  }, [props.paused])
 
   // follow ISS: chase camera on every position update, pause auto-rotate meanwhile
   useEffect(() => {

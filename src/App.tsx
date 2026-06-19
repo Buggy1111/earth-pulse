@@ -345,6 +345,7 @@ export default function App() {
           followSat={followSat}
         flyTo={flyTo}
         resetView={resetView}
+        paused={arMode}
         simNow={simNow}
         tour={tourOn}
         onTourBroken={onTourBroken}

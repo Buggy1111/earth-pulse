@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseTle, propagateSats, toTrackedSats } from './satellites'
+import { lookAngles } from './arMath'
 // the build-time snapshot the Starlink worker parses — guards both the data
 // and the exact parse path (parseTle → satrec) the worker runs off-thread.
 import text from '../../public/tle/starlink.txt?raw'
@@ -25,5 +26,19 @@ describe('Starlink TLE snapshot', () => {
     // Starlink flies a ~550 km shell; allow drift/raising/lowering sats
     expect(pos.every((p) => p.altKm > 200 && p.altKm < 1200)).toBe(true)
     expect(pos.every((p) => Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180)).toBe(true)
+  })
+
+  // the Sky AR feed: the whole constellation propagated, then filtered to those
+  // above an observer's horizon with valid look angles
+  it('puts dozens of Starlinks above the horizon over Czechia right now', () => {
+    const tracked = toTrackedSats(sets)
+    const vitkov = { lat: 49.77, lng: 17.75 } // Michal's area, MSK
+    const above = propagateSats(tracked, new Date())
+      .map((p) => lookAngles(vitkov, p))
+      .filter((la) => la.elevationDeg > 0)
+    // a 10k LEO shell always has a good crowd overhead
+    expect(above.length).toBeGreaterThan(50)
+    expect(above.every((la) => la.azimuthDeg >= 0 && la.azimuthDeg <= 360)).toBe(true)
+    expect(above.every((la) => la.elevationDeg > 0 && la.elevationDeg <= 90)).toBe(true)
   })
 })
