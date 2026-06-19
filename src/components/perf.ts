@@ -63,6 +63,27 @@ export function followPixelRatio(devicePixelRatio: number): number {
   return Math.min(devicePixelRatio || 1, 1.25)
 }
 
+/** True on a software/CPU WebGL renderer (SwiftShader, LLVMpipe) — i.e. a
+ * headless/CI browser with no GPU. The Starlink model LOD skips the real GLB
+ * there: 10k× a real mesh has no chance on a software rasteriser, and it would
+ * just hang the e2e run. Real mobile/desktop GPUs are NOT flagged. */
+let softwareCache: boolean | null = null
+export function isSoftwareRenderer(): boolean {
+  if (softwareCache !== null) return softwareCache
+  try {
+    const gl = document.createElement('canvas').getContext('webgl')
+    if (!gl) return (softwareCache = true)
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    const renderer = ext
+      ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
+      : String(gl.getParameter(gl.RENDERER))
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    return (softwareCache = /swiftshader|llvmpipe|software|basic render/i.test(renderer))
+  } catch {
+    return (softwareCache = false)
+  }
+}
+
 /** Average FPS over `ms` of wall time (resolves early if the tab hides). */
 export function sampleFps(ms = 4_000): Promise<number> {
   return new Promise((resolve) => {

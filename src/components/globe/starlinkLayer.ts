@@ -1,25 +1,44 @@
-/** The Starlink swarm: ~10.6k satellites as ONE THREE.InstancedMesh.
+/** The Starlink swarm: ~10.6k satellites, GPU-instanced with model LOD.
  *
  * Why instancing: a per-object mesh (like the named-sat layer) would mean 10k
- * draw calls and 10k React-tracked objects — a non-starter. One InstancedMesh
- * is a single draw call for the whole shell; each sat is just a per-instance
- * matrix. Why a worker: SGP4 for 10k bodies every frame would stall the UI, so
- * starlinkWorker owns propagation and posts positions back; the main thread
- * only turns lat/lng/alt into instance matrices (cheap trig) at ~2 Hz. The TLE
- * snapshot (1.8 MB) is fetched lazily — only when the layer is first enabled.
+ * draw calls and 10k React-tracked objects — a non-starter. Each satellite is
+ * just a per-instance matrix. Why a worker: SGP4 for 10k bodies every frame
+ * would stall the UI, so starlinkWorker owns propagation and posts positions
+ * back; the main thread only turns lat/lng/alt into matrices at ~2 Hz.
  *
- * The panels are small and a distinct pale blue so the swarm reads as a
- * shimmering shell distinct from the gold/silver named satellites. */
+ * The model + LOD: the whole shell is cheap flat panels (one InstancedMesh).
+ * The REAL Starlink GLB (public/models/sats/starlink.glb) is ~13k tris — drawn
+ * 10k× that's ~140M tris/frame, far past any phone. So only the satellites
+ * NEAREST the camera get the real model (a small instanced pool); zoom in or
+ * point the AR at the sky and the close ones pop into 3D, the rest stay panels.
+ * No GLB on disk, or a software renderer (headless/CI) → panels only. */
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { globeAltitude } from '../../lib/satellites'
+import { selectNearest } from '../../lib/lod'
+import { isSoftwareRenderer } from '../perf'
 
 const TLE_URL = 'tle/starlink.txt'
+const MODEL_URL = 'models/sats/starlink.glb'
 const TICK_MS = 500 // propagation cadence — the swarm crawls, so 2 Hz reads smooth
-const PANEL = new THREE.BoxGeometry(1.5, 0.6, 0.07) // flat plate, like a real v2-mini
-const MATERIAL = new THREE.MeshBasicMaterial({ color: '#8fb6ef' }) // pale electric blue
+const TARGET_SIZE = 1.6 // scene units the model/panel is normalised to (small = a swarm)
+const MODEL_POOL = 400 // how many of the nearest sats get the real GLB model
+const MAX_PARTS = 12 // guard against an InstancedMesh per mesh for a huge model
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0) // zero-scaled = invisible instance
+
+const PANEL_GEO = new THREE.BoxGeometry(1.5, 0.6, 0.07) // flat plate, like a real v2-mini
+const PANEL_MAT = new THREE.MeshBasicMaterial({ color: '#8fb6ef' }) // pale electric blue
+
+/** One instanced piece of the real model: geometry+material plus where it sits
+ * inside the model (so multi-mesh models reassemble from the same base matrix). */
+interface RenderPart {
+  geometry: THREE.BufferGeometry
+  material: THREE.Material
+  local: THREE.Matrix4
+}
 
 export interface StarlinkLayer {
   setVisible(visible: boolean): void
@@ -38,6 +57,44 @@ interface PositionsMsg {
   data: Float32Array
 }
 
+/** Load the real GLB and flatten it to instanced parts, or null if it's not on
+ * disk / fails / we're on a software renderer. Materials get a mild emissive
+ * lift so the swarm reads on the night side like the named-sat models do. */
+async function glbParts(): Promise<RenderPart[] | null> {
+  if (isSoftwareRenderer()) return null
+  const draco = new DRACOLoader().setDecoderPath('draco/')
+  const loader = new GLTFLoader().setDRACOLoader(draco)
+  try {
+    const gltf = await loader.loadAsync(MODEL_URL)
+    const root = gltf.scene
+    const box = new THREE.Box3().setFromObject(root)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    const maxDim = Math.max(size.x, size.y, size.z) || 1
+    root.position.sub(center)
+    root.scale.setScalar(TARGET_SIZE / maxDim)
+    root.updateMatrixWorld(true)
+
+    const parts: RenderPart[] = []
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh || !mesh.geometry || parts.length >= MAX_PARTS) return
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      const src = mats[0] as THREE.MeshStandardMaterial | undefined
+      if (!src) return // a mesh with no material — skip it, keep the rest
+      const mat = src.clone()
+      if (mat.emissive) {
+        mat.emissive.copy(mat.color ?? new THREE.Color('#8fb6ef')).multiplyScalar(0.4)
+        mat.emissiveIntensity = 1
+      }
+      parts.push({ geometry: mesh.geometry, material: mat, local: mesh.matrixWorld.clone() })
+    })
+    return parts.length > 0 ? parts : null
+  } catch {
+    return null // anything went wrong with the model → fall back to the panel
+  }
+}
+
 export function setupStarlinkLayer(
   globe: GlobeInstance,
   onReady?: (count: number) => void,
@@ -46,65 +103,134 @@ export function setupStarlinkLayer(
     type: 'module',
   })
   const dummy = new THREE.Object3D()
-  let mesh: THREE.InstancedMesh | null = null
+  const tmp = new THREE.Matrix4()
+  const group = new THREE.Group()
+  group.visible = false
+  let panel: THREE.InstancedMesh | null = null
+  let modelMeshes: THREE.InstancedMesh[] = []
+  let modelParts: RenderPart[] | null = null
+  let pos: Float32Array | null = null // scene coords per sat (NaN x = hidden)
+  let d2: Float64Array | null = null // camera distance² scratch for the LOD pick
+  let glbResolved = false
+  let count: number | null = null
   let visible = false
-  let busy = false // a tick is in flight — don't queue another
+  let busy = false
   let lastTick = 0
   let disposed = false
 
-  // lazily load the snapshot and hand it to the worker to parse + build satrecs
+  const tryBuild = (): void => {
+    if (disposed || panel || !glbResolved || count == null) return
+    pos = new Float32Array(count * 3)
+    d2 = new Float64Array(count)
+    panel = new THREE.InstancedMesh(PANEL_GEO, PANEL_MAT, count)
+    panel.frustumCulled = false
+    for (let i = 0; i < count; i++) panel.setMatrixAt(i, HIDDEN)
+    panel.instanceMatrix.needsUpdate = true
+    group.add(panel)
+    for (const part of modelParts ?? []) {
+      const im = new THREE.InstancedMesh(part.geometry, part.material, MODEL_POOL)
+      im.frustumCulled = false
+      for (let i = 0; i < MODEL_POOL; i++) im.setMatrixAt(i, HIDDEN)
+      im.instanceMatrix.needsUpdate = true
+      modelMeshes.push(im)
+      group.add(im)
+    }
+    group.visible = visible
+    globe.scene().add(group)
+    onReady?.(count)
+  }
+
+  const resolveModel = (p: RenderPart[] | null): void => {
+    if (disposed) return
+    modelParts = p
+    glbResolved = true // panels build regardless of whether the model loaded
+    tryBuild()
+  }
+  glbParts().then(resolveModel, () => resolveModel(null))
+
   fetch(TLE_URL)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
     .then((tle) => {
       if (!disposed) worker.postMessage({ type: 'init', tle })
     })
     .catch(() => {
-      // snapshot missing — the swarm just stays empty, the rest of the app is fine
+      // snapshot missing — the swarm stays empty, the rest of the app is fine
     })
+
+  /** Build the base matrix (position + face-Earth) for the sat stored at `i`. */
+  const baseAt = (i: number): THREE.Matrix4 => {
+    dummy.position.set(pos![i * 3], pos![i * 3 + 1], pos![i * 3 + 2])
+    dummy.scale.set(1, 1, 1)
+    dummy.lookAt(0, 0, 0) // broad face toward Earth, like a real panel
+    dummy.updateMatrix()
+    return dummy.matrix
+  }
 
   worker.onmessage = (e: MessageEvent<ReadyMsg | PositionsMsg>) => {
     if (disposed) return
     const msg = e.data
     if (msg.type === 'ready') {
-      mesh = new THREE.InstancedMesh(PANEL, MATERIAL, msg.count)
-      mesh.frustumCulled = false // instances ring the whole globe — never cull the lot
-      mesh.visible = visible
-      // start fully hidden until the first positions arrive
-      for (let i = 0; i < msg.count; i++) mesh.setMatrixAt(i, HIDDEN)
-      mesh.instanceMatrix.needsUpdate = true
-      globe.scene().add(mesh)
-      onReady?.(msg.count)
+      count = msg.count
+      tryBuild()
       return
     }
-    // positions: lat/lng/alt per sat → instance matrices (alt < 0 ⇒ hide)
-    const m = mesh
-    if (!m) return
-    const d = msg.data
-    const n = Math.min(m.count, d.length / 3)
+    if (!panel || !pos || !d2) return
+    const data = msg.data
+    const n = Math.min(panel.count, data.length / 3)
+    // 1) every sat as a cheap panel; remember its scene position for the LOD pick
     for (let i = 0; i < n; i++) {
-      const alt = d[i * 3 + 2]
+      const alt = data[i * 3 + 2]
       if (alt < 0) {
-        m.setMatrixAt(i, HIDDEN)
+        panel.setMatrixAt(i, HIDDEN)
+        pos[i * 3] = NaN
         continue
       }
-      const { x, y, z } = globe.getCoords(d[i * 3], d[i * 3 + 1], globeAltitude(alt))
-      dummy.position.set(x, y, z)
-      dummy.scale.set(1, 1, 1)
-      dummy.lookAt(0, 0, 0) // broad face toward Earth, like a real panel
-      dummy.updateMatrix()
-      m.setMatrixAt(i, dummy.matrix)
+      const { x, y, z } = globe.getCoords(data[i * 3], data[i * 3 + 1], globeAltitude(alt))
+      pos[i * 3] = x
+      pos[i * 3 + 1] = y
+      pos[i * 3 + 2] = z
+      panel.setMatrixAt(i, baseAt(i))
     }
-    m.instanceMatrix.needsUpdate = true
+    // 2) the nearest MODEL_POOL sats get the real GLB model on top (panel hidden)
+    if (modelMeshes.length) {
+      const cam = globe.camera().position
+      for (let i = 0; i < n; i++) {
+        if (Number.isNaN(pos[i * 3])) {
+          d2[i] = Infinity
+          continue
+        }
+        const dx = pos[i * 3] - cam.x
+        const dy = pos[i * 3 + 1] - cam.y
+        const dz = pos[i * 3 + 2] - cam.z
+        d2[i] = dx * dx + dy * dy + dz * dz
+      }
+      const near = selectNearest(d2.subarray(0, n), MODEL_POOL)
+      for (let s = 0; s < MODEL_POOL; s++) {
+        const j = near[s]
+        if (j != null && Number.isFinite(d2[j])) {
+          panel.setMatrixAt(j, HIDDEN) // the model stands in for its panel
+          const base = baseAt(j)
+          for (let p = 0; p < modelMeshes.length; p++) {
+            tmp.multiplyMatrices(base, modelParts![p].local)
+            modelMeshes[p].setMatrixAt(s, tmp)
+          }
+        } else {
+          for (const m of modelMeshes) m.setMatrixAt(s, HIDDEN)
+        }
+      }
+      for (const m of modelMeshes) m.instanceMatrix.needsUpdate = true
+    }
+    panel.instanceMatrix.needsUpdate = true
     busy = false
   }
 
   return {
     setVisible(v: boolean) {
       visible = v
-      if (mesh) mesh.visible = v
+      group.visible = v
     },
     update(now: Date) {
-      if (!visible || busy || !mesh) return
+      if (!visible || busy || !panel) return
       const real = Date.now()
       if (real - lastTick < TICK_MS) return
       lastTick = real
@@ -114,11 +240,15 @@ export function setupStarlinkLayer(
     dispose() {
       disposed = true
       worker.terminate()
-      if (mesh) {
-        globe.scene().remove(mesh)
-        mesh.dispose()
-        mesh = null
+      globe.scene().remove(group)
+      panel?.dispose() // PANEL_GEO / PANEL_MAT are shared constants — leave them
+      for (const m of modelMeshes) {
+        m.dispose()
+        m.geometry.dispose()
+        ;(m.material as THREE.Material).dispose()
       }
+      modelMeshes = []
+      panel = null
     },
   }
 }

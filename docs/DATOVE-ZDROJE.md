@@ -86,5 +86,15 @@ ručně stavěný „zlatý" primitiv (žádný volně šiřitelný model neexis
 - **SWOT** © NASA/JPL-Caltech (public domain) — [swot.jpl.nasa.gov](https://swot.jpl.nasa.gov/resources/86/swot-3d-model/)
 - Draco-komprimované modely dekóduje self-hostovaný dekodér v `public/draco/`.
 
+### Starlink (`starlink.glb`) — roj 10,6k satelitů
+- `public/models/sats/starlink.glb` (~370 KB, 4 meshe / ~13k trojúhelníků) je
+  vykreslen přes **InstancedMesh s LOD** — celý roj = levné plachetky, reálný
+  GLB model jen na ~400 nejbližších satelitů ke kameře (10k× plný model =
+  ~140M tris/frame, mimo možnosti i mobilního GPU).
+- ⚠️ **LICENCE K OVĚŘENÍ**: model je drop-in (`public/models/sats/starlink.glb`).
+  Pro veřejný deploy doporučeno použít [Sketchfab model „Starlink (SpaceX
+  satellite)" od Malacodart](https://sketchfab.com/3d-models/starlink-spacex-satellite-0a60f6720c5141c9a1c6d71aac108b31)
+  (zdarma, komerční použití s creditem) a doplnit sem atribuci autora.
+
 Žádný feed nevyžaduje klíč ani autentizaci; vše je veřejné a CORS-friendly nebo
 přibalené jako statický snapshot.
