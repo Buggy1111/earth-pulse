@@ -73,13 +73,15 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   const [markers, setMarkers] = useState<Marker[]>([])
   const [heading, setHeading] = useState(0)
   const [hasMotion, setHasMotion] = useState(false)
+  const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; starlink: boolean } | null>(null)
 
   // Starlink: the whole constellation is propagated in a worker (off the main
   // thread) and the above-horizon az/el is cached here; the per-frame loop only
   // re-projects that cache as the phone turns. userLocRef keeps the worker's
   // late callbacks reading the current location.
   const slWorker = useRef<Worker | null>(null)
-  const slAzEl = useRef<LookAngles[]>([])
+  const slAzEl = useRef<(LookAngles & { name: string })[]>([])
+  const slNames = useRef<string[]>([])
   const userLocRef = useRef(userLoc)
   useEffect(() => {
     userLocRef.current = userLoc
@@ -121,16 +123,20 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       const w = new Worker(new URL('../workers/starlinkWorker.ts', import.meta.url), {
         type: 'module',
       })
-      w.onmessage = (e: MessageEvent<{ type: string; data?: Float32Array }>) => {
+      w.onmessage = (e: MessageEvent<{ type: string; data?: Float32Array; names?: string[] }>) => {
+        if (e.data.type === 'ready') {
+          slNames.current = e.data.names ?? []
+          return
+        }
         const obs = userLocRef.current
         if (e.data.type !== 'positions' || !e.data.data || !obs) return
         const d = e.data.data
-        const out: LookAngles[] = []
-        for (let i = 0; i < d.length; i += 3) {
-          const altKm = d[i + 2]
+        const out: (LookAngles & { name: string })[] = []
+        for (let j = 0; j < d.length; j += 3) {
+          const altKm = d[j + 2]
           if (altKm < 0) continue
-          const la = lookAngles(obs, { lat: d[i], lng: d[i + 1], altKm })
-          if (la.elevationDeg > 0) out.push(la)
+          const la = lookAngles(obs, { lat: d[j], lng: d[j + 1], altKm })
+          if (la.elevationDeg > 0) out.push({ ...la, name: slNames.current[j / 3] ?? 'Starlink' })
         }
         out.sort((a, b) => b.elevationDeg - a.elevationDeg)
         slAzEl.current = out.slice(0, 300) // keep the highest-in-the-sky ones
@@ -204,10 +210,25 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       for (let i = 0; i < sl.length && starlink.length < 120; i++) {
         const proj = projectToView(sl[i], pose, view)
         if (!proj.visible) continue
-        starlink.push({ id: 'sl' + i, name: '', x: proj.x, y: proj.y, elevationDeg: sl[i].elevationDeg, iss: false, kind: 'starlink' })
+        starlink.push({ id: 'sl' + i, name: sl[i].name, x: proj.x, y: proj.y, elevationDeg: sl[i].elevationDeg, iss: false, kind: 'starlink' })
       }
-      setMarkers([...starlink, ...named.slice(0, 24)]) // named drawn on top
+      const all = [...starlink, ...named.slice(0, 24)] // named drawn on top
+      setMarkers(all)
       setHeading(heading)
+      // 🎯 identify what you're pointing at: the marker nearest the centre
+      // crosshair (within reach) is "this is what you see up there"
+      let best: Marker | null = null
+      let bestD = 90 * 90 // ~90 px reach
+      for (const m of all) {
+        const dx = m.x - w / 2
+        const dy = m.y - h / 2
+        const dsq = dx * dx + dy * dy
+        if (dsq < bestD) {
+          bestD = dsq
+          best = m
+        }
+      }
+      setPointed(best ? { name: best.name, elevationDeg: best.elevationDeg, starlink: best.kind === 'starlink' } : null)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -244,6 +265,18 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
             </div>
           ),
         )}
+
+      {/* 🎯 centre crosshair + "what you're pointing at" readout */}
+      {started && (
+        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none', textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, border: `2px solid ${pointed ? (pointed.starlink ? '#8fb6ef' : '#fbbf24') : 'rgba(255,255,255,0.45)'}`, borderRadius: '50%', boxSizing: 'border-box' }} />
+          {pointed && (
+            <div style={{ marginTop: 8, font: '700 14px system-ui', color: '#fff', textShadow: '0 0 6px #000', whiteSpace: 'nowrap' }}>
+              {pointed.name || 'Starlink'} · {Math.round(pointed.elevationDeg)}°
+            </div>
+          )}
+        </div>
+      )}
 
       {/* top status bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(#000a, transparent)', color: '#bae6fd', font: '600 13px system-ui' }}>

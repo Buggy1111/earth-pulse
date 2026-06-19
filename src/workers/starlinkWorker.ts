@@ -26,19 +26,22 @@ type InMessage =
   | { type: 'tick'; timeMs: number }
 
 let satrecs: SatRec[] = []
+let names: string[] = []
 
 self.onmessage = (e: MessageEvent<InMessage>) => {
   const msg = e.data
   if (msg.type === 'init') {
     satrecs = []
+    names = []
     for (const s of parseTle(msg.tle)) {
       try {
         satrecs.push(twoline2satrec(s.line1, s.line2))
+        names.push(s.name) // kept aligned with satrecs so index → name holds
       } catch {
-        // malformed element set — skip
+        // malformed element set — skip (don't push the name either)
       }
     }
-    self.postMessage({ type: 'ready', count: satrecs.length })
+    self.postMessage({ type: 'ready', count: satrecs.length, names })
     return
   }
   // tick: propagate everyone to the given instant
