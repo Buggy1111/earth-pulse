@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
 import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
+import { sunElevationDeg } from '../lib/sun'
 import { createArScene, type ArScene } from './arScene'
 
 function arSupported(): boolean {
@@ -184,6 +185,22 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       arScene.current = null
     }
   }, [started])
+
+  // adapt the 3D models' brightness to local day/night — dark & textured under a
+  // bright sky, lit so they glow against a black night sky. The Sun barely moves
+  // over an AR session, so recompute once a minute.
+  useEffect(() => {
+    if (!started || !userLoc) return
+    const apply = (): void => {
+      const elev = sunElevationDeg(userLoc, new Date())
+      // above the horizon → day (0); fully night by ~9° below (sky dark enough)
+      const night = Math.max(0, Math.min(1, -elev / 9))
+      arScene.current?.setNightFactor(night)
+    }
+    apply()
+    const id = setInterval(apply, 60_000)
+    return () => clearInterval(id)
+  }, [started, userLoc])
 
   // drive the Starlink worker on its own 1.5 s interval — decoupled from the
   // render loop, so propagation keeps up even if rAF is throttled (background

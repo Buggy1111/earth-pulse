@@ -37,6 +37,20 @@ export function subsolarPoint(date: Date): LatLng {
   return { lat: declination, lng }
 }
 
+/** The Sun's elevation above the horizon (degrees) at an observer's location
+ * and time. Positive = day, ~0 at sunrise/sunset, negative = night. The angular
+ * distance from the observer to the subsolar point IS the Sun's zenith angle,
+ * so elevation = 90 − that. Good to a fraction of a degree — enough to tell day
+ * from night for the AR sky's model brightness. */
+export function sunElevationDeg(observer: LatLng, date: Date): number {
+  const sun = subsolarPoint(date)
+  const latO = observer.lat * RAD
+  const latS = sun.lat * RAD
+  const dLng = (observer.lng - sun.lng) * RAD
+  const cosZ = Math.sin(latO) * Math.sin(latS) + Math.cos(latO) * Math.cos(latS) * Math.cos(dLng)
+  return 90 - Math.acos(Math.max(-1, Math.min(1, cosZ))) / RAD
+}
+
 /** Circle of `radiusDeg` great-circle degrees around `center`, as a GeoJSON
  * ring ([lng, lat][], closed). Shared by the night hemisphere and aurora ovals. */
 export function sphericalCircle(

@@ -23,6 +23,9 @@ export interface ArScene {
   setPose(headingDeg: number, pitchDeg: number): void
   setSatellites(sats: ArSat[]): void
   resize(width: number, height: number): void
+  /** Adapt the model's self-illumination to local day/night: 0 = day (dark,
+   * textured, reads on a bright sky), 1 = night (lit, reads on a black sky). */
+  setNightFactor(f: number): void
   /** True once the real model has loaded (so the DOM layer can drop its dots). */
   ready(): boolean
   dispose(): void
@@ -57,6 +60,14 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
   let disposed = false
   let raf = 0
 
+  // the self-lit materials and how bright they glow by day vs night — clones
+  // share these instances, so adjusting them retints the whole pool at once
+  const litMats: { m: THREE.MeshStandardMaterial; dayI: number; nightI: number }[] = []
+  let nightFactor = 0
+  function applyNight(): void {
+    for (const e of litMats) e.m.emissiveIntensity = e.dayI + (e.nightI - e.dayI) * nightFactor
+  }
+
   const draco = new DRACOLoader().setDecoderPath('draco/')
   new GLTFLoader()
     .setDRACOLoader(draco)
@@ -75,15 +86,18 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
           // self-glow so the model reads against a bright day sky AND the dark
           // night sky — but carry the *texture* into the glow. A textured model
           // has color = white with detail in the map, so copying the colour
-          // would glow pure white and wash the panels into blank slabs.
+          // would glow pure white and wash the panels into blank slabs. The glow
+          // is dim by day (the bright sky gives the contrast) and bright by
+          // night (the black sky needs the model itself to light up) — the day
+          // vs night intensities are registered here and lerped in applyNight().
           if (m.emissive) {
             if (m.map) {
               m.emissiveMap = m.map
               m.emissive.setRGB(1, 1, 1)
-              m.emissiveIntensity = 0.3
+              litMats.push({ m, dayI: 0.3, nightI: 2.0 })
             } else if (m.color) {
-              m.emissive.copy(m.color).multiplyScalar(0.25)
-              m.emissiveIntensity = 1
+              m.emissive.copy(m.color)
+              litMats.push({ m, dayI: 0.25, nightI: 1.0 })
             }
           }
           if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.4)
@@ -100,6 +114,7 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
         pool.push(clone)
       }
       loaded = true
+      applyNight() // set the initial day/night brightness on the loaded materials
       layout()
       onReady?.()
     })
@@ -148,6 +163,10 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
       renderer.setSize(width, height, false)
       camera.aspect = width / Math.max(height, 1)
       camera.updateProjectionMatrix()
+    },
+    setNightFactor(f) {
+      nightFactor = Math.max(0, Math.min(1, f))
+      applyNight()
     },
     ready: () => loaded,
     dispose() {
