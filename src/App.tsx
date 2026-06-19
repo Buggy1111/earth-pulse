@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
+import { ArLaunchButton, ArSky } from './components/ArSky'
 import { Hud } from './components/hud/Hud'
 import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
 import type { LayerState, OrbitEntry } from './components/hud/types'
@@ -76,6 +77,8 @@ export default function App() {
   // 🛰 satellite the camera is locked onto (flies with it, orbit around it)
   const [followSat, setFollowSat] = useState<{ id: string; name: string } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
+  // 📡 sky AR overlay: point the phone at the sky to spot overhead satellites
+  const [arMode, setArMode] = useState(false)
   const { eco, onToggleEco } = useEcoMode(ready)
   // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
   const [earthSpin, setEarthSpin] = useState(
@@ -453,6 +456,12 @@ export default function App() {
       )}
 
       {driftMode && <PangeaView onClose={goEarth} />}
+
+      {/* 📡 sky AR: launch button (mobile only, self-hides on unsupported) + overlay */}
+      {!hudOff && !arMode && !driftMode && <ArLaunchButton onOpen={() => setArMode(true)} />}
+      {arMode && (
+        <ArSky sats={sats} userLoc={userLoc} onLocate={onLocate} onClose={() => setArMode(false)} />
+      )}
     </>
   )
 }

@@ -1,14 +1,10 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseTle, propagateSats, toTrackedSats } from './satellites'
-
 // the build-time snapshot the Starlink worker parses — guards both the data
 // and the exact parse path (parseTle → satrec) the worker runs off-thread.
-const SNAPSHOT = resolve(process.cwd(), 'public/tle/starlink.txt')
+import text from '../../public/tle/starlink.txt?raw'
 
 describe('Starlink TLE snapshot', () => {
-  const text = readFileSync(SNAPSHOT, 'utf8')
   const sets = parseTle(text)
 
   it('holds the full constellation (thousands of sats)', () => {
