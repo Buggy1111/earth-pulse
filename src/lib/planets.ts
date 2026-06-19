@@ -145,19 +145,6 @@ export function planetPositions(date: Date): PlanetPos[] {
   })
 }
 
-/** Sub-planet point on Earth (like subsolar/sublunar) for scene placement.
- * Works for anything with equatorial RA/Dec (incl. the ecliptic pole). */
-export function subPlanetPoint(
-  p: { raDeg: number; decDeg: number },
-  date: Date,
-): { lat: number; lng: number } {
-  const d = (date.getTime() - Date.UTC(2000, 0, 1, 12)) / 86_400_000
-  const gmst = (280.46061837 + 360.98564736629 * d) % 360
-  let lng = p.raDeg - gmst
-  lng = ((lng % 360) + 540) % 360 - 180
-  return { lat: p.decDeg, lng }
-}
-
 /** Season 2 scene scale: heliocentric, UNIFORM — 1 AU in scene units.
  * No per-planet compression, so orbit geometry stays true. */
 export const AU_SCENE = 2_200

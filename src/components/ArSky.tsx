@@ -13,41 +13,10 @@ import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
 import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
 import { sunElevationDeg } from '../lib/sun'
 import { createArScene, type ArScene } from './arScene'
-
-function arSupported(): boolean {
-  if (typeof window === 'undefined') return false
-  // phones/tablets only — a touch-primary device. Desktop (mouse) exposes the
-  // DeviceOrientation API too but has no real sensors, so AR there is pointless.
-  return window.matchMedia('(pointer: coarse)').matches
-}
-const SUPPORTED = arSupported()
+import { BTN_BASE } from './arButtonStyle'
 
 interface OrientPermission {
   requestPermission?: () => Promise<'granted' | 'denied'>
-}
-
-const BTN_BASE: React.CSSProperties = {
-  border: '1px solid #38bdf8',
-  background: 'rgba(8,16,28,0.7)',
-  color: '#bae6fd',
-  borderRadius: '999px',
-  font: '600 13px system-ui, sans-serif',
-  cursor: 'pointer',
-}
-
-/** Floating entry button — hidden on devices that can't do AR. */
-export function ArLaunchButton({ onOpen }: { onOpen: () => void }): React.ReactElement | null {
-  if (!SUPPORTED) return null
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={{ ...BTN_BASE, position: 'fixed', right: 12, bottom: 88, padding: '8px 14px', zIndex: 40 }}
-      aria-label="Open sky AR — point your phone at the sky"
-    >
-      📡 sky AR
-    </button>
-  )
 }
 
 interface Marker {

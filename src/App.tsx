@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
-import { ArLaunchButton, ArSky } from './components/ArSky'
+import { ArLaunchButton } from './components/ArLaunchButton'
+import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
 import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
 import type { LayerState, OrbitEntry } from './components/hud/types'
@@ -24,15 +25,14 @@ import {
   useMediaQuery,
   useQuakePing,
   useShareHash,
-  useSolarTime,
   useTimeline,
 } from './uiHooks'
+import { useWorldView } from './useWorldView'
 import { mergeQuakes } from './lib/emsc'
-import { moonPhaseLabel, subLunarPoint, type ApolloSite } from './lib/moon'
+import { moonPhaseLabel, subLunarPoint } from './lib/moon'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove } from './lib/satellites'
 import { parseView } from './lib/share'
-import { PangeaView } from './components/PangeaView'
 
 // shared link? restore camera/orbits/layers from the URL hash
 const initialView = parseView(window.location.hash)
@@ -49,8 +49,16 @@ export default function App() {
   const now = useNow()
   const [selected, setSelected] = useState<Quake | null>(null)
   const [ready, setReady] = useState(false)
-  const [followIss, setFollowIss] = useState(false)
   const { soundOn, toggleSound } = useQuakePing(newQuakes, emscFresh)
+  const {
+    followIss, setFollowIss, followSat, setFollowSat,
+    tourOn, setTourOn, onTourToggle, onTourBroken,
+    moonMode, setMoonMode, apolloSite, onMoonEnter, onMoonExit, onApolloPick,
+    solarMode, setSolarMode, driftMode, focusPlanet, setFocusPlanet,
+    mode, onSolarOverview, onSolarExit, onPlanetPick,
+    solarTime, onWarp, onWarpReset, onVisibilityChange,
+    goEarth, goMoon, goSolar, goDrift,
+  } = useWorldView()
 
   // user customization: visible layers, chosen orbits, own location
   const [layers, setLayers] = useState<LayerState>(() => {
@@ -74,8 +82,6 @@ export default function App() {
   const [orbits, setOrbits] = useState<OrbitEntry[]>([])
   const { userLoc, locating, locVersion, onLocate } = useGeolocate()
   const [focusSat, setFocusSat] = useState<{ id: string; v: number } | null>(null)
-  // 🛰 satellite the camera is locked onto (flies with it, orbit around it)
-  const [followSat, setFollowSat] = useState<{ id: string; name: string } | null>(null)
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   // 📡 sky AR overlay: point the phone at the sky to spot overhead satellites
   const [arMode, setArMode] = useState(false)
@@ -125,89 +131,7 @@ export default function App() {
   const moonState = useMemo(() => subLunarPoint(new Date(minuteNow * 60_000)), [minuteNow])
   const moonLabel = useMemo(() => moonPhaseLabel(moonState), [moonState])
 
-  // 🎬 cinematic tour
-  const [tourOn, setTourOn] = useState(false)
-  const onTourToggle = useCallback(() => {
-    setTourOn((t) => {
-      if (!t) setFollowIss(false)
-      return !t
-    })
-  }, [])
-  const onTourBroken = useCallback(() => setTourOn(false), [])
-  // 🌙 moon mode: click the Moon (or the HUD line) → orbit IT instead of Earth
-  const [moonMode, setMoonMode] = useState(false)
-  const [apolloSite, setApolloSite] = useState<ApolloSite | null>(null)
-  // 🪐 solar system mode + ⏩ time-warp (simMs runs warp× faster than real)
-  const [solarMode, setSolarMode] = useState(false)
-  // 🌍 continental-drift mode: a full-screen Pangaea→today globe (own scene)
-  const [driftMode, setDriftMode] = useState(false)
-  const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
-  const { solarTime, onWarp, onWarpReset, onVisibilityChange } = useSolarTime()
   const solarSimNow = solarTime.simMs + (now - solarTime.realMs) * solarTime.warp
-  const onMoonEnter = useCallback(() => {
-    setMoonMode(true)
-    setSolarMode(false)
-    setFollowIss(false)
-    setTourOn(false)
-    setApolloSite(null)
-  }, [])
-  const onMoonExit = useCallback(() => {
-    setMoonMode(false)
-    setApolloSite(null)
-  }, [])
-  const onApolloPick = useCallback((site: ApolloSite | null) => setApolloSite(site), [])
-
-  // which world the HUD lives in right now
-  const mode: 'earth' | 'moon' | 'solar' = solarMode ? 'solar' : moonMode ? 'moon' : 'earth'
-  const onSolarOverview = useCallback(() => setFocusPlanet(null), [])
-  const onSolarExit = useCallback(() => {
-    setSolarMode(false)
-    setFocusPlanet(null)
-    onWarpReset() // Earth always comes back live
-  }, [onWarpReset])
-  const onPlanetPick = useCallback(
-    (id: string) => (id === 'earth' ? onSolarExit() : setFocusPlanet(id)),
-    [onSolarExit],
-  )
-
-  // unified world navigation — jump straight to any world from any world, so
-  // you're never stranded needing to back out through Earth first.
-  const goEarth = useCallback(() => {
-    setSolarMode(false)
-    setDriftMode(false)
-    setFocusPlanet(null)
-    onWarpReset()
-    setMoonMode(false)
-    setApolloSite(null)
-    setFollowIss(false)
-    setFollowSat(null)
-    setTourOn(false)
-  }, [onWarpReset])
-  const goDrift = useCallback(() => {
-    setDriftMode(true)
-    setSolarMode(false)
-    setMoonMode(false)
-    setFollowIss(false)
-    setFollowSat(null)
-    setTourOn(false)
-  }, [])
-  const goMoon = useCallback(() => {
-    onMoonEnter()
-    onWarpReset()
-    setFocusPlanet(null)
-    setDriftMode(false)
-    setFollowSat(null)
-  }, [onMoonEnter, onWarpReset])
-  const goSolar = useCallback(() => {
-    setSolarMode(true)
-    setMoonMode(false)
-    setApolloSite(null)
-    setFocusPlanet(null)
-    setFollowIss(false)
-    setFollowSat(null)
-    setTourOn(false)
-    setDriftMode(false)
-  }, [])
 
   // 👁 clean view: hide the whole HUD for an unobstructed globe (great for
   // screenshots, video, ambient/kiosk). Toggle with the dock button or H.
@@ -273,7 +197,7 @@ export default function App() {
       if (key === 'iss' && !next.iss) setFollowIss(false)
       return next
     })
-  }, [])
+  }, [setFollowIss])
 
   const [selectedMission, setSelectedMission] = useState<string | null>(null)
   const onSatClick = useCallback((id: string, name: string) => {
@@ -283,7 +207,7 @@ export default function App() {
     setSelectedMission(name)
     setFollowIss(false) // the pin-follow and the ISS-follow are mutually exclusive
     setFollowSat((prev) => (prev?.id === id ? null : { id, name }))
-  }, [])
+  }, [setFollowIss, setFollowSat])
   const onRemoveOrbit = useCallback(
     (id: string) => setOrbits((list) => list.filter((o) => o.id !== id)),
     [],
@@ -316,11 +240,11 @@ export default function App() {
   const { onPovChange } = useShareHash({ orbits, layers, setOrbits, sats, initialView })
 
   const onReady = useCallback(() => setReady(true), [])
-  const onFollowBroken = useCallback(() => setFollowIss(false), [])
+  const onFollowBroken = useCallback(() => setFollowIss(false), [setFollowIss])
   const onIssClick = useCallback(() => {
     setFollowSat(null) // ISS-follow and satellite pin-follow are exclusive
     setFollowIss((f) => !f)
-  }, [])
+  }, [setFollowSat, setFollowIss])
 
   return (
     <>
@@ -456,12 +380,18 @@ export default function App() {
         />
       )}
 
-      {driftMode && <PangeaView onClose={goEarth} />}
+      {driftMode && (
+        <Suspense fallback={null}>
+          <PangeaView onClose={goEarth} />
+        </Suspense>
+      )}
 
       {/* 📡 sky AR: launch button (mobile only, self-hides on unsupported) + overlay */}
       {!hudOff && !arMode && !driftMode && <ArLaunchButton onOpen={() => setArMode(true)} />}
       {arMode && (
-        <ArSky sats={sats} userLoc={userLoc} onLocate={onLocate} onClose={() => setArMode(false)} />
+        <Suspense fallback={null}>
+          <ArSky sats={sats} userLoc={userLoc} onLocate={onLocate} onClose={() => setArMode(false)} />
+        </Suspense>
       )}
     </>
   )

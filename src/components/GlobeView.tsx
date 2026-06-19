@@ -2,90 +2,28 @@
  * plain setup function with an explicit context and a cleanup — this
  * component only owns React wiring (props → refs → effects). */
 
-import Globe, { type GlobeInstance } from 'globe.gl'
+import type { GlobeInstance } from 'globe.gl'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
-import type { Quake } from '../lib/quakes'
-import type { ApolloSite } from '../lib/moon'
-import { EARTH_DISPLAY } from '../lib/planets'
-import { globeAltitude, type TrackedSat } from '../lib/satellites'
-import type { LayerState } from './hud/types'
+import { globeAltitude } from '../lib/satellites'
 import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
 import { type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers } from './globe/quakesLayer'
-import type { EarthEvent } from '../lib/events'
-import { gibsWmsUrl, type GibsLayer } from '../lib/gibs'
-import { setupPointer } from './globe/pointer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
-import { startOrbitEngine, syncTrails, type SolarAnimEntry } from './globe/orbitEngine'
+import { startOrbitEngine, type SolarAnimEntry } from './globe/orbitEngine'
+import { syncTrails } from './globe/orbitRender'
 import { setupStarlinkLayer, type StarlinkLayer } from './globe/starlinkLayer'
-import { ensureSolarSystem, focusSolarBody, SUNLIT_LAYER } from './globe/solar'
+import { focusSolarBody } from './globe/solarFocus'
+import { enterSolarMode } from './globe/solarMode'
+import { setupScene, swapGlobeTextures } from './globe/sceneSetup'
+import { applyGibsImage } from './globe/gibsLayer'
+import type { GlobeViewProps } from './globe/globeView.types'
 
-interface Props {
-  quakes: Quake[]
-  /** Quakes that just appeared in the feed — rendered as bright flash rings. */
-  flashes: Quake[]
-  iss: IssState | null
-  /** Parsed TLE sets; propagation runs inside the orbit engine, off React. */
-  sats: TrackedSat[]
-  /** Live Kp index for the aurora ovals (null until the first NOAA reading). */
-  kp: number | null
-  layers: LayerState
-  /** NORAD ids whose orbits are drawn (managed by the parent via onSatClick). */
-  selectedOrbitIds: string[]
-  userLoc: { lat: number; lng: number } | null
-  /** Bumped on every locate click so we re-fly even to an unchanged position. */
-  locVersion: number
-  /** Eco/performance mode: 4K textures, 1× pixel ratio, 30 Hz propagation. */
-  eco: boolean
-  /** "Earth spins" view: camera follows the Sun so the Earth appears to rotate. */
-  earthSpin: boolean
-  /** Camera restored from a shared link — overrides the default opening view. */
-  initialPov: { lat: number; lng: number; altitude: number } | null
-  onPovChange: (pov: { lat: number; lng: number; altitude: number }) => void
-  /** Satellite picked in the search box — fly the camera to it. */
-  focusSat: { id: string; v: number } | null
-  /** Satellite to lock onto: camera flies with it & orbits around it; null releases. */
-  followSat: { id: string; name: string } | null
-  /** Quake picked in the HUD — fly the camera there. */
-  flyTo: { lat: number; lng: number; v: number } | null
-  /** Bumped to recenter the camera on the default Earth view. */
-  resetView: number
-  /** Pause the globe's render loop while a fullscreen overlay (Sky AR) covers
-   * it — saves GPU/battery and frees the main thread for the overlay. */
-  paused?: boolean
-  /** Reference "now" for quake age/glow — the timeline slider rewinds it. */
-  simNow: number
-  tour: boolean
-  onTourBroken: () => void
-  moonMode: boolean
-  onMoonEnter: () => void
-  onApolloPick: (site: ApolloSite | null) => void
-  solarMode: boolean
-  /** Which planet the camera orbits in solar mode (null = Sun overview). */
-  focusPlanet: string | null
-  onPlanetPick: (id: string) => void
-  /** Simulated-time anchor: simMs advances `warp`× faster than real time. */
-  solarTime: { realMs: number; simMs: number; warp: number }
-  followIss: boolean
-  onFollowBroken: () => void
-  onIssClick: () => void
-  onSatClick: (id: string, name: string) => void
-  onQuakeClick: (quake: Quake) => void
-  events: EarthEvent[]
-  onEventClick: (e: EarthEvent) => void
-  /** Active NASA GIBS data layer (null = live day/night globe). */
-  gibsLayer: GibsLayer | null
-  /** YYYY-MM-DD imagery date for the GIBS layer (time playback). */
-  gibsDate: string
-  onReady: () => void
-}
-
-export function GlobeView(props: Props) {
+export function GlobeView(props: GlobeViewProps) {
   const { quakes, flashes, iss, sats, kp, layers, selectedOrbitIds, userLoc, locVersion } = props
   const { eco, focusSat, flyTo, simNow, tour, moonMode, solarMode, focusPlanet, solarTime } = props
   const { followIss, onQuakeClick } = props
@@ -157,78 +95,31 @@ export function GlobeView(props: Props) {
   // one-time globe setup: scene, sky, surface, pointer plumbing
   useEffect(() => {
     if (!containerRef.current) return
-    const fromLink = initialPovRef.current
-    const globe = new Globe(containerRef.current)
-      .backgroundColor('#000005')
-      .atmosphereColor('#7dd3fc')
-      .atmosphereAltitude(0.18)
-      .pointOfView(fromLink ?? { lat: 25, lng: 15, altitude: 2.2 }, 0)
-
-    // a shared link IS the view — don't auto-rotate away from it
-    userInteractedRef.current = !!fromLink
-    globe.controls().autoRotate = !fromLink
-    globe.controls().autoRotateSpeed = 0.45
-    globe.renderer().setPixelRatio(ecoRef.current ? 1 : Math.min(window.devicePixelRatio, 2))
-    // solar-system bodies live on SUNLIT_LAYER (lit only by the Sun's light)
-    ;(globe.camera() as THREE.PerspectiveCamera).layers.enable(SUNLIT_LAYER)
-
-    const simNowMs = () => {
-      const t = solarTimeRef.current
-      return t.simMs + (Date.now() - t.realMs) * t.warp + timeOffsetMsRef.current
-    }
-    const sky = setupSky(globe, simNowMs)
-    skyRef.current = sky
-    applySkyRef.current = sky.applySky
-    moonMeshRef.current = sky.moonMesh
-
-    const surface = setupSurface(globe, {
-      sunUniform: sky.sunUniform,
+    return setupScene(containerRef.current, {
+      cb,
+      globeRef,
+      initialPovRef,
+      userInteractedRef,
+      ecoRef,
+      solarTimeRef,
+      timeOffsetMsRef,
       layersRef,
-      textureRes: textureResRef.current,
+      textureResRef,
       gibsActiveRef,
-      isAlive: () => globeRef.current !== null,
-      onReady: () => cb.current.onReady(),
-      onMaterial: (m) => (globeMaterialRef.current = m),
-    })
-    surfaceRef.current = surface
-
-    const disposePointer = setupPointer(globe, {
-      moonMesh: sky.moonMesh,
-      apolloMarkers: sky.apolloMarkers,
+      globeMaterialRef,
+      skyRef,
+      applySkyRef,
+      moonMeshRef,
+      surfaceRef,
+      starlinkRef,
       planetMeshesRef,
       sunMeshRef,
       pinTargetRef,
-      userInteractedRef,
       followRef,
       tourRef,
       moonModeRef,
       solarModeRef,
-      onFollowBroken: () => cb.current.onFollowBroken(),
-      onTourBroken: () => cb.current.onTourBroken(),
-      onMoonEnter: () => cb.current.onMoonEnter(),
-      onApolloPick: (s) => cb.current.onApolloPick(s),
-      onPlanetPick: (id) => cb.current.onPlanetPick(id),
-      onPovChange: (p) => cb.current.onPovChange(p),
     })
-
-    const onResize = () => globe.width(window.innerWidth).height(window.innerHeight)
-    onResize()
-    window.addEventListener('resize', onResize)
-
-    globeRef.current = globe
-    // e2e hook: headless tests steer the camera through this handle
-    ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
-    return () => {
-      globeRef.current = null
-      disposePointer()
-      surface.dispose()
-      sky.dispose()
-      moonMeshRef.current = null
-      starlinkRef.current?.dispose()
-      starlinkRef.current = null
-      window.removeEventListener('resize', onResize)
-      globe._destructor()
-    }
   }, [])
 
   // layer visibility for meshes living outside React
@@ -253,20 +144,7 @@ export function GlobeView(props: Props) {
     const material = globeMaterialRef.current
     if (!material || textureResRef.current === wanted) return
     textureResRef.current = wanted
-    const loader = new THREE.TextureLoader()
-    void Promise.all([
-      loader.loadAsync(`earth-day-${wanted}.jpg`),
-      loader.loadAsync(`earth-night-${wanted}.jpg`),
-    ]).then(([day, night]) => {
-      if (textureResRef.current !== wanted || !globeRef.current) return
-      day.colorSpace = THREE.SRGBColorSpace
-      night.colorSpace = THREE.SRGBColorSpace
-      for (const [key, tex] of [['dayTexture', day], ['nightTexture', night]] as const) {
-        const old = material.uniforms[key].value as THREE.Texture
-        material.uniforms[key].value = tex
-        old.dispose()
-      }
-    })
+    swapGlobeTextures(material, wanted, () => textureResRef.current === wanted && !!globeRef.current)
   }, [eco])
 
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
@@ -305,27 +183,12 @@ export function GlobeView(props: Props) {
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
-    const layer = props.gibsLayer
-    gibsActiveRef.current = !!layer
-    surfaceRef.current?.setDataMode(!!layer)
-    if (!layer) {
-      if (globeMaterialRef.current) globe.globeMaterial(globeMaterialRef.current)
-      surfaceRef.current?.updateTileEngine()
-      return
-    }
-    surfaceRef.current?.updateTileEngine() // clear any Esri tiles first
-    new THREE.TextureLoader().load(gibsWmsUrl(layer, props.gibsDate), (tex) => {
-      if (!gibsActiveRef.current || globeRef.current !== globe) {
-        tex.dispose()
-        return
-      }
-      tex.colorSpace = THREE.SRGBColorSpace
-      const prev = gibsMaterialRef.current
-      const mat = new THREE.MeshBasicMaterial({ map: tex })
-      gibsMaterialRef.current = mat
-      globe.globeMaterial(mat)
-      prev?.map?.dispose()
-      prev?.dispose()
+    applyGibsImage(globe, props.gibsLayer, props.gibsDate, {
+      globeRef,
+      gibsActiveRef,
+      surfaceRef,
+      globeMaterialRef,
+      gibsMaterialRef,
     })
   }, [props.gibsLayer, props.gibsDate])
 
@@ -384,13 +247,20 @@ export function GlobeView(props: Props) {
       // away from the real spot as you zoom in and tilt the view
       .htmlAltitude(0)
       .htmlElement(() => {
-        const el = document.createElement('div')
         // translateY(-100%) anchors the pin's tip on the point — the label and
-        // pin stack ABOVE the location, pointing straight down at it
-        el.innerHTML =
-          '<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translateY(-100%)">' +
-          '<div style="font:600 10px sans-serif;color:#bae6fd;text-shadow:0 0 6px #000">you are here</div>' +
-          '<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 6px rgba(56,189,248,.9))">📍</div></div>'
+        // pin stack ABOVE the location, pointing straight down at it. Built with
+        // DOM methods (not innerHTML) so it stays XSS-safe if the label is ever
+        // fed dynamic data.
+        const el = document.createElement('div')
+        el.style.cssText =
+          'display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translateY(-100%)'
+        const label = document.createElement('div')
+        label.style.cssText = 'font:600 10px sans-serif;color:#bae6fd;text-shadow:0 0 6px #000'
+        label.textContent = 'you are here'
+        const pin = document.createElement('div')
+        pin.style.cssText = 'font-size:20px;line-height:1;filter:drop-shadow(0 0 6px rgba(56,189,248,.9))'
+        pin.textContent = '📍'
+        el.append(label, pin)
         return el
       })
     if (userLoc) {
@@ -415,7 +285,7 @@ export function GlobeView(props: Props) {
     const globe = globeRef.current
     const sky = skyRef.current
     if (!globe || !solarMode || !sky) return
-    const group = ensureSolarSystem(globe, {
+    return enterSolarMode(globe, sky, {
       solarGroupRef,
       sunMeshRef,
       planetMeshesRef,
@@ -424,67 +294,11 @@ export function GlobeView(props: Props) {
       solarFrameRef,
       solarTimeRef,
       applySkyRef,
-      sunUniform: sky.sunUniform,
+      earthRootRef,
+      surfaceRef,
+      pinTargetRef,
+      userInteractedRef,
     })
-    group.visible = true
-    const t = solarTimeRef.current
-    solarFrameRef.current(new Date(t.simMs + (Date.now() - t.realMs) * t.warp))
-
-    // Earth shrinks to its TRUE relative size (with satellites, clouds, all).
-    // The three-globe root attaches to the scene after our setup ran, so we
-    // resolve it here, lazily.
-    if (!earthRootRef.current) {
-      for (const child of globe.scene().children) {
-        let found = false
-        child.traverse((o) => {
-          if ((o as { __globeObjType?: string }).__globeObjType === 'globe') found = true
-        })
-        if (found) {
-          earthRootRef.current = child
-          break
-        }
-      }
-    }
-    const k = EARTH_DISPLAY / 100
-    const surf = surfaceRef.current
-    const shrink = [
-      earthRootRef.current,
-      surf?.cloudsRef.current,
-      surf?.bordersRef.current,
-      surf?.volcanoesRef.current,
-    ].filter((o): o is THREE.Object3D => !!o)
-    shrink.forEach((o) => o.scale.setScalar(k))
-    sky.sunSprite.visible = false // the solar Sun has its own glow
-    sky.moonMesh.visible = false // would sit inside the mini-Earth
-
-    // widen the camera envelope: Pluto orbits ~39 AU out
-    const cam = globe.camera() as THREE.PerspectiveCamera
-    const controls = globe.controls()
-    const prevFar = cam.far
-    const prevMax = controls.maxDistance
-    // Pluto's orbit line reaches ~49 AU (108k); camera fully zoomed out on
-    // the opposite side must still see it: 130k + 108k < far
-    cam.far = 260_000
-    cam.updateProjectionMatrix()
-    controls.maxDistance = 130_000
-    controls.autoRotate = false
-    userInteractedRef.current = true
-    return () => {
-      group.visible = false
-      shrink.forEach((o) => o.scale.setScalar(1))
-      sky.sunSprite.visible = true
-      sky.moonMesh.visible = true
-      // solar mode re-aimed the shared sun uniform at the big Sun — restore
-      // the earth-frame terminator immediately (exit always returns to live)
-      sky.applySky(new Date())
-      cam.far = prevFar
-      cam.updateProjectionMatrix()
-      controls.maxDistance = prevMax
-      pinTargetRef.current = null
-      controls.target.set(0, 0, 0)
-      controls.update()
-      globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
-    }
   }, [solarMode])
 
   // camera focus within solar mode: Sun overview or a chosen planet

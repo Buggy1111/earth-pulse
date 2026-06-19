@@ -115,7 +115,13 @@ test.describe('mobile', () => {
       const btn = [...document.querySelectorAll('button')].find((b) => /sky AR/i.test(b.textContent || ''))
       btn?.click()
     })
-    await page.waitForTimeout(400)
+    // the overlay is lazy-loaded (its own chunk) — wait for it to mount rather
+    // than a fixed delay, then assert its controls + camera element are present
+    await page.waitForFunction(
+      () => Boolean(document.querySelector('video')) && /location|start/i.test(document.body.innerText),
+      null,
+      { timeout: 15_000 },
+    )
     const state = await page.evaluate(() => ({
       hasClose: [...document.querySelectorAll('button')].some((b) => /close/i.test(b.textContent || '')),
       hasGate: /location|start/i.test(document.body.innerText),

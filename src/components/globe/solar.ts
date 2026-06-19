@@ -23,6 +23,7 @@ import {
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
+import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
 
 /** Bodies lit ONLY by the Sun live on this layer — globe.gl's own ambient +
@@ -68,94 +69,6 @@ function radialRingUVs(geo: THREE.RingGeometry, inner: number, outer: number): v
     uv.setXY(i, (r - inner) / (outer - inner), 0.5)
   }
   uv.needsUpdate = true
-}
-
-// ——— comet-style orbit trails: the full ring geometry stays, but the vertex
-// colours are repainted every frame so the bright head sits on the body and
-// fades back along the path it came from. The body and its orbit always share
-// a parent, so we compare LOCAL positions — no matrix work in the hot path.
-interface SolarTrail {
-  line: THREE.Line
-  pts: THREE.Vector3[]
-  colors: THREE.Float32BufferAttribute
-  base: THREE.Color
-  n: number
-  body: THREE.Object3D
-  span: number
-  prevHead: number
-  lastDir: number
-}
-
-function makeTrailOrbit(
-  trails: SolarTrail[],
-  pts: THREE.Vector3[],
-  colorHex: string,
-  opacity: number,
-  body: THREE.Object3D,
-): THREE.Line {
-  const n = pts.length
-  const colors = new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3)
-  const geom = new THREE.BufferGeometry().setFromPoints(pts)
-  geom.setAttribute('color', colors)
-  const line = new THREE.Line(
-    geom,
-    new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  )
-  line.renderOrder = 1
-  trails.push({
-    line,
-    pts,
-    colors,
-    base: new THREE.Color(colorHex),
-    n,
-    body,
-    span: Math.max(2, Math.floor(n * 0.7)),
-    prevHead: -1,
-    lastDir: 1,
-  })
-  return line
-}
-
-function updateSolarTrails(trails: SolarTrail[]): void {
-  for (const tr of trails) {
-    if (!tr.line.visible) continue
-    const bp = tr.body.position // same parent as the orbit → local space matches
-    let h = 0
-    let best = Infinity
-    for (let i = 0; i < tr.n; i++) {
-      const d = tr.pts[i].distanceToSquared(bp)
-      if (d < best) {
-        best = d
-        h = i
-      }
-    }
-    // motion direction from the head's step — auto-handles retrograde moons
-    let dir = tr.lastDir
-    if (tr.prevHead >= 0) {
-      let delta = h - tr.prevHead
-      if (delta > tr.n / 2) delta -= tr.n
-      else if (delta < -tr.n / 2) delta += tr.n
-      if (delta !== 0) dir = Math.sign(delta)
-    }
-    tr.lastDir = dir
-    tr.prevHead = h
-    const c = tr.colors.array as Float32Array
-    c.fill(0)
-    for (let k = 0; k <= tr.span; k++) {
-      const idx = (((h - dir * k) % tr.n) + tr.n) % tr.n
-      const f = (1 - k / tr.span) ** 1.2 // bright head, lingering fade to black
-      c[idx * 3] = tr.base.r * f
-      c[idx * 3 + 1] = tr.base.g * f
-      c[idx * 3 + 2] = tr.base.b * f
-    }
-    tr.colors.needsUpdate = true
-  }
 }
 
 /** Build the system once (lazy). All motion happens in the frame callback. */
@@ -463,86 +376,4 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   globe.scene().add(group)
   deps.solarGroupRef.current = group
   return group
-}
-
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-}
-
-/** Which planet a moon belongs to (moon ids are globally unique). */
-export const MOON_PARENT: Record<string, string> = Object.fromEntries(
-  Object.entries(PLANET_MOONS).flatMap(([pid, moons]) => moons.map((m) => [m.id, pid])),
-)
-
-/** Glide the camera to the Sun overview or a chosen body (planet OR moon);
- * returns a restore fn. The flight tracks the body's LIVE position each frame
- * (it keeps working at full time-warp) and hands the body to the pin/chase
- * system on arrival. A user drag mid-flight cancels the glide and pins where
- * we are. Moon labels + orbit rings show only for the focused system. */
-export function focusSolarBody(
-  globe: GlobeInstance,
-  deps: Pick<SolarDeps, 'planetMeshesRef' | 'moonMeshesRef' | 'sunMeshRef'>,
-  pinTargetRef: { current: THREE.Object3D | null },
-  focusPlanet: string | null,
-): (() => void) | undefined {
-  const controls = globe.controls()
-  const cam = globe.camera() as THREE.PerspectiveCamera
-  const prevMin = controls.minDistance
-  const focusMesh =
-    (focusPlanet && focusPlanet !== 'sun'
-      ? (deps.planetMeshesRef.current.get(focusPlanet) ??
-        deps.moonMeshesRef.current.get(focusPlanet))
-      : null) ?? deps.sunMeshRef.current
-  if (!focusMesh) return undefined
-  const radius = (focusMesh.userData.displayRadius as number | undefined) ?? 20
-  controls.minDistance = Math.max(radius * 2.2, 2)
-
-  // reveal this system's moon labels + orbit rings, hide everyone else's
-  const focusedSystem = focusPlanet ? (MOON_PARENT[focusPlanet] ?? focusPlanet) : null
-  for (const [pid, system] of deps.planetMeshesRef.current) {
-    const decor = system.userData.decor as THREE.Object3D[] | undefined
-    decor?.forEach((o) => (o.visible = pid === focusedSystem))
-  }
-
-  // the flight is camera-offset interpolation around the moving body: keep
-  // the approach direction, shrink the distance — no path through the body
-  const world = focusMesh.getWorldPosition(new THREE.Vector3())
-  const startOffset = cam.position.clone().sub(world)
-  // if the camera sits almost on the body, normalize() would be NaN — fall back
-  // to a sensible approach direction (this froze the view when focusing Earth,
-  // which sits at the scene origin)
-  if (startOffset.lengthSq() < 1e-4) startOffset.set(0, radius * 3, radius * 6)
-  const endOffset = focusPlanet
-    ? startOffset.clone().normalize().multiplyScalar(radius * 6)
-    : // overview above the ecliptic: inner system + Jupiter & Saturn framed
-      new THREE.Vector3(0, 13_000, 21_000)
-  pinTargetRef.current = null // the glide owns the camera until it lands
-  const t0 = performance.now()
-  const dur = 1_600
-  const off = new THREE.Vector3()
-  let raf = 0
-  const land = () => {
-    pinTargetRef.current = focusMesh
-  }
-  const fly = () => {
-    const t = Math.min((performance.now() - t0) / dur, 1)
-    focusMesh.getWorldPosition(world)
-    off.lerpVectors(startOffset, endOffset, easeInOutCubic(t))
-    cam.position.copy(world).add(off)
-    controls.target.copy(world)
-    controls.update()
-    if (t < 1) raf = requestAnimationFrame(fly)
-    else land()
-  }
-  raf = requestAnimationFrame(fly)
-  const onDragStart = () => {
-    cancelAnimationFrame(raf)
-    land()
-  }
-  controls.addEventListener('start', onDragStart)
-  return () => {
-    cancelAnimationFrame(raf)
-    controls.removeEventListener('start', onDragStart)
-    controls.minDistance = prevMin
-  }
 }
