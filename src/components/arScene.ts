@@ -11,7 +11,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 
 const RAD = Math.PI / 180
 const RADIUS = 100 // distance the models sit at; only the direction matters
-const MODEL_SIZE = 10 // ~5–6° across at RADIUS — a recognisable craft, not a dot
+const MODEL_SIZE = 6 // ~3–4° across at RADIUS — a recognisable craft, not a slab
 const MODEL_URL = 'models/sats/starlink.glb'
 
 export interface ArSat {
@@ -43,8 +43,8 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 1000)
-  scene.add(new THREE.AmbientLight(0xffffff, 1.4))
-  const sun = new THREE.DirectionalLight(0xffffff, 1.8)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55))
+  const sun = new THREE.DirectionalLight(0xffffff, 1.15)
   sun.position.set(1, 2, 1)
   scene.add(sun)
 
@@ -72,11 +72,22 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
         const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
         for (const mat of mats) {
           const m = mat as THREE.MeshStandardMaterial
-          if (m.emissive && m.color) {
-            m.emissive.copy(m.color).multiplyScalar(0.55)
-            m.emissiveIntensity = 1
+          // self-glow so the model reads against a bright day sky AND the dark
+          // night sky — but carry the *texture* into the glow. A textured model
+          // has color = white with detail in the map, so copying the colour
+          // would glow pure white and wash the panels into blank slabs.
+          if (m.emissive) {
+            if (m.map) {
+              m.emissiveMap = m.map
+              m.emissive.setRGB(1, 1, 1)
+              m.emissiveIntensity = 0.3
+            } else if (m.color) {
+              m.emissive.copy(m.color).multiplyScalar(0.25)
+              m.emissiveIntensity = 1
+            }
           }
           if (m.metalness != null) m.metalness = Math.min(m.metalness, 0.4)
+          if (m.roughness != null) m.roughness = Math.max(m.roughness, 0.6)
         }
       })
       const box = new THREE.Box3().setFromObject(root)
