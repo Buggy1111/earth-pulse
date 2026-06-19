@@ -19,7 +19,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { globeAltitude } from '../../lib/satellites'
 import { selectNearest } from '../../lib/lod'
-import { isSoftwareRenderer } from '../perf'
 
 const TLE_URL = 'tle/starlink.txt'
 const MODEL_URL = 'models/sats/starlink.glb'
@@ -57,11 +56,29 @@ interface PositionsMsg {
   data: Float32Array
 }
 
+/** True only for a genuine software rasteriser (SwiftShader/llvmpipe in
+ * headless/CI), read from the globe's OWN GL context. We must NOT spawn a
+ * throwaway probe context to test this: iOS caps the number of live WebGL
+ * contexts, and once globe.gl holds one the probe fails — which the old
+ * isSoftwareRenderer() then misread as "software" and hid the swarm models on
+ * the phone (while AR, which never probes, showed them fine). Unknown = real. */
+function rendererIsSoftware(globe: GlobeInstance): boolean {
+  try {
+    const gl = globe.renderer().getContext()
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    const r = ext
+      ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
+      : String(gl.getParameter(gl.RENDERER))
+    return /swiftshader|llvmpipe|software|basic render/i.test(r)
+  } catch {
+    return false
+  }
+}
+
 /** Load the real GLB and flatten it to instanced parts, or null if it's not on
- * disk / fails / we're on a software renderer. Materials get a mild emissive
- * lift so the swarm reads on the night side like the named-sat models do. */
+ * disk / fails. Materials get a mild emissive lift so the swarm reads on the
+ * night side like the named-sat models do. */
 async function glbParts(): Promise<RenderPart[] | null> {
-  if (isSoftwareRenderer()) return null
   const draco = new DRACOLoader().setDecoderPath('draco/')
   const loader = new GLTFLoader().setDRACOLoader(draco)
   try {
@@ -158,7 +175,11 @@ export function setupStarlinkLayer(
     glbResolved = true // panels build regardless of whether the model loaded
     tryBuild()
   }
-  glbParts().then(resolveModel, () => resolveModel(null))
+  // a true software renderer (headless/CI) would freeze on 400 model instances,
+  // so it stays on panels; a real GPU (incl. phones) gets the models
+  ;(rendererIsSoftware(globe) ? Promise.resolve(null) : glbParts()).then(resolveModel, () =>
+    resolveModel(null),
+  )
 
   fetch(TLE_URL)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
