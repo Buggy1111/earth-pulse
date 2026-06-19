@@ -50,6 +50,19 @@ export function detectWeakGpu(): boolean {
   }
 }
 
+/** Pixel ratio to use while the camera is locked up close to a satellite.
+ *
+ * Close-up a heavy GLB model (Hubble, SWOT, Suomi NPP…) fills the whole
+ * viewport; at a phone's full 2–3× devicePixelRatio the per-frame fragment
+ * load can trip the mobile GPU's watchdog, the browser kills the WebGL
+ * context and the app goes blank — read as a crash. Capping the ratio cuts
+ * fragment work ~4× on a 2× screen, and since the model is huge on screen the
+ * lower resolution is barely noticeable. Callers clamp against the CURRENT
+ * ratio so this never RAISES it (e.g. when eco mode already forced 1×). */
+export function followPixelRatio(devicePixelRatio: number): number {
+  return Math.min(devicePixelRatio || 1, 1.25)
+}
+
 /** Average FPS over `ms` of wall time (resolves early if the tab hides). */
 export function sampleFps(ms = 4_000): Promise<number> {
   return new Promise((resolve) => {

@@ -5,6 +5,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { Quake } from '../../lib/quakes'
 import { subsolarPoint } from '../../lib/sun'
+import { followPixelRatio } from '../perf'
 import type { OrbitObject } from './helpers'
 
 /** Glide between live points of interest every 8 s. */
@@ -55,6 +56,13 @@ export function followSatellite(
   const prevAuto = controls.autoRotate
   controls.autoRotate = false
   controls.minDistance = 6 // the sat models are ~5 units across
+  // Close-up, a heavy GLB fills the viewport and the fragment load can crash a
+  // mobile GPU (lost context → blank app). Drop the pixel ratio while locked on,
+  // clamped so we never raise it above whatever's already set (e.g. eco's 1×).
+  const renderer = globe.renderer()
+  const prevRatio = renderer.getPixelRatio()
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio
+  renderer.setPixelRatio(Math.min(prevRatio, followPixelRatio(dpr)))
   const cam = globe.camera() as THREE.PerspectiveCamera
   const p = new THREE.Vector3()
   target.getWorldPosition(p)
@@ -68,6 +76,7 @@ export function followSatellite(
     pinTargetRef.current = null
     controls.minDistance = prevMin
     controls.autoRotate = prevAuto
+    renderer.setPixelRatio(prevRatio)
     controls.target.set(0, 0, 0)
     controls.update()
     globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 800)
