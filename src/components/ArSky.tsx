@@ -74,6 +74,11 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   const [heading, setHeading] = useState(0)
   const [hasMotion, setHasMotion] = useState(false)
   const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; starlink: boolean } | null>(null)
+  // live sensor diagnostics, surfaced in a debug strip so we can see whether the
+  // phone is actually feeding orientation data (and what raw values)
+  const orientRaw = useRef<{ alpha: number | null; beta: number | null; gamma: number | null; compass: number | null }>({ alpha: null, beta: null, gamma: null, compass: null })
+  const orientCount = useRef(0)
+  const [dbg, setDbg] = useState<{ heading: number; pitch: number; events: number; raw: typeof orientRaw.current } | null>(null)
 
   // Starlink: the whole constellation is propagated in a worker (off the main
   // thread) and the above-horizon az/el is cached here; the per-frame loop only
@@ -166,12 +171,14 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   useEffect(() => {
     if (!started) return
     const onOrient = (e: DeviceOrientationEvent): void => {
-      const compass = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading
+      const compass = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading ?? null
       const heading = compass != null ? compass : e.alpha != null ? 360 - e.alpha : 0
       // back-camera elevation: phone vertical (beta 90) = horizon, tilted back
       // toward face-down (beta 180) = straight up
       const pitch = e.beta != null ? Math.max(-90, Math.min(90, e.beta - 90)) : 45
       orient.current = { heading, pitch, live: true }
+      orientRaw.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, compass }
+      orientCount.current++
       setHasMotion(true)
     }
     window.addEventListener('deviceorientation', onOrient, true)
@@ -229,6 +236,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
         }
       }
       setPointed(best ? { name: best.name, elevationDeg: best.elevationDeg, starlink: best.kind === 'starlink' } : null)
+      setDbg({ heading: Math.round(heading), pitch: Math.round(pitch), events: orientCount.current, raw: orientRaw.current })
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -290,6 +298,14 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
           ✕ close
         </button>
       </div>
+
+      {/* 🔧 sensor debug strip — shows whether the phone is feeding orientation
+          data. events climbing = sensor live; stuck at 0 = no motion permission */}
+      {started && dbg && (
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '6px 10px', background: '#000a', color: dbg.events > 0 ? '#86efac' : '#fca5a5', font: '500 11px ui-monospace, monospace', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          🔧 events:{dbg.events} · heading:{dbg.heading}° · tilt:{dbg.pitch}° · α:{dbg.raw.alpha == null ? '–' : Math.round(dbg.raw.alpha)} β:{dbg.raw.beta == null ? '–' : Math.round(dbg.raw.beta)} γ:{dbg.raw.gamma == null ? '–' : Math.round(dbg.raw.gamma)} · iOScompass:{dbg.raw.compass == null ? '–' : Math.round(dbg.raw.compass)}
+        </div>
+      )}
 
       {/* gates: location, then start */}
       {(!started || !userLoc) && (
