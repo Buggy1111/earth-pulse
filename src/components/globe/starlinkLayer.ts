@@ -25,6 +25,13 @@ const MODEL_URL = 'models/sats/starlink.glb'
 const TICK_MS = 500 // propagation cadence — the swarm crawls, so 2 Hz reads smooth
 const TARGET_SIZE = 1.6 // scene units the model/panel is normalised to (small = a swarm)
 const MODEL_POOL = 400 // how many of the nearest sats get the real GLB model
+// zoom-aware model size: a satellite this close (scene units, globe radius=100)
+// to the camera grows to MODEL_SCALE_MAX× so you can actually make it out when
+// you dive into the swarm; by MODEL_SCALE_FAR it's back to a swarm-sized speck.
+// Per-instance (not a global zoom factor) so near ones swell and the rest don't.
+const MODEL_SCALE_MAX = 4
+const MODEL_SCALE_NEAR = 8
+const MODEL_SCALE_FAR = 55
 const MAX_PARTS = 12 // guard against an InstancedMesh per mesh for a huge model
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0) // zero-scaled = invisible instance
 
@@ -190,10 +197,11 @@ export function setupStarlinkLayer(
       // snapshot missing — the swarm stays empty, the rest of the app is fine
     })
 
-  /** Build the base matrix (position + face-Earth) for the sat stored at `i`. */
-  const baseAt = (i: number): THREE.Matrix4 => {
+  /** Build the base matrix (position + face-Earth) for the sat stored at `i`,
+   * optionally scaled (the model pool swells the nearest sats; panels use 1). */
+  const baseAt = (i: number, scale = 1): THREE.Matrix4 => {
     dummy.position.set(pos![i * 3], pos![i * 3 + 1], pos![i * 3 + 2])
-    dummy.scale.set(1, 1, 1)
+    dummy.scale.set(scale, scale, scale)
     dummy.lookAt(0, 0, 0) // broad face toward Earth, like a real panel
     dummy.updateMatrix()
     return dummy.matrix
@@ -242,7 +250,15 @@ export function setupStarlinkLayer(
         const j = near[s]
         if (j != null && Number.isFinite(d2[j])) {
           panel.setMatrixAt(j, HIDDEN) // the model stands in for its panel
-          const base = baseAt(j)
+          // grow the satellite as the camera nears it (per-instance, so only the
+          // ones you've zoomed up to swell — the far pool stays swarm-sized)
+          const dist = Math.sqrt(d2[j])
+          const scale = THREE.MathUtils.clamp(
+            THREE.MathUtils.mapLinear(dist, MODEL_SCALE_NEAR, MODEL_SCALE_FAR, MODEL_SCALE_MAX, 1),
+            1,
+            MODEL_SCALE_MAX,
+          )
+          const base = baseAt(j, scale)
           for (let p = 0; p < modelMeshes.length; p++) {
             tmp.multiplyMatrices(base, modelParts![p].local)
             modelMeshes[p].setMatrixAt(s, tmp)
