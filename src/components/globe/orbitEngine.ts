@@ -109,6 +109,9 @@ export interface OrbitEngineDeps {
   trailsRef: { current: Map<string, Trail> }
   issStateRef: { current: IssState | null }
   orbitObjectsRef: { current: Map<string, OrbitObject> }
+  /** The Starlink swarm (10k InstancedMesh), ticked from this frame loop so it
+   * shares the one warped clock. Null until the layer is first switched on. */
+  starlinkRef: { current: { setVisible(v: boolean): void; update(now: Date): void } | null }
   onIssClick: () => void
   onSatClick: (id: string, name: string) => void
 }
@@ -199,6 +202,14 @@ export function startOrbitEngine(
       satsParked = true
     }
     if (!deps.solarModeRef.current) satsParked = false
+
+    // 🛰 Starlink swarm: visible only in the Earth view with its layer on; the
+    // worker-backed update() throttles itself, so calling it every frame is cheap.
+    const starlink = deps.starlinkRef.current
+    if (starlink) {
+      starlink.setVisible(!deps.solarModeRef.current && show.starlink)
+      starlink.update(now)
+    }
 
     // Body motion + sky are cheap, so they run EVERY frame — planets, moons and
     // the terminator glide smoothly instead of stepping at the eco half-rate.

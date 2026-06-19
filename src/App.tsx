@@ -57,6 +57,7 @@ export default function App() {
       sats: true,
       orbits: true,
       iss: true,
+      starlink: false, // 10k+ swarm — opt-in (lazily loads a 1.8 MB snapshot)
       quakes: true,
       events: true,
       aurora: true,

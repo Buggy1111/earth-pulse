@@ -22,6 +22,7 @@ import { setupPointer } from './globe/pointer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
 import { startOrbitEngine, syncTrails, type SolarAnimEntry } from './globe/orbitEngine'
+import { setupStarlinkLayer, type StarlinkLayer } from './globe/starlinkLayer'
 import { ensureSolarSystem, focusSolarBody, SUNLIT_LAYER } from './globe/solar'
 
 interface Props {
@@ -133,6 +134,7 @@ export function GlobeView(props: Props) {
   const trailsRef = useRef<Map<string, Trail>>(new Map())
   const orbitObjectsRef = useRef<Map<string, OrbitObject>>(new Map())
   const pinTargetRef = useRef<THREE.Object3D | null>(null)
+  const starlinkRef = useRef<StarlinkLayer | null>(null)
   const solarGroupRef = useRef<THREE.Group | null>(null)
   const planetMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const moonMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
@@ -219,6 +221,8 @@ export function GlobeView(props: Props) {
       surface.dispose()
       sky.dispose()
       moonMeshRef.current = null
+      starlinkRef.current?.dispose()
+      starlinkRef.current = null
       window.removeEventListener('resize', onResize)
       globe._destructor()
     }
@@ -340,10 +344,20 @@ export function GlobeView(props: Props) {
       trailsRef,
       issStateRef,
       orbitObjectsRef,
+      starlinkRef,
       onIssClick: () => cb.current.onIssClick(),
       onSatClick: (id, name) => cb.current.onSatClick(id, name),
     })
   }, [sats])
+
+  // 🛰 Starlink swarm: lazily build the layer the first time it's switched on
+  // (its 1.8 MB TLE snapshot shouldn't load unless asked for). Visibility and
+  // per-frame ticking are then driven by the orbit engine via starlinkRef.
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !layers.starlink || starlinkRef.current) return
+    starlinkRef.current = setupStarlinkLayer(globe)
+  }, [layers.starlink])
 
   // sync shown orbit trails with the user's list (settings panel or clicks)
   useEffect(() => {
