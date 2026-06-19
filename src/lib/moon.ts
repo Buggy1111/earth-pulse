@@ -79,24 +79,56 @@ export function nextMoonPhases(from: Date): MoonPhases {
   return { nextFullMs, nextNewMs }
 }
 
-export interface ApolloSite {
+export interface LunarSite {
   mission: string
+  operator: string
   year: number
-  crew: string
-  /** Selenographic coordinates (lat N+, lng E+). */
+  /** Selenographic coordinates (lat N+, lng E+, Mean-Earth frame). */
   lat: number
   lng: number
+  /** Near side faces Earth; far-side sites sit on the hidden hemisphere. */
+  side: 'near' | 'far'
+  /** One-line significance. */
+  note: string
+  /** Present only for the six crewed Apollo landings. */
+  crew?: string
 }
+/** Back-compat alias — the picked-site type flowed through as ApolloSite. */
+export type ApolloSite = LunarSite
 
-/** The six crewed landings — every place humans have stood beyond Earth. */
-export const APOLLO_SITES: ApolloSite[] = [
-  { mission: 'Apollo 11', year: 1969, crew: 'Armstrong & Aldrin', lat: 0.674, lng: 23.473 },
-  { mission: 'Apollo 12', year: 1969, crew: 'Conrad & Bean', lat: -3.012, lng: -23.422 },
-  { mission: 'Apollo 14', year: 1971, crew: 'Shepard & Mitchell', lat: -3.645, lng: -17.471 },
-  { mission: 'Apollo 15', year: 1971, crew: 'Scott & Irwin', lat: 26.132, lng: 3.634 },
-  { mission: 'Apollo 16', year: 1972, crew: 'Young & Duke', lat: -8.973, lng: 15.5 },
-  { mission: 'Apollo 17', year: 1972, crew: 'Cernan & Schmitt', lat: 20.191, lng: 30.772 },
+/** Every place we've reached on the Moon: the six crewed Apollo landings plus
+ * the milestone robotic landers — including the two Chinese far-side firsts,
+ * which sit on the hemisphere that never faces Earth. Coordinates cross-checked
+ * against LRO/LROC; longitude east-positive. */
+export const LUNAR_SITES: LunarSite[] = [
+  // 🇺🇸 crewed — every place humans have stood beyond Earth (all near side)
+  { mission: 'Apollo 11', operator: 'NASA', year: 1969, lat: 0.6742, lng: 23.4731, side: 'near', crew: 'Armstrong & Aldrin', note: 'first crewed Moon landing' },
+  { mission: 'Apollo 12', operator: 'NASA', year: 1969, lat: -3.0124, lng: -23.4216, side: 'near', crew: 'Conrad & Bean', note: 'pinpoint landing beside Surveyor 3' },
+  { mission: 'Apollo 14', operator: 'NASA', year: 1971, lat: -3.6459, lng: -17.4719, side: 'near', crew: 'Shepard & Mitchell', note: 'Fra Mauro highlands' },
+  { mission: 'Apollo 15', operator: 'NASA', year: 1971, lat: 26.1322, lng: 3.6339, side: 'near', crew: 'Scott & Irwin', note: 'first lunar rover' },
+  { mission: 'Apollo 16', operator: 'NASA', year: 1972, lat: -8.973, lng: 15.5002, side: 'near', crew: 'Young & Duke', note: 'Descartes highlands' },
+  { mission: 'Apollo 17', operator: 'NASA', year: 1972, lat: 20.1911, lng: 30.7723, side: 'near', crew: 'Cernan & Schmitt', note: 'last crewed landing (so far)' },
+  // 🇨🇳 China — the far-side firsts
+  { mission: "Chang'e 4", operator: 'CNSA', year: 2019, lat: -45.4446, lng: 177.5991, side: 'far', note: 'first-ever soft landing on the far side — Von Kármán crater' },
+  { mission: "Chang'e 6", operator: 'CNSA', year: 2024, lat: -41.6385, lng: -153.9852, side: 'far', note: 'first far-side sample return (2024)' },
+  { mission: "Chang'e 3", operator: 'CNSA', year: 2013, lat: 44.1214, lng: -19.5116, side: 'near', note: "China's first soft landing (Yutu rover)" },
+  { mission: "Chang'e 5", operator: 'CNSA', year: 2020, lat: 43.0617, lng: -51.9161, side: 'near', note: "China's first sample return" },
+  // 🇮🇳 India — the south-polar pioneer
+  { mission: 'Chandrayaan-3', operator: 'ISRO', year: 2023, lat: -69.3741, lng: 32.32, side: 'near', note: "India's first landing — near the south pole (2023)" },
+  // ☭ Soviet robotic firsts
+  { mission: 'Luna 9', operator: 'USSR', year: 1966, lat: 7.08, lng: -64.37, side: 'near', note: 'first-ever soft landing on the Moon' },
+  { mission: 'Luna 16', operator: 'USSR', year: 1970, lat: -0.68, lng: 56.3, side: 'near', note: 'first robotic sample return' },
+  { mission: 'Lunokhod 1', operator: 'USSR', year: 1970, lat: 38.24, lng: -35.0, side: 'near', note: 'first roving vehicle on another world' },
+  // 🇺🇸 robotic
+  { mission: 'Surveyor 3', operator: 'NASA', year: 1967, lat: -3.0163, lng: -23.418, side: 'near', note: 'later visited on foot by Apollo 12' },
+  // 🚀 the new commercial wave
+  { mission: 'Blue Ghost 1', operator: 'Firefly', year: 2025, lat: 18.562, lng: 61.81, side: 'near', note: 'first fully successful commercial landing (2025)' },
+  { mission: 'IM-1 Odysseus', operator: 'Intuitive Machines', year: 2024, lat: -80.13, lng: 1.44, side: 'near', note: 'first commercial soft landing (2024)' },
 ]
+
+/** The six crewed landings — kept as a named subset for the phase tests and any
+ * "humans have stood here" copy. */
+export const APOLLO_SITES: LunarSite[] = LUNAR_SITES.filter((s) => s.crew)
 
 export function moonPhaseLabel(m: MoonState): string {
   if (m.illumination < 0.04) return 'new moon'

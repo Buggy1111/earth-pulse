@@ -1,7 +1,7 @@
 /** Info panel for Moon mode — you're orbiting the real Moon in the main
- * scene; this shows live facts and the Apollo site you tapped. */
+ * scene; this shows live facts and the landing site you tapped. */
 
-import { APOLLO_SITES, type ApolloSite, type MoonState } from '../lib/moon'
+import { APOLLO_SITES, LUNAR_SITES, type LunarSite, type MoonState } from '../lib/moon'
 
 export function MoonPanel({
   moon,
@@ -9,7 +9,7 @@ export function MoonPanel({
   onBack,
 }: {
   moon: MoonState
-  picked: ApolloSite | null
+  picked: LunarSite | null
   onBack: () => void
 }) {
   return (
@@ -31,14 +31,23 @@ export function MoonPanel({
         {Math.round(moon.illumination * 100)} % lit
       </p>
       {picked ? (
-        <p className="mt-1.5 text-xs text-emerald-300">
-          🚩 <b>{picked.mission}</b> ({picked.year}) — {picked.crew}
-        </p>
+        <div className="mt-1.5 space-y-0.5 text-xs">
+          <p className="text-emerald-300">
+            🚩 <b>{picked.mission}</b> ({picked.year}) · {picked.operator}
+            {picked.side === 'far' && (
+              <span className="ml-1.5 rounded bg-rose-500/20 px-1 py-px text-[10px] text-rose-200">
+                far side
+              </span>
+            )}
+          </p>
+          <p className="text-slate-400">{picked.note}</p>
+          {picked.crew && <p className="text-slate-500">crew · {picked.crew}</p>}
+        </div>
       ) : (
         <p className="mt-1.5 text-xs text-slate-500">
-          the flags mark the {APOLLO_SITES.length} Apollo landings, every place humans have ever
-          stood beyond Earth — tap one. Drag to orbit, scroll to zoom; Earth hangs in the sky
-          behind you.
+          the flags mark {LUNAR_SITES.length} landing sites — the {APOLLO_SITES.length} crewed
+          Apollo missions plus milestone robotic landers, including the two Chinese far-side
+          firsts on the hemisphere that never faces Earth (orbit around to find them). Tap a flag.
         </p>
       )}
     </div>

@@ -6,6 +6,17 @@
 
 import { useState } from 'react'
 import { PLANET_MOONS, PLANETS, planetPositions } from '../../lib/planets'
+import { ACTIVE_SPACECRAFT_COUNT, SOLAR_SYSTEM_SPACECRAFT } from '../../lib/spacecraft'
+
+/** "Sun: 3 · Moon: 11 · Mars: 8 …" for the spacecraft-count tooltip. */
+const SPACECRAFT_BREAKDOWN = Object.entries(
+  SOLAR_SYSTEM_SPACECRAFT.reduce<Record<string, number>>((acc, s) => {
+    acc[s.region] = (acc[s.region] ?? 0) + 1
+    return acc
+  }, {}),
+)
+  .map(([region, n]) => `${region}: ${n}`)
+  .join('  ·  ')
 
 const BODY_COLORS: Record<string, string> = {
   sun: '#ffd27a',
@@ -166,6 +177,15 @@ export function SolarNavTree({
           )
         })}
       </ul>
+
+      {/* 🛰 how many robotic explorers are out there across the system right now */}
+      <div
+        className="num mt-2 border-t border-white/10 pt-2 text-[10px] leading-tight text-slate-500"
+        title={SPACECRAFT_BREAKDOWN}
+      >
+        🛰 <span className="text-slate-300">{ACTIVE_SPACECRAFT_COUNT}</span> active spacecraft
+        exploring the solar system right now
+      </div>
     </div>
   )
 }

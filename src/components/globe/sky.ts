@@ -4,7 +4,7 @@
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
-import { APOLLO_SITES } from '../../lib/moon'
+import { LUNAR_SITES } from '../../lib/moon'
 import { subLunarPoint } from '../../lib/moon'
 import { subsolarPoint } from '../../lib/sun'
 import { getGlowTexture, SUN_REFRESH_MS } from './helpers'
@@ -75,18 +75,36 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
     makeMoonMaterial(moonTex, moonSunUniform),
   )
 
-  // Apollo landing sites as small silver flags pinned to the lunar surface
-  // (selenographic coords) — every place humans have stood beyond Earth. The
-  // pole sits on the surface and points straight out; an invisible sphere makes
-  // each flag comfortably clickable. userData.site lives on the group.
+  // Landing sites as small flags pinned to the lunar surface (selenographic
+  // coords) — every place we've reached: the crewed Apollo sites plus milestone
+  // robotic landers, the Chinese far-side firsts among them (they sit on the
+  // hidden hemisphere). The pole sits on the surface and points straight out; an
+  // invisible sphere makes each flag clickable. userData.site lives on the group.
+  // Flag colour is the operator's, so the map reads as a flags-of-the-Moon.
+  const OPERATOR_FLAG: Record<string, string> = {
+    NASA: '#f4c34a', // gold
+    CNSA: '#e0524d', // China red
+    ISRO: '#ff9933', // India saffron
+    USSR: '#d65a4a', // Soviet red
+    Firefly: '#6ad0c0', // commercial teal
+    'Intuitive Machines': '#9fb8ef',
+  }
+  const flagMats = new Map<string, THREE.MeshBasicMaterial>()
+  const flagMatFor = (op: string): THREE.MeshBasicMaterial => {
+    let m = flagMats.get(op)
+    if (!m) {
+      m = new THREE.MeshBasicMaterial({ color: OPERATOR_FLAG[op] ?? '#cfd6e0', side: THREE.DoubleSide })
+      flagMats.set(op, m)
+    }
+    return m
+  }
   const poleGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.62, 6)
   const poleMat = new THREE.MeshBasicMaterial({ color: '#cfd6e0' })
   const flagGeo = new THREE.PlaneGeometry(0.36, 0.22)
-  const flagMat = new THREE.MeshBasicMaterial({ color: '#f4c34a', side: THREE.DoubleSide })
   const pickGeo = new THREE.SphereGeometry(0.45, 8, 8)
   const pickMat = new THREE.MeshBasicMaterial() // never rendered (pick mesh hidden)
   const up = new THREE.Vector3(0, 1, 0)
-  const apolloMarkers = APOLLO_SITES.map((site) => {
+  const apolloMarkers = LUNAR_SITES.map((site) => {
     const group = new THREE.Group()
     const phi = (90 - site.lat) * (Math.PI / 180)
     const theta = (site.lng + 90) * (Math.PI / 180)
@@ -100,7 +118,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
 
     const pole = new THREE.Mesh(poleGeo, poleMat)
     pole.position.y = 0.31 // base flush with the surface
-    const flag = new THREE.Mesh(flagGeo, flagMat)
+    const flag = new THREE.Mesh(flagGeo, flagMatFor(site.operator))
     flag.position.set(0.19, 0.5, 0) // hangs off the top of the pole
     const pick = new THREE.Mesh(pickGeo, pickMat)
     pick.position.y = 0.3
@@ -220,7 +238,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
       poleGeo.dispose()
       poleMat.dispose()
       flagGeo.dispose()
-      flagMat.dispose()
+      for (const m of flagMats.values()) m.dispose()
       pickGeo.dispose()
       pickMat.dispose()
     },
