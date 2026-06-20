@@ -79,6 +79,7 @@ export function GlobeView(props: GlobeViewProps) {
   const solarGroupRef = useRef<THREE.Group | null>(null)
   const planetMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const moonMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
+  const probeMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const sunMeshRef = useRef<THREE.Mesh | null>(null)
   const solarAnimRef = useRef<SolarAnimEntry[]>([])
   const solarFrameRef = useRef<(now: Date) => void>(() => {})
@@ -298,7 +299,9 @@ export function GlobeView(props: GlobeViewProps) {
       surfaceRef,
       pinTargetRef,
       userInteractedRef,
-      onProbePick: (p) => cb.current.onProbePick(p),
+      probeMeshesRef,
+      // a clicked probe focuses just like a clicked planet (fly in + orbit it)
+      onProbePick: (id) => cb.current.onPlanetPick(id),
     })
   }, [solarMode])
 
@@ -306,7 +309,7 @@ export function GlobeView(props: GlobeViewProps) {
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || !solarMode) return
-    return focusSolarBody(globe, { planetMeshesRef, moonMeshesRef, sunMeshRef }, pinTargetRef, focusPlanet)
+    return focusSolarBody(globe, { planetMeshesRef, moonMeshesRef, sunMeshRef, probeMeshesRef }, pinTargetRef, focusPlanet)
   }, [solarMode, focusPlanet])
 
   // 🌙 moon mode: re-target the orbit controls from Earth to the Moon

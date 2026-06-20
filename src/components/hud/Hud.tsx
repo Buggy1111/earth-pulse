@@ -16,6 +16,7 @@ import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
 import { PlanetPanel } from '../PlanetPanel'
 import { SolarNavTree } from './SolarNavTree'
+import type { ProbeTraj } from '../../lib/probes'
 import { TimeWarp } from './TimeWarp'
 import { ViewportFrame } from './ViewportFrame'
 import type { LayerState, OrbitEntry } from './types'
@@ -51,6 +52,7 @@ interface HudProps {
   onSolarOverview: () => void
   onSolarExit: () => void
   onNavigateBody: (id: string) => void
+  probes: ProbeTraj[]
   // customize
   layers: LayerState
   onToggleLayer: (key: keyof LayerState) => void
@@ -131,6 +133,7 @@ export function Hud(p: HudProps) {
         now={p.solarSimNow}
         realNow={p.now}
         warp={p.warp}
+        probes={p.probes}
         onWarp={p.onWarp}
         onWarpReset={p.onWarpReset}
         onOverview={p.onSolarOverview}
@@ -215,7 +218,7 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' ? (
       <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
     ) : p.mode === 'solar' ? (
-      <SolarNavTree focus={p.focusPlanet} now={p.solarSimNow} onNavigate={p.onNavigateBody} onOverview={p.onSolarOverview} />
+      <SolarNavTree focus={p.focusPlanet} now={p.solarSimNow} probes={p.probes} onNavigate={p.onNavigateBody} onOverview={p.onSolarOverview} />
     ) : null
   const quakeDetailEl =
     p.mode === 'earth' && p.selected ? (

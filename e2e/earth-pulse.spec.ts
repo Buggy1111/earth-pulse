@@ -123,6 +123,8 @@ test('solar mode places the deep-space probes from their baked trajectories', as
     null,
     { timeout: 30_000 },
   )
+  // the solar navigator lists the probes (click a name to fly out to the craft)
+  await page.waitForFunction(() => /Voyager/.test(document.body.innerText), null, { timeout: 15_000 })
   expect(errors).toEqual([])
 })
 

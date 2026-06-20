@@ -27,13 +27,6 @@ export interface ProbeInfo {
   blurb: string
 }
 
-/** What a probe click hands to the info panel: its metadata plus a live (true,
- * unclamped) distance snapshot at the moment of the click. */
-export interface ProbePick extends ProbeInfo {
-  sunAu: number
-  sunKm: number
-}
-
 /** Display metadata, keyed by the trajectory id baked into probes.json. */
 export const PROBE_INFO: Record<string, ProbeInfo> = {
   voyager1: { id: 'voyager1', name: 'Voyager 1', operator: 'NASA', launched: 1977, color: '#ffd27a', blurb: 'the most distant human-made object — now in interstellar space' },

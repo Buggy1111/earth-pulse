@@ -9,7 +9,6 @@ import { EARTH_DISPLAY } from '../../lib/planets'
 import { ensureSolarSystem } from './solar'
 import { setupProbes } from './probesLayer'
 import type { SolarAnimEntry } from './orbitEngine'
-import type { ProbePick } from '../../lib/probes'
 import type { setupSky } from './sky'
 import type { setupSurface } from './surface'
 
@@ -28,7 +27,9 @@ export interface SolarModeDeps {
   surfaceRef: { current: ReturnType<typeof setupSurface> | null }
   pinTargetRef: { current: THREE.Object3D | null }
   userInteractedRef: { current: boolean }
-  onProbePick: (pick: ProbePick | null) => void
+  probeMeshesRef: { current: Map<string, THREE.Object3D> }
+  /** A probe was clicked in the 3D scene — routed to the same focus as planets. */
+  onProbePick: (id: string) => void
 }
 
 /** Build/show the solar system and reshape the scene for it; returns the
@@ -52,7 +53,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   // 🛰 deep-space probes: real HORIZONS trajectories as colour-coded comet
   // trails + craft, ticked from the (wrapped) solar frame so they share the
   // one warped clock. Their display distance is clamped to fit the envelope.
-  const probes = setupProbes(globe, group, deps.onProbePick)
+  const probes = setupProbes(globe, group, deps.probeMeshesRef, deps.onProbePick)
   const baseFrame = deps.solarFrameRef.current
   deps.solarFrameRef.current = (now) => {
     baseFrame(now)

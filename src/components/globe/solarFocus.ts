@@ -23,7 +23,9 @@ export const MOON_PARENT: Record<string, string> = Object.fromEntries(
  * we are. Moon labels + orbit rings show only for the focused system. */
 export function focusSolarBody(
   globe: GlobeInstance,
-  deps: Pick<SolarDeps, 'planetMeshesRef' | 'moonMeshesRef' | 'sunMeshRef'>,
+  deps: Pick<SolarDeps, 'planetMeshesRef' | 'moonMeshesRef' | 'sunMeshRef'> & {
+    probeMeshesRef: { current: Map<string, THREE.Object3D> }
+  },
   pinTargetRef: { current: THREE.Object3D | null },
   focusPlanet: string | null,
 ): (() => void) | undefined {
@@ -33,7 +35,8 @@ export function focusSolarBody(
   const focusMesh =
     (focusPlanet && focusPlanet !== 'sun'
       ? (deps.planetMeshesRef.current.get(focusPlanet) ??
-        deps.moonMeshesRef.current.get(focusPlanet))
+        deps.moonMeshesRef.current.get(focusPlanet) ??
+        deps.probeMeshesRef.current.get(focusPlanet))
       : null) ?? deps.sunMeshRef.current
   if (!focusMesh) return undefined
   const radius = (focusMesh.userData.displayRadius as number | undefined) ?? 20

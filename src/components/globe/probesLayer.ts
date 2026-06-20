@@ -11,7 +11,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
-import { PROBE_INFO, probePosAu, type ProbePick, type ProbeTraj } from '../../lib/probes'
+import { PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
 
@@ -45,8 +45,6 @@ export interface ProbesLayer {
   update(now: Date): void
   dispose(): void
 }
-
-const _v = new THREE.Vector3()
 
 /** Clamp a heliocentric position to MAX_DISPLAY_AU while keeping its direction,
  * so far probes sit at the scene edge instead of off in the void. */
@@ -108,7 +106,8 @@ interface Built {
 export function setupProbes(
   globe: GlobeInstance,
   group: THREE.Group,
-  onPick: (pick: ProbePick | null) => void,
+  probeMeshesRef: { current: Map<string, THREE.Object3D> },
+  onPick: (id: string) => void,
 ): ProbesLayer {
   let disposed = false
   const built: Built[] = []
@@ -137,20 +136,7 @@ export function setupProbes(
     let o: THREE.Object3D | null = hit.object
     while (o && !o.userData.probeId) o = o.parent
     const id = o?.userData.probeId as string | undefined
-    const b = id ? built.find((x) => x.traj.id === id) : undefined
-    if (!id || !b) return
-    const info = PROBE_INFO[id]
-    const d = probeDistances(b.traj, new Date())
-    onPick({
-      id,
-      name: info?.name ?? id,
-      operator: info?.operator ?? '',
-      launched: info?.launched ?? 0,
-      color: info?.color ?? '#cbd5e1',
-      blurb: info?.blurb ?? '',
-      sunAu: d.sunAu,
-      sunKm: d.sunKm,
-    })
+    if (id) onPick(id)
   }
   globe.renderer().domElement.addEventListener('pointerdown', onDown)
   globe.renderer().domElement.addEventListener('click', onClick)
@@ -165,10 +151,12 @@ export function setupProbes(
         const trail = makeTrail(traj, color)
         const body = makeBody(color)
         body.userData.probeId = traj.id
+        body.userData.displayRadius = MODEL_TARGET // camera framing when focused
         body.add(makeNameSprite(info?.name ?? traj.name, 7, true, color))
         group.add(trail, body)
         added.push(trail, body)
         bodies.push(body)
+        probeMeshesRef.current.set(traj.id, body)
         built.push({ traj, body })
 
         // swap the placeholder for the real NASA model once it loads
@@ -227,17 +215,10 @@ export function setupProbes(
           else mat?.dispose?.()
         })
       }
+      probeMeshesRef.current.clear()
       built.length = 0
       bodies.length = 0
       added.length = 0
     },
   }
-}
-
-/** Live distance read-outs for the info panel: true heliocentric distance (AU
- * + km) and distance from Earth, both unclamped. */
-export function probeDistances(traj: ProbeTraj, now: Date): { sunAu: number; sunKm: number } {
-  const [x, y, z] = probePosAu(traj, now)
-  const sunAu = _v.set(x, y, z).length()
-  return { sunAu, sunKm: sunAu * 149_597_870.7 }
 }

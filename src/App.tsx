@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import { ArLaunchButton } from './components/ArLaunchButton'
-import { ProbePanel } from './components/ProbePanel'
+import { useProbes } from './useProbes'
 import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
 import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
@@ -31,6 +31,7 @@ const initialView = parseView(window.location.hash)
 export default function App() {
   const { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound } =
     useLiveData()
+  const probes = useProbes()
   const [selected, setSelected] = useState<Quake | null>(null)
   const [ready, setReady] = useState(false)
   const {
@@ -38,7 +39,7 @@ export default function App() {
     tourOn, setTourOn, onTourToggle, onTourBroken,
     moonMode, setMoonMode, apolloSite, onMoonEnter, onMoonExit, onApolloPick,
     solarMode, setSolarMode, driftMode, focusPlanet, setFocusPlanet,
-    mode, onSolarOverview, onSolarExit, onPlanetPick, pickedProbe, onProbePick,
+    mode, onSolarOverview, onSolarExit, onPlanetPick,
     solarTime, onWarp, onWarpReset, onVisibilityChange,
     goEarth, goMoon, goSolar, goDrift,
   } = useWorldView()
@@ -262,7 +263,6 @@ export default function App() {
         solarMode={solarMode}
         focusPlanet={focusPlanet}
         onPlanetPick={onPlanetPick}
-        onProbePick={onProbePick}
         solarTime={solarTime}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
@@ -313,6 +313,7 @@ export default function App() {
           onSolarOverview={onSolarOverview}
           onSolarExit={onSolarExit}
           onNavigateBody={onPlanetPick}
+          probes={probes}
           layers={layers}
           onToggleLayer={onToggleLayer}
           orbits={orbits}
@@ -378,12 +379,6 @@ export default function App() {
         </Suspense>
       )}
 
-      {/* 🛰 clicked-probe info card (solar view) */}
-      {!hudOff && solarMode && pickedProbe && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3">
-          <ProbePanel pick={pickedProbe} onClose={() => onProbePick(null)} />
-        </div>
-      )}
     </>
   )
 }

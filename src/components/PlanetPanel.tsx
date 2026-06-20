@@ -1,7 +1,8 @@
 /** Info panel for Solar System mode — overview facts or the picked body,
  * faithful encyclopedic data: spin, year, tilt, temperature, moons. */
 
-import { PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
+import { earthHelio, PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
+import { PROBE_INFO, probePosAu, type ProbeTraj } from '../lib/probes'
 import { TimeWarp } from './hud/TimeWarp'
 
 const AU_KM = 149_597_870
@@ -30,38 +31,53 @@ export function PlanetPanel({
   now,
   realNow,
   warp,
+  probes,
   onWarp,
   onWarpReset,
   onOverview,
   onBack,
 }: {
-  /** Planet id, moon id, 'sun', 'earth', or null for the system overview. */
+  /** Planet/moon/probe id, 'sun', 'earth', or null for the system overview. */
   focus: string | null
   /** Simulated time (warped). */
   now: number
   /** Real wall-clock time, for the "are we off the live moment" check. */
   realNow: number
   warp: number
+  /** Baked probe trajectories, for the focused probe's live distance. */
+  probes: ProbeTraj[]
   onWarp: (factor: number) => void
   onWarpReset: () => void
   onOverview: () => void
   onBack: () => void
 }) {
+  const probeInfo = focus ? PROBE_INFO[focus] : undefined
+  const probeTraj = focus ? probes.find((t) => t.id === focus) : undefined
+  let probeSunAu = 0
+  let probeEarthAu = 0
+  if (probeTraj) {
+    const [px, py, pz] = probePosAu(probeTraj, new Date(now))
+    probeSunAu = Math.hypot(px, py, pz)
+    const [ex, ey, ez] = earthHelio(new Date(now))
+    probeEarthAu = Math.hypot(px - ex, py - ey, pz - ez)
+  }
   const positions = planetPositions(new Date(now))
-  const p = focus && focus !== 'sun' ? positions.find((x) => x.id === focus) : null
+  const p = focus && focus !== 'sun' && !probeInfo ? positions.find((x) => x.id === focus) : null
   const def = p ? PLANETS.find((x) => x.id === p.id) : null
   const moons = p ? (PLANET_MOONS[p.id] ?? []) : []
-  const moon = focus && !p ? MOON_INFO.find((m) => m.id === focus) : null
+  const moon = focus && !p && !probeInfo ? MOON_INFO.find((m) => m.id === focus) : null
   return (
     <div className="hud pointer-events-auto w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-          {moon ? '🌑' : '🪐'}{' '}
-          {focus === 'sun'
-            ? 'The Sun'
-            : focus === 'earth'
-              ? 'Earth'
-              : (moon?.name ?? p?.name ?? 'Solar system · live')}
+          {probeInfo ? '🛰' : moon ? '🌑' : '🪐'}{' '}
+          {probeInfo
+            ? probeInfo.name
+            : focus === 'sun'
+              ? 'The Sun'
+              : focus === 'earth'
+                ? 'Earth'
+                : (moon?.name ?? p?.name ?? 'Solar system · live')}
         </h2>
         <div className="flex gap-2">
           {focus && (
@@ -82,7 +98,18 @@ export function PlanetPanel({
           </button>
         </div>
       </div>
-      {moon ? (
+      {probeInfo ? (
+        <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
+          <span className="num">🛰 {probeInfo.operator} · launched {probeInfo.launched}</span>
+          <span className="text-slate-300">✨ {probeInfo.blurb}</span>
+          <span className="num">
+            ☀️ {probeSunAu.toFixed(2)} AU from the Sun · 🌍 {probeEarthAu.toFixed(2)} AU from Earth
+          </span>
+          <span className="num text-slate-500">
+            {Math.round((probeSunAu * AU_KM) / 1e6).toLocaleString('en-US')} mil. km out · drawn at the scene edge
+          </span>
+        </div>
+      ) : moon ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
           <img
             src={`planets/cards/${moon.id}.webp`}

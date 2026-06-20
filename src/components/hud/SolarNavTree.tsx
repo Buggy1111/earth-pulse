@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { PLANET_MOONS, PLANETS, planetPositions } from '../../lib/planets'
 import { ACTIVE_SPACECRAFT_COUNT, SOLAR_SYSTEM_SPACECRAFT } from '../../lib/spacecraft'
+import { PROBE_INFO, type ProbeTraj } from '../../lib/probes'
 
 /** "Sun: 3 · Moon: 11 · Mars: 8 …" for the spacecraft-count tooltip. */
 const SPACECRAFT_BREAKDOWN = Object.entries(
@@ -47,6 +48,7 @@ const TREE: { id: string; name: string }[] = [
 const NAME: Record<string, string> = {
   ...Object.fromEntries(TREE.map((t) => [t.id, t.name])),
   ...Object.fromEntries(Object.values(PLANET_MOONS).flat().map((m) => [m.id, m.name])),
+  ...Object.fromEntries(Object.values(PROBE_INFO).map((p) => [p.id, p.name])),
 }
 
 const fmtAu = (au: number) => `${au.toFixed(au < 10 ? 2 : 1)} AU`
@@ -54,12 +56,15 @@ const fmtAu = (au: number) => `${au.toFixed(au < 10 ? 2 : 1)} AU`
 export function SolarNavTree({
   focus,
   now,
+  probes,
   onNavigate,
   onOverview,
 }: {
   focus: string | null
   /** Simulated clock — drives the live range read-outs. */
   now: number
+  /** Deep-space probes currently in the scene (clickable to fly to). */
+  probes: ProbeTraj[]
   onNavigate: (id: string) => void
   onOverview: () => void
 }) {
@@ -177,6 +182,38 @@ export function SolarNavTree({
           )
         })}
       </ul>
+
+      {/* 🛰 deep-space probes — click a name to fly out and orbit the craft */}
+      {probes.length > 0 && (
+        <div className="mt-2 border-t border-white/10 pt-1.5">
+          <div className="px-1.5 pb-1 text-[10px] tracking-wide text-slate-500 uppercase">
+            🛰 Deep-space probes
+          </div>
+          {probes.map((pr) => {
+            const info = PROBE_INFO[pr.id]
+            const active = focus === pr.id
+            return (
+              <button
+                key={pr.id}
+                type="button"
+                onClick={() => onNavigate(pr.id)}
+                title={`fly to ${info?.name ?? pr.name}`}
+                className={`flex w-full cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition-colors ${
+                  active
+                    ? 'bg-cyan-400/12 text-cyan-100 shadow-[inset_2px_0_0_#22d3ee]'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
+                }`}
+              >
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: info?.color ?? '#cbd5e1', boxShadow: active ? `0 0 6px ${info?.color}` : undefined }}
+                />
+                <span className="flex-1 truncate">{info?.name ?? pr.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* 🛰 how many robotic explorers are out there across the system right now */}
       <div

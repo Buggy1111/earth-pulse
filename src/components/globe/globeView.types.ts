@@ -7,7 +7,6 @@ import type { ApolloSite } from '../../lib/moon'
 import type { TrackedSat } from '../../lib/satellites'
 import type { EarthEvent } from '../../lib/events'
 import type { GibsLayer } from '../../lib/gibs'
-import type { ProbePick } from '../../lib/probes'
 import type { LayerState } from '../hud/types'
 
 export interface GlobeViewProps {
@@ -54,8 +53,6 @@ export interface GlobeViewProps {
   /** Which planet the camera orbits in solar mode (null = Sun overview). */
   focusPlanet: string | null
   onPlanetPick: (id: string) => void
-  /** A deep-space probe was clicked in the solar view (null clears the card). */
-  onProbePick: (pick: ProbePick | null) => void
   /** Simulated-time anchor: simMs advances `warp`× faster than real time. */
   solarTime: { realMs: number; simMs: number; warp: number }
   followIss: boolean
