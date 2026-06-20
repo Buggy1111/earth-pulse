@@ -25,14 +25,20 @@ const PROBES = [
 ]
 
 // Each spacecraft's HORIZONS trajectory is only valid over its published SPK
-// span — decades for the Voyagers, a few months for an active mission like
-// Parker. So we try windows widest-first and keep the first that resolves: the
-// long-lived probes get a long trail, the short-coverage ones still appear.
+// span — decades for the Voyagers, a few months for an active mission. So we
+// try windows widest-first and keep the first that resolves AND covers today.
+// Windows are RELATIVE to "now" so a scheduled re-bake always brackets the
+// current moment (a short-coverage craft can't drift out the back).
+function isoOffset(months) {
+  const d = new Date()
+  d.setMonth(d.getMonth() + months)
+  return d.toISOString().slice(0, 10)
+}
 const WINDOWS = [
-  { start: '2025-06-01', stop: '2028-06-01', step: 3 }, // 3 yr (Voyagers, cruisers)
-  { start: '2026-01-01', stop: '2027-07-01', step: 2 }, // 1.5 yr
-  { start: '2026-03-15', stop: '2026-12-15', step: 1 }, // 9 mo
-  { start: '2026-05-01', stop: '2026-08-15', step: 1 }, // 3.5 mo (narrow coverage)
+  { start: isoOffset(-12), stop: isoOffset(24), step: 3 }, // −1 yr … +2 yr
+  { start: isoOffset(-6), stop: isoOffset(12), step: 2 }, // −6 mo … +1 yr
+  { start: isoOffset(-3), stop: isoOffset(6), step: 1 }, // −3 mo … +6 mo
+  { start: isoOffset(-1), stop: isoOffset(3), step: 1 }, // −1 mo … +3 mo (narrow)
 ]
 
 function horizonsUrl(h, w) {
