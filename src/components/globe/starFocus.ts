@@ -9,12 +9,9 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { starAppearance } from '../../lib/starLook'
 import type { StarPick } from '../../lib/stars'
+import { flyCamera } from './cameraFlight'
 import { getGlowTexture } from './helpers'
 import { applyStarLook, makeStarMaterial } from './starMaterial'
-
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-}
 
 export interface StarFocus {
   /** Build/skin the star along sky direction `dir` and glide in to orbit it. */
@@ -54,33 +51,25 @@ export function setupStarFocus(
   let radius = 1
   let spin = 0
   let pulse = 0
-  let prevMin = controls.minDistance
-  let raf = 0
+  // the orbit min-distance to restore on defocus — captured ONCE at setup so a
+  // second pick (while still flying to the first) can't overwrite it with a
+  // star-zoom value and leave the camera trapped at the wrong zoom afterwards
+  const prevMin = controls.minDistance
+  let cancelFly: (() => void) | null = null
 
+  // glide between fixed endpoints, easing camera + target together
   const fly = (endCam: THREE.Vector3, endTarget: THREE.Vector3, dur: number, onLand?: () => void) => {
-    cancelAnimationFrame(raf)
+    cancelFly?.()
     const startCam = cam.position.clone()
     const startTarget = controls.target.clone()
-    const t0 = performance.now()
-    const onDrag = () => {
-      cancelAnimationFrame(raf)
-      controls.removeEventListener('start', onDrag)
-      onLand?.()
-    }
-    controls.addEventListener('start', onDrag)
-    const step = () => {
-      const t = Math.min((performance.now() - t0) / dur, 1)
-      const e = easeInOutCubic(t)
-      cam.position.lerpVectors(startCam, endCam, e)
-      controls.target.lerpVectors(startTarget, endTarget, e)
-      controls.update()
-      if (t < 1) raf = requestAnimationFrame(step)
-      else {
-        controls.removeEventListener('start', onDrag)
-        onLand?.()
-      }
-    }
-    raf = requestAnimationFrame(step)
+    cancelFly = flyCamera(globe, {
+      duration: dur,
+      onFrame: (e) => {
+        cam.position.lerpVectors(startCam, endCam, e)
+        controls.target.lerpVectors(startTarget, endTarget, e)
+      },
+      onLand,
+    })
   }
 
   return {
@@ -105,7 +94,6 @@ export function setupStarFocus(
       focused = star.name
 
       pinTargetRef.current = null // own the camera until we land
-      prevMin = controls.minDistance
       controls.minDistance = Math.max(radius * 1.6, 2)
       const endCam = center.clone().add(cam.position.clone().sub(center).normalize().multiplyScalar(radius * 4.5))
       fly(endCam, center, 1500, () => {
@@ -132,7 +120,7 @@ export function setupStarFocus(
       if (pulse) mesh.scale.setScalar(radius * (1 + pulse * Math.sin(seconds * 0.6)))
     },
     dispose() {
-      cancelAnimationFrame(raf)
+      cancelFly?.()
       if (pinTargetRef.current === mesh) pinTargetRef.current = null
       controls.minDistance = prevMin
       globe.scene().remove(mesh)

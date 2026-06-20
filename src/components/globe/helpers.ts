@@ -9,6 +9,11 @@ export const CLOUDS_ALTITUDE = 0.006
 export const CLOUDS_DEG_PER_FRAME = -0.002
 export const ARROW_LOOP_MS = 22_000
 
+/** The default "home" Earth framing every view returns to — the one canonical
+ * camera pose, so every fly-back (reset, exit moon/solar/satellite) lands in the
+ * exact same place. Durations stay per-call; only the destination is shared. */
+export const HOME_VIEW = { lat: 25, lng: 15, altitude: 2.2 }
+
 export const ARROW_GEO = new THREE.ConeGeometry(0.8, 2.4, 8)
 export const ARROW_MAT = new THREE.MeshBasicMaterial({
   color: '#bdf0ff',

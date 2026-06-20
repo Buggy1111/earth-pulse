@@ -7,6 +7,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { EARTH_DISPLAY } from '../../lib/planets'
 import { ensureSolarSystem } from './solar'
+import { HOME_VIEW } from './helpers'
 import { setupProbes } from './probesLayer'
 import { setupStars } from './starsLayer'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -134,6 +135,6 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     deps.pinTargetRef.current = null
     controls.target.set(0, 0, 0)
     controls.update()
-    globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
+    globe.pointOfView(HOME_VIEW, 0)
   }
 }

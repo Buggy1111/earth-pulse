@@ -5,11 +5,8 @@
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { PLANET_MOONS } from '../../lib/planets'
+import { flyCamera } from './cameraFlight'
 import type { SolarDeps } from './solar'
-
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-}
 
 /** Which planet a moon belongs to (moon ids are globally unique). */
 export const MOON_PARENT: Record<string, string> = Object.fromEntries(
@@ -62,32 +59,23 @@ export function focusSolarBody(
     : // overview above the ecliptic: inner system + Jupiter & Saturn framed
       new THREE.Vector3(0, 13_000, 21_000)
   pinTargetRef.current = null // the glide owns the camera until it lands
-  const t0 = performance.now()
-  const dur = 1_600
   const off = new THREE.Vector3()
-  let raf = 0
-  const land = () => {
-    pinTargetRef.current = focusMesh
-  }
-  const fly = () => {
-    const t = Math.min((performance.now() - t0) / dur, 1)
-    focusMesh.getWorldPosition(world)
-    off.lerpVectors(startOffset, endOffset, easeInOutCubic(t))
-    cam.position.copy(world).add(off)
-    controls.target.copy(world)
-    controls.update()
-    if (t < 1) raf = requestAnimationFrame(fly)
-    else land()
-  }
-  raf = requestAnimationFrame(fly)
-  const onDragStart = () => {
-    cancelAnimationFrame(raf)
-    land()
-  }
-  controls.addEventListener('start', onDragStart)
+  // the flight tracks the body's LIVE world position each frame (so it keeps
+  // working at full time-warp): re-read it, ease the approach offset, sit there.
+  const cancel = flyCamera(globe, {
+    duration: 1_600,
+    onFrame: (e) => {
+      focusMesh.getWorldPosition(world)
+      off.lerpVectors(startOffset, endOffset, e)
+      cam.position.copy(world).add(off)
+      controls.target.copy(world)
+    },
+    onLand: () => {
+      pinTargetRef.current = focusMesh
+    },
+  })
   return () => {
-    cancelAnimationFrame(raf)
-    controls.removeEventListener('start', onDragStart)
+    cancel()
     controls.minDistance = prevMin
   }
 }

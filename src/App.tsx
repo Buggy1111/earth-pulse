@@ -1,7 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import { ArLaunchButton } from './components/ArLaunchButton'
-import { StarPanel } from './components/StarPanel'
 import { useProbes } from './useProbes'
 import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
@@ -309,6 +308,8 @@ export default function App() {
           apolloSite={apolloSite}
           onMoonExit={onMoonExit}
           focusPlanet={focusPlanet}
+          pickedStar={pickedStar}
+          onStarPick={onStarPick}
           solarSimNow={solarSimNow}
           warp={solarTime.warp}
           onWarp={onWarp}
@@ -380,13 +381,6 @@ export default function App() {
         <Suspense fallback={null}>
           <ArSky sats={sats} userLoc={userLoc} probes={probes} onLocate={onLocate} onClose={() => setArMode(false)} />
         </Suspense>
-      )}
-
-      {/* ⭐ clicked-star info card (solar view) */}
-      {!hudOff && solarMode && pickedStar && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3">
-          <StarPanel star={pickedStar} onClose={() => onStarPick(null)} />
-        </div>
       )}
     </>
   )

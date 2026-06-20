@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import type { Quake } from '../../lib/quakes'
 import { subsolarPoint } from '../../lib/sun'
 import { followPixelRatio } from '../perf'
-import type { OrbitObject } from './helpers'
+import { HOME_VIEW, type OrbitObject } from './helpers'
 
 /** Glide between live points of interest every 8 s. */
 export function startTour(
@@ -79,7 +79,7 @@ export function followSatellite(
     renderer.setPixelRatio(prevRatio)
     controls.target.set(0, 0, 0)
     controls.update()
-    globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 800)
+    globe.pointOfView(HOME_VIEW, 800)
   }
 }
 
@@ -106,6 +106,6 @@ export function enterMoonMode(
     controls.minDistance = prevMin
     controls.target.set(0, 0, 0)
     controls.update()
-    globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 0)
+    globe.pointOfView(HOME_VIEW, 0)
   }
 }

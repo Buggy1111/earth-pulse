@@ -5,6 +5,7 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { LayerState } from '../hud/types'
+import { HOME_VIEW } from './helpers'
 import { setupPointer } from './pointer'
 import { setupSky } from './sky'
 import { setupSurface } from './surface'
@@ -46,7 +47,7 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
     .backgroundColor('#000005')
     .atmosphereColor('#7dd3fc')
     .atmosphereAltitude(0.18)
-    .pointOfView(fromLink ?? { lat: 25, lng: 15, altitude: 2.2 }, 0)
+    .pointOfView(fromLink ?? HOME_VIEW, 0)
 
   // a shared link IS the view — don't auto-rotate away from it
   deps.userInteractedRef.current = !!fromLink

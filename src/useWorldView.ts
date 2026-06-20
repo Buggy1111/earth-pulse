@@ -48,14 +48,24 @@ export function useWorldView() {
 
   // which world the HUD lives in right now
   const mode: 'earth' | 'moon' | 'solar' = solarMode ? 'solar' : moonMode ? 'moon' : 'earth'
-  const onSolarOverview = useCallback(() => setFocusPlanet(null), [])
+  // navigating to a body/overview always closes any open star card, so the
+  // primary slot only ever holds ONE card (planet OR star, never both)
+  const onSolarOverview = useCallback(() => {
+    setFocusPlanet(null)
+    setPickedStar(null)
+  }, [])
   const onSolarExit = useCallback(() => {
     setSolarMode(false)
     setFocusPlanet(null)
+    setPickedStar(null)
     onWarpReset() // Earth always comes back live
   }, [onWarpReset])
   const onPlanetPick = useCallback(
-    (id: string) => (id === 'earth' ? onSolarExit() : setFocusPlanet(id)),
+    (id: string) => {
+      if (id === 'earth') return onSolarExit()
+      setPickedStar(null)
+      setFocusPlanet(id)
+    },
     [onSolarExit],
   )
 

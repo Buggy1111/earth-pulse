@@ -2,10 +2,8 @@
  * faithful encyclopedic data: spin, year, tilt, temperature, moons. */
 
 import { earthHelio, PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
-import { PROBE_INFO, probePosAu, probeSpeedKms, type ProbeTraj } from '../lib/probes'
+import { AU_KM, PROBE_INFO, probePosAu, probeSpeedKms, type ProbeTraj } from '../lib/probes'
 import { TimeWarp } from './hud/TimeWarp'
-
-const AU_KM = 149_597_870
 
 function fmtRotation(h: number): string {
   const abs = Math.abs(h)

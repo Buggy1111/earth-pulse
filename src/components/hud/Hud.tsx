@@ -15,8 +15,10 @@ import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
 import { PlanetPanel } from '../PlanetPanel'
+import { StarPanel } from '../StarPanel'
 import { SolarNavTree } from './SolarNavTree'
 import type { ProbeTraj } from '../../lib/probes'
+import type { StarPick } from '../../lib/stars'
 import { TimeWarp } from './TimeWarp'
 import { ViewportFrame } from './ViewportFrame'
 import type { LayerState, OrbitEntry } from './types'
@@ -45,6 +47,10 @@ interface HudProps {
   apolloSite: ComponentProps<typeof MoonPanel>['picked']
   onMoonExit: () => void
   focusPlanet: string | null
+  // ⭐ the star whose card is open (solar view) — shown in the SAME slot as the
+  // planet card so clicking a star and clicking a planet land in one place
+  pickedStar: StarPick | null
+  onStarPick: (s: StarPick | null) => void
   solarSimNow: number
   warp: number
   onWarp: (factor: number) => void
@@ -127,6 +133,9 @@ export function Hud(p: HudProps) {
       <SpaceWeatherPanel weather={p.weather} moonLabel={p.moonLabel} onOpenMoon={p.onMoonEnter} />
     ) : p.mode === 'moon' ? (
       <MoonPanel moon={p.moonState} picked={p.apolloSite} onBack={p.onMoonExit} />
+    ) : p.pickedStar ? (
+      // clicked a star → its card takes the primary slot (closing it flies back)
+      <StarPanel star={p.pickedStar} onClose={() => p.onStarPick(null)} />
     ) : (
       <PlanetPanel
         focus={p.focusPlanet}

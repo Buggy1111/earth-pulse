@@ -9,7 +9,7 @@ import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { globeAltitude } from '../lib/satellites'
 import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
-import { type OrbitObject, type Trail } from './globe/helpers'
+import { HOME_VIEW, type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers } from './globe/quakesLayer'
 import { setupSky } from './globe/sky'
@@ -372,7 +372,7 @@ export function GlobeView(props: GlobeViewProps) {
     if (!globe || props.resetView === resetViewRef.current) return
     resetViewRef.current = props.resetView
     globe.controls().autoRotate = false
-    globe.pointOfView({ lat: 25, lng: 15, altitude: 2.2 }, 900)
+    globe.pointOfView(HOME_VIEW, 900)
   }, [props.resetView])
 
   // pause the globe's render loop while a fullscreen overlay (Sky AR) hides it —

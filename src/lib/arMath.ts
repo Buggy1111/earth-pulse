@@ -62,7 +62,7 @@ export function angleDelta(a: number, b: number): number {
   return d
 }
 
-export interface ScreenPos {
+interface ScreenPos {
   x: number
   y: number
   /** Inside the phone's field of view (and above the horizon)? */

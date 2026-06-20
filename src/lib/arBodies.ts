@@ -7,9 +7,7 @@ import { EARTH_RADIUS_KM } from './satellites'
 import { lookAngles, type LookAngles } from './arMath'
 import { subLunarPoint } from './moon'
 import { earthHelio, planetPositions } from './planets'
-import { PROBE_INFO, probePosAu, type ProbeTraj } from './probes'
-
-const AU_KM = 149_597_870.7
+import { AU_KM, PROBE_INFO, probePosAu, type ProbeTraj } from './probes'
 
 export interface SkyBody extends LookAngles {
   name: string
