@@ -1,5 +1,6 @@
-/** Real NASA 3D models (public-domain .glb, github.com/nasa/NASA-3D-Resources)
- * for the orbit layer. Loaded lazily in the background and cached, then cloned
+/** Real spacecraft 3D models (.glb) for the orbit layer — mostly public-domain
+ * NASA 3D Resources, plus a few Sketchfab CC-BY ones (Tiangong, Sentinel-1A).
+ * Loaded lazily in the background and cached, then cloned
  * per satellite. Each is centred, scaled to a consistent size and given an
  * emissive boost so it reads on the night side (orbit objects aren't lit by the
  * scene's sun). Falls back to the hand-built primitives until/unless a model is
@@ -22,14 +23,14 @@ const GOLD = '#c79a3e' // gold MLI foil
 const SILVER = '#c2ccd8' // bare aluminium / light grey
 const WHITE = '#e4e7ec' // white thermal blankets / panels
 
-// satellite name (from famous.txt) → its real NASA model (public-domain glbs).
+// satellite name (from famous.txt) → its real model (mostly public-domain NASA).
 // Several share a model where the real thing is near-identical: Landsat 8/9,
-// GOES-16/18, stations (ISS/Tiangong), and the three JPSS sats (Suomi NPP /
-// NOAA-20 / NOAA-21) which fly the same Ball BCP-2000 bus. `tint` is the real
-// body colour each bus reads as in photos.
+// GOES-16/18, and the three JPSS sats (Suomi NPP / NOAA-20 / NOAA-21) which fly
+// the same Ball BCP-2000 bus. `tint` is the real body colour each bus reads as
+// in photos.
 const MODELS: Record<string, ModelDef> = {
   ISS: { file: 'iss.glb', scale: 2.0, tint: WHITE },
-  Tiangong: { file: 'iss.glb', scale: 1.5, tint: WHITE }, // a station — ISS model stands in
+  Tiangong: { file: 'tiangong.glb', scale: 1.5, tint: WHITE }, // its own model (Sketchfab CC-BY)
   Hubble: { file: 'hubble.glb', scale: 1.15, tint: SILVER },
   Terra: { file: 'terra.glb', tint: SILVER },
   Fermi: { file: 'fermi.glb', tint: WHITE },
@@ -40,6 +41,7 @@ const MODELS: Record<string, ModelDef> = {
   'NOAA-21': { file: 'suomi-npp.glb', tint: GOLD }, // JPSS-2 — same bus as Suomi NPP
   'Landsat 8': { file: 'landsat8.glb', tint: SILVER },
   'Landsat 9': { file: 'landsat8.glb', tint: SILVER },
+  'Sentinel-1A': { file: 'sentinel-1a.glb', tint: GOLD }, // Sketchfab CC-BY
   'Sentinel-6': { file: 'sentinel6.glb', tint: GOLD },
   'Jason-3': { file: 'jason.glb', tint: GOLD },
   'ICESat-2': { file: 'icesat2.glb', tint: SILVER },
@@ -82,20 +84,27 @@ function prepare(scene: THREE.Object3D, tint?: string): THREE.Group {
     for (const mat of mats) {
       const m = mat as THREE.MeshStandardMaterial
       if (!m.color) continue
+      // A FULL-COLOUR textured part (real ISS/Hubble/Aqua skins): the orbit layer
+      // is self-lit, so a flat emissive colour washes the texture out to grey.
+      // Drive emissive from the texture itself (neutral grey) so its real colours —
+      // ISS's blue solar panels, gold foil — read at any lighting, untinted.
+      if (m.map) {
+        m.emissiveMap = m.map
+        m.emissive.setRGB(0.6, 0.6, 0.6)
+        m.emissiveIntensity = 1
+        continue
+      }
       const hsl = { h: 0, s: 0, l: 0 }
       m.color.getHSL(hsl)
-      // The grey/silver bus skin (low-saturation base) is recoloured to the
-      // satellite's REAL body colour — gold / silver / white — EVEN when it has a
-      // texture (those textures are greyscale detail, so the tint multiplies in
-      // and recolours them). This is why Hubble & ISS used to stay flat grey.
-      // Already-coloured parts (GOES gold, Landsat instruments, solar panels) and
-      // dark parts keep their own colour, just get the metal sheen.
+      // Bare grey/silver bus skin (low-saturation base) is recoloured to the
+      // satellite's REAL body colour — gold / silver / white. Already-coloured
+      // parts (panels, instruments) and dark parts keep their own colour.
       const greyBus = hsl.s < 0.12 && hsl.l > 0.22
       if (tint && greyBus) {
         m.color.setHSL(t.h, t.s, Math.min(0.82, Math.max(0.52, hsl.l)))
         m.metalness = Math.max(m.metalness ?? 0, 0.62)
         m.roughness = Math.min(m.roughness ?? 1, 0.4)
-      } else if (!m.map) {
+      } else {
         m.metalness = Math.max(m.metalness ?? 0, 0.5)
         m.roughness = Math.min(m.roughness ?? 1, 0.5)
       }

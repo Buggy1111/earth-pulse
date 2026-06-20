@@ -11,6 +11,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
+import { SUNLIT_LAYER } from './solar'
 import { PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
@@ -20,16 +21,16 @@ const MAX_DISPLAY_AU = 200 // safety cap only; the real probes (Voyager 1 ~170 A
 const MODEL_TARGET = 13 // scene units the real glb model is normalised to
 
 // every probe gets a real spacecraft model. Voyager, New Horizons, Europa
-// Clipper and Psyche are their own craft; Lucy, JUICE (no freely-downloadable
-// model exists) borrow a visually-matched NASA probe — Dawn and Juno share
-// their big solar-wing silhouettes. All NASA/public-domain glb.
+// Clipper, Psyche and Lucy are their own craft; JUICE (no freely-downloadable
+// model exists) borrows a visually-matched NASA probe — Juno shares its big
+// solar-wing silhouette. NASA/public-domain glb, except Lucy (Sketchfab CC-BY).
 const MODEL_FILE: Record<string, string> = {
   voyager1: 'voyager.glb',
   voyager2: 'voyager.glb',
   newhorizons: 'new-horizons.glb',
   europaclipper: 'europa-clipper.glb',
   psyche: 'psyche.glb',
-  lucy: 'dawn.glb',
+  lucy: 'lucy.glb',
   juice: 'juno.glb',
 }
 const GENERIC_MODEL = 'generic.glb'
@@ -195,7 +196,13 @@ export function setupProbes(
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
         model.scale.setScalar(MODEL_TARGET / (Math.max(size.x, size.y, size.z) || 1))
-        // self-lit tint so the craft reads in its own colour at any lighting
+        // Textured craft read in their own baked colours, self-lit so they don't
+        // go black this far from the Sun. Untextured ones used to glow FLAT in the
+        // probe's accent colour — a saturated candy blob hiding all the geometry.
+        // Instead light those with the Sun (move them onto the sunlit layer, like
+        // the planets) so their real form shows — solar panels, body — keeping only
+        // a faint accent floor so the shadowed side still reads its colour.
+        const accent = new THREE.Color(color)
         model.traverse((o) => {
           const mesh = o as THREE.Mesh
           const src = mesh.material as THREE.MeshStandardMaterial | undefined
@@ -205,7 +212,11 @@ export function setupProbes(
             m.emissiveMap = m.map
             m.emissive.setRGB(0.55, 0.55, 0.55)
           } else {
-            m.emissive.set(color)
+            mesh.layers.enable(SUNLIT_LAYER) // let the Sun shade it for real 3D form
+            m.metalness = 0.1 // single point light, no env map → drop metal so it reads diffuse
+            m.roughness = 0.65
+            // soft tinted-silver floor (never a black silhouette, never a neon blob)
+            m.emissive.setRGB(0.18 + accent.r * 0.12, 0.18 + accent.g * 0.12, 0.18 + accent.b * 0.12)
           }
           m.emissiveIntensity = 0.7
           mesh.material = m
