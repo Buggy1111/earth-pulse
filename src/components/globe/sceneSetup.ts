@@ -5,6 +5,7 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { LayerState } from '../hud/types'
+import { glIsSoftware } from '../perf'
 import { HOME_VIEW } from './helpers'
 import { setupPointer } from './pointer'
 import { setupSky } from './sky'
@@ -43,7 +44,16 @@ export interface SceneSetupDeps {
 /** Build the globe + sky + surface + pointer once; returns the cleanup. */
 export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () => void {
   const fromLink = deps.initialPovRef.current
-  const globe = new Globe(container)
+  const globe = new Globe(container, {
+    rendererConfig: {
+      // ask the browser for the discrete / high-performance GPU on hybrid
+      // laptops (Intel + NVIDIA/AMD) instead of the power-saving integrated one
+      powerPreference: 'high-performance',
+      // antialias is pure fill-rate cost — drop it on weak GPUs (barely visible
+      // at globe scale, and adaptive resolution already softens edges there)
+      antialias: !deps.ecoRef.current,
+    },
+  })
     .backgroundColor('#000005')
     .atmosphereColor('#7dd3fc')
     .atmosphereAltitude(0.18)
@@ -103,6 +113,14 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   deps.globeRef.current = globe
   // e2e hook: headless tests steer the camera through this handle
   ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
+  // if WebGL fell back to the CPU (hardware acceleration off / GPU blocklisted)
+  // nothing here will be smooth — surface a nudge. Read the globe's OWN context,
+  // never a probe (a probe can fail on iOS's context cap and misreport a good GPU).
+  try {
+    if (glIsSoftware(globe.renderer().getContext())) deps.cb.current.onSoftwareRenderer?.()
+  } catch {
+    // no debug-renderer extension — skip the hint rather than guess
+  }
   return () => {
     deps.globeRef.current = null
     disposePointer()

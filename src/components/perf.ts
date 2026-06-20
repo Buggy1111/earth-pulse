@@ -84,6 +84,22 @@ export function isSoftwareRenderer(): boolean {
   }
 }
 
+/** Same software-renderer test, but reading an EXISTING GL context (the globe's
+ * own) instead of creating a probe. Prefer this once the globe is up: a probe
+ * context can fail spuriously under iOS's live-context cap and misreport a
+ * perfectly good GPU as "software". */
+export function glIsSoftware(gl: WebGLRenderingContext | WebGL2RenderingContext): boolean {
+  try {
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    const renderer = ext
+      ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
+      : String(gl.getParameter(gl.RENDERER))
+    return /swiftshader|llvmpipe|software|basic render/i.test(renderer)
+  } catch {
+    return false
+  }
+}
+
 /** Average FPS over `ms` of wall time (resolves early if the tab hides). */
 export function sampleFps(ms = 4_000): Promise<number> {
   return new Promise((resolve) => {

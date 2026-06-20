@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import { ArLaunchButton } from './components/ArLaunchButton'
+import { HwAccelHint } from './components/hud/HwAccelHint'
 import { useProbes } from './useProbes'
 import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
@@ -34,6 +35,9 @@ export default function App() {
   const probes = useProbes()
   const [selected, setSelected] = useState<Quake | null>(null)
   const [ready, setReady] = useState(false)
+  // WebGL fell back to the CPU (hardware acceleration off) → show the GPU nudge
+  const [softwareGpu, setSoftwareGpu] = useState(false)
+  const onSoftwareRenderer = useCallback(() => setSoftwareGpu(true), [])
   const {
     followIss, setFollowIss, followSat, setFollowSat,
     tourOn, setTourOn, onTourToggle, onTourBroken,
@@ -278,6 +282,7 @@ export default function App() {
         gibsLayer={gibsLayer}
         gibsDate={gibsImageryDate}
         onReady={onReady}
+        onSoftwareRenderer={onSoftwareRenderer}
         />
       )}
       <LoadingOverlay done={ready} />
@@ -382,6 +387,9 @@ export default function App() {
           <ArSky sats={sats} userLoc={userLoc} probes={probes} onLocate={onLocate} onClose={() => setArMode(false)} />
         </Suspense>
       )}
+
+      {/* hardware-acceleration nudge — only when WebGL is on the CPU */}
+      {softwareGpu && !hudOff && <HwAccelHint />}
     </>
   )
 }

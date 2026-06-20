@@ -72,4 +72,6 @@ export interface GlobeViewProps {
   /** YYYY-MM-DD imagery date for the GIBS layer (time playback). */
   gibsDate: string
   onReady: () => void
+  /** WebGL is running on the CPU (hardware acceleration off / GPU blocklisted). */
+  onSoftwareRenderer?: () => void
 }

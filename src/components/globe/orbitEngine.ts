@@ -114,11 +114,51 @@ export function startOrbitEngine(
   let satsParked = false
   let lastSunAz = NaN // for the "Earth spins" camera follow (Sun's world azimuth)
   let prevAutoRotate = false // idle auto-rotate paused during Earth-spin, restored after
+  // 🚀 adaptive resolution: a weak / fill-rate-bound GPU (integrated Intel, a
+  // phone) chokes on pixels long before it chokes on geometry. So when the frame
+  // budget slips we render FEWER pixels (scale the device pixel ratio down) and
+  // climb back up once there's headroom — smooth beats sharp. Owned here, in the
+  // one render loop; eco/normal sets the CEILING, this scales underneath it, and
+  // it pauses while a body is pinned so it never fights the close-up ratio cap.
+  const renderer = globe.renderer()
+  let renderScale = 1
+  let adaptMs = 0
+  let adaptFrames = 0
+  let lastFrameT = performance.now()
   const frame = () => {
     frameNo++
     // warped clock: everything physical follows it (sats speed up too)
     const t = deps.solarTimeRef.current
     const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
+
+    // sample the frame budget once a second and nudge the render resolution; skip
+    // while a body is pinned (the close-up cap owns the ratio then) and reset the
+    // window so a pin never skews the next sample.
+    const tNow = performance.now()
+    const dt = tNow - lastFrameT
+    lastFrameT = tNow
+    if (deps.pinTargetRef.current) {
+      adaptMs = 0
+      adaptFrames = 0
+    } else {
+      adaptFrames++
+      adaptMs += dt
+      if (adaptMs >= 1000) {
+        const fps = (adaptFrames * 1000) / adaptMs
+        const ceil = deps.ecoRef.current ? 1 : Math.min(window.devicePixelRatio || 1, 2)
+        let s = renderScale
+        if (fps < 34 && s > 0.6) s = Math.max(0.6, s - 0.12)
+        else if (fps > 52 && s < 1) s = Math.min(1, s + 0.12)
+        const want = ceil * s
+        if (s !== renderScale || Math.abs(renderer.getPixelRatio() - want) > 0.01) {
+          renderScale = s
+          renderer.setPixelRatio(want)
+        }
+        adaptMs = 0
+        adaptFrames = 0
+      }
+    }
+
     const show = deps.layersRef.current
     orbitGroup.visible = !deps.solarModeRef.current && show.orbits
 
