@@ -55,14 +55,14 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   // trails + craft, ticked from the (wrapped) solar frame so they share the
   // one warped clock. Their display distance is clamped to fit the envelope.
   const probes = setupProbes(globe, group, deps.probeMeshesRef, deps.onProbePick)
+  // 🌟 the real naked-eye sky as a camera-following skydome (never clips)
+  const stars = setupStars(globe)
   const baseFrame = deps.solarFrameRef.current
   deps.solarFrameRef.current = (now) => {
     baseFrame(now)
     probes.update(now)
+    stars.update(globe.camera())
   }
-
-  // 🌟 the real naked-eye sky as the far backdrop (static, no per-frame work)
-  const stars = setupStars(group)
 
   // Earth shrinks to its TRUE relative size (with satellites, clouds, all).
   // The three-globe root attaches to the scene after our setup ran, so we
@@ -100,10 +100,12 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   const prevFar = cam.far
   const prevNear = cam.near
   const prevMax = controls.maxDistance
-  cam.near = 1
-  cam.far = 950_000
+  // far must clear the most distant body seen from the opposite side: zoom-out
+  // 700k + Voyager 1's ~376k still under the 1.2M far plane, so nothing clips.
+  cam.near = 2
+  cam.far = 1_200_000
   cam.updateProjectionMatrix()
-  controls.maxDistance = 850_000
+  controls.maxDistance = 700_000
   controls.autoRotate = false
   deps.userInteractedRef.current = true
   return () => {

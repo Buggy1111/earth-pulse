@@ -4,8 +4,12 @@
 export interface StarCatalog {
   /** Flat [x, y, z, mag, ci, …] — unit direction, magnitude, B–V colour index. */
   data: number[]
-  /** Named stars with a real distance (light-years) for labels. */
+  /** Bright named stars with a real distance (light-years) for labels. */
   named: { n: string; x: number; y: number; z: number; m: number; d: number }[]
+  /** Closest systems (faint ones too — Proxima, Barnard's). */
+  nearest: { n: string; x: number; y: number; z: number; d: number }[]
+  /** Constellation stick figures: each a flat [x,y,z,…] equatorial polyline. */
+  lines: number[][]
 }
 
 // B–V colour index → an approximate true star tint, lerped between known

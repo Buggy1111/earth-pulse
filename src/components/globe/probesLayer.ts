@@ -182,6 +182,10 @@ export function setupProbes(
         body.userData.probeId = traj.id
         body.userData.displayRadius = MODEL_TARGET // camera framing when focused
         body.add(makeNameSprite(info?.name ?? traj.name, 7, true, color))
+        // never frustum-cull the craft or its long trail — they're way out and
+        // their bounding spheres make them pop in/out at the view edges otherwise
+        trail.line.frustumCulled = false
+        body.traverse((o) => (o.frustumCulled = false))
         group.add(trail.line, body)
         added.push(trail.line, body)
         bodies.push(body)
@@ -212,6 +216,7 @@ export function setupProbes(
             })
             const ph = body.getObjectByName('ph')
             if (ph) body.remove(ph)
+            model.traverse((o) => (o.frustumCulled = false))
             body.add(model)
           })
           .catch(() => {
