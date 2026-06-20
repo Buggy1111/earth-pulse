@@ -1,0 +1,117 @@
+// Generates the Earth Pulse PWA icon set from one crafted SVG.
+// Luxury concept: a holographic Earth — ocean gradient + lat/long grid, an
+// atmospheric rim glow, a day/night terminator for depth, and a tilted orbit
+// ring with a glowing satellite, all on a deep-space background.
+//   node scripts/make-pwa-icons.mjs
+import sharp from 'sharp'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../public/icons')
+mkdirSync(OUT, { recursive: true })
+
+// content drawn in a 512 box; `s` scales it (maskable keeps it inside the safe
+// zone), `round` rounds the bg corners (off for maskable — the OS masks it).
+const svg = ({ scale = 1, round = 112 } = {}) => `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="space" cx="38%" cy="30%" r="90%">
+      <stop offset="0%" stop-color="#10244d"/>
+      <stop offset="52%" stop-color="#070f28"/>
+      <stop offset="100%" stop-color="#01020a"/>
+    </radialGradient>
+    <radialGradient id="ocean" cx="38%" cy="33%" r="75%">
+      <stop offset="0%" stop-color="#39b6ff"/>
+      <stop offset="42%" stop-color="#1a72e0"/>
+      <stop offset="78%" stop-color="#0b327f"/>
+      <stop offset="100%" stop-color="#06184c"/>
+    </radialGradient>
+    <radialGradient id="atmo" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#3cc8ff" stop-opacity="0"/>
+      <stop offset="88%" stop-color="#4ad4ff" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#9fe9ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spec" cx="34%" cy="29%" r="42%">
+      <stop offset="0%" stop-color="#eafaff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="term" x1="0" y1="0.1" x2="1" y2="0.95">
+      <stop offset="58%" stop-color="#000010" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000008" stop-opacity="0.66"/>
+    </linearGradient>
+    <radialGradient id="aurora" cx="50%" cy="50%" r="50%">
+      <stop offset="60%" stop-color="#27f5b0" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#27f5b0" stop-opacity="0.5"/>
+    </radialGradient>
+    <clipPath id="globe"><circle cx="256" cy="256" r="150"/></clipPath>
+    <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="glow"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+
+  <rect width="512" height="512" rx="${round}" fill="url(#space)"/>
+  <g fill="#ffffff">
+    <circle cx="96" cy="92" r="2.4" opacity=".9"/>
+    <circle cx="428" cy="116" r="1.7" opacity=".7"/>
+    <circle cx="404" cy="392" r="2.1" opacity=".8"/>
+    <circle cx="116" cy="418" r="1.5" opacity=".6"/>
+    <circle cx="356" cy="58" r="1.3" opacity=".5"/>
+    <circle cx="60" cy="300" r="1.4" opacity=".55"/>
+    <circle cx="452" cy="248" r="1.3" opacity=".5"/>
+  </g>
+
+  <g transform="translate(256 256) scale(${scale}) translate(-256 -256)">
+    <!-- atmosphere halo -->
+    <circle cx="256" cy="256" r="174" fill="url(#atmo)" filter="url(#soft)"/>
+    <!-- orbit ring, back half -->
+    <g transform="rotate(-25 256 256)">
+      <path d="M 50 256 A 206 84 0 0 1 462 256" fill="none" stroke="#86dbff" stroke-width="3" stroke-opacity="0.3"/>
+    </g>
+    <!-- globe -->
+    <circle cx="256" cy="256" r="150" fill="url(#ocean)"/>
+    <g clip-path="url(#globe)">
+      <!-- aurora cap -->
+      <ellipse cx="240" cy="150" rx="150" ry="60" fill="url(#aurora)" opacity="0.8"/>
+      <!-- lat/long grid (holographic) -->
+      <g fill="none" stroke="#bfeaff" stroke-width="1.4" stroke-opacity="0.28">
+        <line x1="106" y1="256" x2="406" y2="256"/>
+        <ellipse cx="256" cy="256" rx="150" ry="48"/>
+        <ellipse cx="256" cy="256" rx="150" ry="100"/>
+        <ellipse cx="256" cy="256" rx="48" ry="150"/>
+        <ellipse cx="256" cy="256" rx="100" ry="150"/>
+        <line x1="256" y1="106" x2="256" y2="406"/>
+      </g>
+      <circle cx="256" cy="256" r="150" fill="url(#spec)"/>
+      <circle cx="256" cy="256" r="150" fill="url(#term)"/>
+    </g>
+    <!-- atmosphere rim -->
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#a6ecff" stroke-width="2.6" stroke-opacity="0.55" filter="url(#glow)"/>
+    <!-- orbit ring, front half + satellite -->
+    <g transform="rotate(-25 256 256)">
+      <path d="M 462 256 A 206 84 0 0 1 50 256" fill="none" stroke="#d4f1ff" stroke-width="3.4" stroke-opacity="0.85"/>
+      <circle cx="448" cy="274" r="16" fill="#bfeaff" opacity="0.4" filter="url(#glow)"/>
+      <circle cx="448" cy="274" r="8.5" fill="#f2fbff"/>
+    </g>
+  </g>
+</svg>`
+
+const targets = [
+  { name: 'icon-192.png', size: 192, opts: {} },
+  { name: 'icon-512.png', size: 512, opts: {} },
+  { name: 'icon-maskable-512.png', size: 512, opts: { scale: 0.78, round: 0 } },
+  { name: 'apple-touch-icon.png', size: 180, opts: { round: 0 } }, // iOS adds its own mask
+  { name: 'favicon-32.png', size: 32, opts: {} },
+  { name: 'favicon-16.png', size: 16, opts: {} },
+]
+
+for (const t of targets) {
+  await sharp(Buffer.from(svg(t.opts)))
+    .resize(t.size, t.size)
+    .png()
+    .toFile(resolve(OUT, t.name))
+  console.log('  ✓', t.name, `(${t.size}px)`)
+}
+// keep a crisp vector favicon too
+writeFileSync(resolve(OUT, 'icon.svg'), svg({ round: 112 }).trim())
+console.log('  ✓ icon.svg')
+console.log('done →', OUT)
