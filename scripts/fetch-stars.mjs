@@ -8,6 +8,8 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const CSV = 'https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/CURRENT/hygdata_v41.csv'
 // constellation stick figures (d3-celestial, BSD-3), already [RA°, Dec°] J2000
 const LINES_URL = 'https://raw.githubusercontent.com/ofrohn/d3-celestial/master/data/constellations.lines.json'
+// constellation names + label positions
+const NAMES_URL = 'https://raw.githubusercontent.com/ofrohn/d3-celestial/master/data/constellations.json'
 const MAG_LIMIT = 6.5 // naked-eye limit
 const NEAR_PC = 6.5 // nearest-star cutoff (~21 ly) — includes faint ones like Proxima
 const PC_TO_LY = 3.261564
@@ -30,6 +32,7 @@ const cMag = col('mag')
 const cCi = col('ci')
 const cProper = col('proper')
 const cGl = col('gl')
+const cSpect = col('spect')
 const cX = col('x')
 const cY = col('y')
 const cZ = col('z')
@@ -62,7 +65,7 @@ for (let i = 1; i < lines.length; i++) {
   if (Number.isFinite(distPc) && distPc > 0 && distPc < NEAR_PC) {
     const name = proper || unquote(f[cGl] ?? '')
     if (name) {
-      nearest.push({ n: name, x: r5(x), y: r5(y), z: r5(z), d: Math.round(distPc * PC_TO_LY * 10) / 10 })
+      nearest.push({ n: name, x: r5(x), y: r5(y), z: r5(z), d: Math.round(distPc * PC_TO_LY * 10) / 10, s: unquote(f[cSpect] ?? '') })
     }
   }
   const mag = Number(f[cMag])
@@ -78,6 +81,7 @@ for (let i = 1; i < lines.length; i++) {
       z: r5(z),
       m: r2(mag),
       d: Number.isFinite(distPc) && distPc < 99999 ? Math.round(distPc * PC_TO_LY) : 0,
+      s: unquote(f[cSpect] ?? ''),
     })
   }
 }
@@ -107,11 +111,32 @@ try {
   console.warn('Constellation lines unavailable — skipping')
 }
 
+// constellation names at their label positions
+const constNames = []
+try {
+  const geo = await (await fetch(NAMES_URL)).json()
+  for (const feat of geo.features ?? []) {
+    const c = feat.geometry?.coordinates
+    const name = feat.properties?.name || feat.properties?.en
+    if (!c || !name) continue
+    const cd = Math.cos(c[1] * RAD)
+    constNames.push({
+      n: name,
+      x: r5(cd * Math.cos(c[0] * RAD)),
+      y: r5(cd * Math.sin(c[0] * RAD)),
+      z: r5(Math.sin(c[1] * RAD)),
+    })
+  }
+} catch {
+  console.warn('Constellation names unavailable — skipping')
+}
+
 await mkdir(new URL('../public/stars/', import.meta.url), { recursive: true })
 await writeFile(
   new URL('../public/stars/stars.json', import.meta.url),
-  JSON.stringify({ data, named, nearest, lines: constellations }),
+  JSON.stringify({ data, named, nearest, lines: constellations, names: constNames }),
 )
 console.log(
-  `Saved ${count} stars (${named.length} named, ${nearest.length} near, ${constellations.length} constellation segments)`,
+  `Saved ${count} stars (${named.length} named, ${nearest.length} near, ` +
+    `${constellations.length} line segments, ${constNames.length} constellation names)`,
 )

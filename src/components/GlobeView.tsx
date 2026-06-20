@@ -302,6 +302,7 @@ export function GlobeView(props: GlobeViewProps) {
       probeMeshesRef,
       // a clicked probe focuses just like a clicked planet (fly in + orbit it)
       onProbePick: (id) => cb.current.onPlanetPick(id),
+      onStarPick: (s) => cb.current.onStarPick(s),
     })
   }, [solarMode])
 

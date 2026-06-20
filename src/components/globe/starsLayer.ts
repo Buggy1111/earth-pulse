@@ -1,17 +1,17 @@
 /** The real night sky for the solar view: ~8.9k naked-eye stars (HYG catalogue)
  * at their true J2000 positions — coloured by spectral type, sized by magnitude,
  * the brightest named and the nearest systems (Proxima…) labelled with their
- * real distance, joined by the constellation stick figures.
+ * real distance, joined by the constellation stick figures and named. Click a
+ * labelled star for what it is, how far, and its type.
  *
  * It's a camera-following SKYDOME: stars are infinitely far, so the whole group
- * re-centres on the camera every frame. That keeps them at a fixed distance
- * (always inside the far plane, never clipping as you zoom out to the Voyagers)
- * while a single fixed rotation (equatorial → ecliptic → scene) puts the zodiac
- * along the planets' plane — astronomically correct, not decorative. */
+ * re-centres on the camera every frame — always inside the far plane, never
+ * clipping as you zoom out to the Voyagers — while one fixed rotation puts the
+ * zodiac along the planets' plane (equatorial → ecliptic → scene). */
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
-import { bvColor, type StarCatalog } from '../../lib/stars'
+import { bvColor, type StarCatalog, type StarPick } from '../../lib/stars'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
 
@@ -22,7 +22,6 @@ const LABEL_MAG = 1.6 // label the ~brightest named stars
 const NEAREST_LABELS = 18 // plus the closest N systems (Proxima, Barnard's…)
 
 export interface StarsLayer {
-  /** Re-centre the dome on the camera (called from the solar frame). */
   update(camera: THREE.Object3D): void
   dispose(): void
 }
@@ -43,15 +42,41 @@ const STAR_FRAG = `
     gl_FragColor = vec4(vColor, a);
   }`
 
-export function setupStars(globe: GlobeInstance): StarsLayer {
+export function setupStars(globe: GlobeInstance, onStarPick: (s: StarPick | null) => void): StarsLayer {
   let disposed = false
-  // equatorial → ecliptic → scene, in one fixed rotation about X (the shared
-  // vernal-equinox axis): −(90° + obliquity). Verified: the celestial pole lands
-  // 23.4° off the ecliptic pole, exactly as it should.
+  // equatorial → ecliptic → scene, one fixed rotation about the shared vernal-
+  // equinox axis: −(90° + obliquity). The celestial pole lands 23.4° off the
+  // ecliptic pole, exactly as it should.
   const dome = new THREE.Group()
   dome.rotation.x = -(Math.PI / 2 + OBLIQUITY)
   globe.scene().add(dome)
   const added: THREE.Object3D[] = []
+  const pickTargets: THREE.Object3D[] = []
+  const pickGeo = new THREE.SphereGeometry(R * 0.02, 6, 6)
+  const pickMat = new THREE.MeshBasicMaterial() // never rendered (hit area only)
+  const raycaster = new THREE.Raycaster()
+  let downX = 0
+  let downY = 0
+  const onDown = (e: PointerEvent) => {
+    downX = e.clientX
+    downY = e.clientY
+  }
+  const onClick = (e: MouseEvent) => {
+    if (disposed || pickTargets.length === 0) return
+    if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 6) return
+    const rect = globe.renderer().domElement.getBoundingClientRect()
+    raycaster.setFromCamera(
+      new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      ),
+      globe.camera() as THREE.PerspectiveCamera,
+    )
+    const hit = raycaster.intersectObjects(pickTargets, false)[0]
+    if (hit) onStarPick(hit.object.userData.star as StarPick)
+  }
+  globe.renderer().domElement.addEventListener('pointerdown', onDown)
+  globe.renderer().domElement.addEventListener('click', onClick)
 
   void fetch(STARS_URL)
     .then((r) => (r.ok ? (r.json() as Promise<StarCatalog>) : Promise.reject(new Error('no stars'))))
@@ -110,15 +135,33 @@ export function setupStars(globe: GlobeInstance): StarsLayer {
       )
       constellations.frustumCulled = false
       constellations.renderOrder = -2
-
       dome.add(points, constellations)
       added.push(points, constellations)
 
-      // — labels: the brightest named stars, then the closest systems —
+      // — constellation names —
+      for (const c of cat.names) {
+        const lbl = makeNameSprite(c.n, 1, true, '#6f80ad')
+        lbl.position.set(c.x * R, c.y * R, c.z * R)
+        lbl.frustumCulled = false
+        dome.add(lbl)
+        added.push(lbl)
+      }
+
+      // — labelled, clickable stars: brightest named + closest systems —
       const labeled = new Set<string>()
-      const label = (name: string, x: number, y: number, z: number, color: string, dot: boolean) => {
-        if (labeled.has(name)) return
-        labeled.add(name)
+      const addStar = (
+        s: { n: string; x: number; y: number; z: number; d: number; s: string; m?: number },
+        color: string,
+        dot: boolean,
+      ) => {
+        if (labeled.has(s.n)) return
+        labeled.add(s.n)
+        const at = new THREE.Vector3(s.x * R, s.y * R, s.z * R)
+        const lbl = makeNameSprite(`${s.n} · ${s.d} ly`, 1, true, color)
+        lbl.position.copy(at)
+        lbl.frustumCulled = false
+        dome.add(lbl)
+        added.push(lbl)
         if (dot) {
           const m = new THREE.Sprite(
             new THREE.SpriteMaterial({
@@ -127,22 +170,23 @@ export function setupStars(globe: GlobeInstance): StarsLayer {
             }),
           )
           m.scale.set(0.013, 0.013, 1)
-          m.position.set(x * R, y * R, z * R)
+          m.position.copy(at)
           m.frustumCulled = false
           dome.add(m)
           added.push(m)
         }
-        const lbl = makeNameSprite(name, 1, true, color)
-        lbl.position.set(x * R, y * R, z * R)
-        lbl.frustumCulled = false
-        dome.add(lbl)
-        added.push(lbl)
+        const pick = new THREE.Mesh(pickGeo, pickMat)
+        pick.position.copy(at)
+        pick.visible = false // raycast still hits it — a generous click target
+        pick.frustumCulled = false
+        pick.userData.star = { name: s.n, distLy: s.d, spect: s.s ?? '', mag: s.m ?? 0 } satisfies StarPick
+        dome.add(pick)
+        added.push(pick)
+        pickTargets.push(pick)
       }
-      for (const s of cat.named) {
-        if (s.m <= LABEL_MAG) label(`${s.n} · ${s.d} ly`, s.x, s.y, s.z, '#dbe5f0', false)
-      }
+      for (const s of cat.named) if (s.m <= LABEL_MAG) addStar(s, '#dbe5f0', false)
       for (const s of [...cat.nearest].sort((a, b) => a.d - b.d).slice(0, NEAREST_LABELS)) {
-        label(`${s.n} · ${s.d} ly`, s.x, s.y, s.z, '#a6c8ff', true)
+        addStar(s, '#a6c8ff', true)
       }
     })
     .catch(() => {
@@ -155,7 +199,11 @@ export function setupStars(globe: GlobeInstance): StarsLayer {
     },
     dispose() {
       disposed = true
+      globe.renderer().domElement.removeEventListener('pointerdown', onDown)
+      globe.renderer().domElement.removeEventListener('click', onClick)
       globe.scene().remove(dome)
+      pickGeo.dispose()
+      pickMat.dispose()
       for (const o of added) {
         const mesh = o as THREE.Points
         mesh.geometry?.dispose?.()
@@ -164,6 +212,7 @@ export function setupStars(globe: GlobeInstance): StarsLayer {
         else (mat as THREE.Material | undefined)?.dispose?.()
       }
       added.length = 0
+      pickTargets.length = 0
     },
   }
 }

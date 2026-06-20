@@ -7,6 +7,7 @@ import type { ApolloSite } from '../../lib/moon'
 import type { TrackedSat } from '../../lib/satellites'
 import type { EarthEvent } from '../../lib/events'
 import type { GibsLayer } from '../../lib/gibs'
+import type { StarPick } from '../../lib/stars'
 import type { LayerState } from '../hud/types'
 
 export interface GlobeViewProps {
@@ -53,6 +54,8 @@ export interface GlobeViewProps {
   /** Which planet the camera orbits in solar mode (null = Sun overview). */
   focusPlanet: string | null
   onPlanetPick: (id: string) => void
+  /** A star was clicked in the solar sky — opens its info card. */
+  onStarPick: (s: StarPick | null) => void
   /** Simulated-time anchor: simMs advances `warp`× faster than real time. */
   solarTime: { realMs: number; simMs: number; warp: number }
   followIss: boolean

@@ -10,6 +10,7 @@ import { ensureSolarSystem } from './solar'
 import { setupProbes } from './probesLayer'
 import { setupStars } from './starsLayer'
 import type { SolarAnimEntry } from './orbitEngine'
+import type { StarPick } from '../../lib/stars'
 import type { setupSky } from './sky'
 import type { setupSurface } from './surface'
 
@@ -31,6 +32,8 @@ export interface SolarModeDeps {
   probeMeshesRef: { current: Map<string, THREE.Object3D> }
   /** A probe was clicked in the 3D scene — routed to the same focus as planets. */
   onProbePick: (id: string) => void
+  /** A star was clicked — opens its info card. */
+  onStarPick: (s: StarPick | null) => void
 }
 
 /** Build/show the solar system and reshape the scene for it; returns the
@@ -56,7 +59,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   // one warped clock. Their display distance is clamped to fit the envelope.
   const probes = setupProbes(globe, group, deps.probeMeshesRef, deps.onProbePick)
   // 🌟 the real naked-eye sky as a camera-following skydome (never clips)
-  const stars = setupStars(globe)
+  const stars = setupStars(globe, deps.onStarPick)
   const baseFrame = deps.solarFrameRef.current
   deps.solarFrameRef.current = (now) => {
     baseFrame(now)

@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import { ArLaunchButton } from './components/ArLaunchButton'
+import { StarPanel } from './components/StarPanel'
 import { useProbes } from './useProbes'
 import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
@@ -39,7 +40,7 @@ export default function App() {
     tourOn, setTourOn, onTourToggle, onTourBroken,
     moonMode, setMoonMode, apolloSite, onMoonEnter, onMoonExit, onApolloPick,
     solarMode, setSolarMode, driftMode, focusPlanet, setFocusPlanet,
-    mode, onSolarOverview, onSolarExit, onPlanetPick,
+    mode, onSolarOverview, onSolarExit, onPlanetPick, pickedStar, onStarPick,
     solarTime, onWarp, onWarpReset, onVisibilityChange,
     goEarth, goMoon, goSolar, goDrift,
   } = useWorldView()
@@ -263,6 +264,7 @@ export default function App() {
         solarMode={solarMode}
         focusPlanet={focusPlanet}
         onPlanetPick={onPlanetPick}
+        onStarPick={onStarPick}
         solarTime={solarTime}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
@@ -379,6 +381,12 @@ export default function App() {
         </Suspense>
       )}
 
+      {/* ⭐ clicked-star info card (solar view) */}
+      {!hudOff && solarMode && pickedStar && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3">
+          <StarPanel star={pickedStar} onClose={() => onStarPick(null)} />
+        </div>
+      )}
     </>
   )
 }
