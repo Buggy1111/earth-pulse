@@ -20,15 +20,27 @@ export function flyCamera(
   opts: { duration: number; onFrame: (eased: number) => void; onLand?: () => void },
 ): () => void {
   const controls = globe.controls()
+  // Freeze OrbitControls' damping inertia for the flight. Otherwise the leftover
+  // spin from the drag that preceded the flight keeps getting applied by
+  // controls.update() every frame, and the camera careens around — the
+  // "wheel of fortune" when you orbit a focused star and then fly back out.
+  // Flushed to zero on the first update below; restored exactly on land/cancel.
+  const controlsD = controls as unknown as { enableDamping: boolean }
+  const prevDamping = controlsD.enableDamping
+  controlsD.enableDamping = false
   const t0 = performance.now()
   let raf = 0
   let done = false
   const onDrag = () => land()
+  const finish = () => {
+    cancelAnimationFrame(raf)
+    controls.removeEventListener('start', onDrag)
+    controlsD.enableDamping = prevDamping
+  }
   const land = () => {
     if (done) return
     done = true
-    cancelAnimationFrame(raf)
-    controls.removeEventListener('start', onDrag)
+    finish()
     opts.onLand?.()
   }
   controls.addEventListener('start', onDrag)
@@ -43,7 +55,6 @@ export function flyCamera(
   return () => {
     if (done) return
     done = true
-    cancelAnimationFrame(raf)
-    controls.removeEventListener('start', onDrag)
+    finish()
   }
 }
