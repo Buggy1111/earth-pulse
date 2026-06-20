@@ -104,6 +104,28 @@ test('enabling the Starlink layer builds a ~10k InstancedMesh with positioned in
   expect(result.positioned).toBeGreaterThan(result.count * 0.9)
 })
 
+test('solar mode places the deep-space probes from their baked trajectories', async ({ page }) => {
+  const errors = await bootGlobe(page)
+  // enter solar mode (keyboard 3 → goSolar); the probe layer then fetches
+  // probes.json and builds a clickable craft (userData.probeId) per trajectory
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '3' })))
+  await page.waitForFunction(
+    () => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        scene(): { traverse(cb: (o: unknown) => void): void }
+      }
+      let probes = 0
+      g.scene().traverse((o) => {
+        if ((o as { userData?: { probeId?: string } }).userData?.probeId) probes++
+      })
+      return probes >= 5
+    },
+    null,
+    { timeout: 30_000 },
+  )
+  expect(errors).toEqual([])
+})
+
 // Sky AR is phone/tablet only (touch-primary), so emulate a touch device —
 // otherwise the launch button is correctly hidden and there's nothing to open.
 test.describe('mobile', () => {

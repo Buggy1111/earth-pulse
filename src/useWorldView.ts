@@ -6,6 +6,7 @@
 import { useCallback, useState } from 'react'
 import { useSolarTime } from './uiHooks'
 import type { ApolloSite } from './lib/moon'
+import type { ProbePick } from './lib/probes'
 
 export function useWorldView() {
   const [followIss, setFollowIss] = useState(false)
@@ -29,6 +30,8 @@ export function useWorldView() {
   // 🌍 continental-drift mode: a full-screen Pangaea→today globe (own scene)
   const [driftMode, setDriftMode] = useState(false)
   const [focusPlanet, setFocusPlanet] = useState<string | null>(null)
+  // 🛰 the deep-space probe whose info card is open (solar view only)
+  const [pickedProbe, setPickedProbe] = useState<ProbePick | null>(null)
   const { solarTime, onWarp, onWarpReset, onVisibilityChange } = useSolarTime()
   const onMoonEnter = useCallback(() => {
     setMoonMode(true)
@@ -89,6 +92,7 @@ export function useWorldView() {
     setMoonMode(false)
     setApolloSite(null)
     setFocusPlanet(null)
+    setPickedProbe(null)
     setFollowIss(false)
     setFollowSat(null)
     setTourOn(false)
@@ -117,6 +121,8 @@ export function useWorldView() {
     setDriftMode,
     focusPlanet,
     setFocusPlanet,
+    pickedProbe,
+    onProbePick: setPickedProbe,
     mode,
     onSolarOverview,
     onSolarExit,

@@ -298,6 +298,7 @@ export function GlobeView(props: GlobeViewProps) {
       surfaceRef,
       pinTargetRef,
       userInteractedRef,
+      onProbePick: (p) => cb.current.onProbePick(p),
     })
   }, [solarMode])
 

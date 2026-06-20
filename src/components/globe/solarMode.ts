@@ -7,7 +7,9 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { EARTH_DISPLAY } from '../../lib/planets'
 import { ensureSolarSystem } from './solar'
+import { setupProbes } from './probesLayer'
 import type { SolarAnimEntry } from './orbitEngine'
+import type { ProbePick } from '../../lib/probes'
 import type { setupSky } from './sky'
 import type { setupSurface } from './surface'
 
@@ -26,6 +28,7 @@ export interface SolarModeDeps {
   surfaceRef: { current: ReturnType<typeof setupSurface> | null }
   pinTargetRef: { current: THREE.Object3D | null }
   userInteractedRef: { current: boolean }
+  onProbePick: (pick: ProbePick | null) => void
 }
 
 /** Build/show the solar system and reshape the scene for it; returns the
@@ -45,6 +48,16 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   group.visible = true
   const t = deps.solarTimeRef.current
   deps.solarFrameRef.current(new Date(t.simMs + (Date.now() - t.realMs) * t.warp))
+
+  // 🛰 deep-space probes: real HORIZONS trajectories as colour-coded comet
+  // trails + craft, ticked from the (wrapped) solar frame so they share the
+  // one warped clock. Their display distance is clamped to fit the envelope.
+  const probes = setupProbes(globe, group, deps.onProbePick)
+  const baseFrame = deps.solarFrameRef.current
+  deps.solarFrameRef.current = (now) => {
+    baseFrame(now)
+    probes.update(now)
+  }
 
   // Earth shrinks to its TRUE relative size (with satellites, clouds, all).
   // The three-globe root attaches to the scene after our setup ran, so we
@@ -86,6 +99,8 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   controls.autoRotate = false
   deps.userInteractedRef.current = true
   return () => {
+    deps.solarFrameRef.current = baseFrame
+    probes.dispose()
     group.visible = false
     shrink.forEach((o) => o.scale.setScalar(1))
     sky.sunSprite.visible = true

@@ -1,20 +1,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobeView } from './components/GlobeView'
 import { ArLaunchButton } from './components/ArLaunchButton'
+import { ProbePanel } from './components/ProbePanel'
 import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
 import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
 import type { LayerState, OrbitEntry } from './components/hud/types'
-import {
-  useEmsc,
-  useEvents,
-  useIss,
-  useNow,
-  useQuakes,
-  useSpaceWeather,
-  useTleSats,
-  useWikiFeed,
-} from './hooks'
+import { useEvents } from './hooks'
 import type { EarthEvent } from './lib/events'
 import { gibsImageDate, type GibsLayer } from './lib/gibs'
 import {
@@ -23,12 +15,11 @@ import {
   useIdleKiosk,
   useKioskShow,
   useMediaQuery,
-  useQuakePing,
   useShareHash,
   useTimeline,
 } from './uiHooks'
 import { useWorldView } from './useWorldView'
-import { mergeQuakes } from './lib/emsc'
+import { useLiveData } from './useLiveData'
 import { moonPhaseLabel, subLunarPoint } from './lib/moon'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove } from './lib/satellites'
@@ -38,24 +29,16 @@ import { parseView } from './lib/share'
 const initialView = parseView(window.location.hash)
 
 export default function App() {
-  const { quakes: usgsQuakes, newQuakes, flashes: usgsFlashes } = useQuakes()
-  const { quakes: emscQuakes, fresh: emscFresh } = useEmsc()
-  const quakes = useMemo(() => mergeQuakes(usgsQuakes, emscQuakes), [usgsQuakes, emscQuakes])
-  const flashes = useMemo(() => [...usgsFlashes, ...emscFresh], [usgsFlashes, emscFresh])
-  const iss = useIss()
-  const sats = useTleSats()
-  const weather = useSpaceWeather()
-  const { edits, totalSeen } = useWikiFeed()
-  const now = useNow()
+  const { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound } =
+    useLiveData()
   const [selected, setSelected] = useState<Quake | null>(null)
   const [ready, setReady] = useState(false)
-  const { soundOn, toggleSound } = useQuakePing(newQuakes, emscFresh)
   const {
     followIss, setFollowIss, followSat, setFollowSat,
     tourOn, setTourOn, onTourToggle, onTourBroken,
     moonMode, setMoonMode, apolloSite, onMoonEnter, onMoonExit, onApolloPick,
     solarMode, setSolarMode, driftMode, focusPlanet, setFocusPlanet,
-    mode, onSolarOverview, onSolarExit, onPlanetPick,
+    mode, onSolarOverview, onSolarExit, onPlanetPick, pickedProbe, onProbePick,
     solarTime, onWarp, onWarpReset, onVisibilityChange,
     goEarth, goMoon, goSolar, goDrift,
   } = useWorldView()
@@ -279,6 +262,7 @@ export default function App() {
         solarMode={solarMode}
         focusPlanet={focusPlanet}
         onPlanetPick={onPlanetPick}
+        onProbePick={onProbePick}
         solarTime={solarTime}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}
@@ -392,6 +376,13 @@ export default function App() {
         <Suspense fallback={null}>
           <ArSky sats={sats} userLoc={userLoc} onLocate={onLocate} onClose={() => setArMode(false)} />
         </Suspense>
+      )}
+
+      {/* 🛰 clicked-probe info card (solar view) */}
+      {!hudOff && solarMode && pickedProbe && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3">
+          <ProbePanel pick={pickedProbe} onClose={() => onProbePick(null)} />
+        </div>
       )}
     </>
   )
