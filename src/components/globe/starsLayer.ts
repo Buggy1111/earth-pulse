@@ -14,6 +14,7 @@ import * as THREE from 'three'
 import { bvColor, type StarCatalog, type StarPick } from '../../lib/stars'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
+import { setupStarFocus } from './starFocus'
 
 const STARS_URL = 'stars/stars.json'
 const R = 900_000 // skydome radius — fixed distance from the camera, inside far
@@ -23,6 +24,8 @@ const NEAREST_LABELS = 18 // plus the closest N systems (Proxima, Barnard's…)
 
 export interface StarsLayer {
   update(camera: THREE.Object3D): void
+  /** Fly back out of a star close-up (the info card was closed). */
+  defocus(): void
   dispose(): void
 }
 
@@ -42,8 +45,15 @@ const STAR_FRAG = `
     gl_FragColor = vec4(vColor, a);
   }`
 
-export function setupStars(globe: GlobeInstance, onStarPick: (s: StarPick | null) => void): StarsLayer {
+export function setupStars(
+  globe: GlobeInstance,
+  onStarPick: (s: StarPick | null) => void,
+  pinTargetRef: { current: THREE.Object3D | null },
+): StarsLayer {
   let disposed = false
+  // clicking a labelled star builds a procedural 3D sphere and flies to it
+  const focus = setupStarFocus(globe, pinTargetRef)
+  const aim = new THREE.Vector3()
   // equatorial → ecliptic → scene, one fixed rotation about the shared vernal-
   // equinox axis: −(90° + obliquity). The celestial pole lands 23.4° off the
   // ecliptic pole, exactly as it should.
@@ -73,9 +83,34 @@ export function setupStars(globe: GlobeInstance, onStarPick: (s: StarPick | null
       globe.camera() as THREE.PerspectiveCamera,
     )
     const hit = raycaster.intersectObjects(pickTargets, false)[0]
-    if (hit) onStarPick(hit.object.userData.star as StarPick)
+    if (!hit) return
+    const star = hit.object.userData.star as StarPick
+    // the pick mesh rides the camera-following dome, so its world bearing from
+    // the camera is the star's true sky direction — glide the 3D star in there
+    hit.object.getWorldPosition(aim).sub(globe.camera().position)
+    focus.focus(star, aim)
+    onStarPick(star)
+  }
+  // hovering a labelled star → pointer cursor, so people know it's clickable
+  let hovering = false
+  const onMove = (e: PointerEvent) => {
+    if (disposed || pickTargets.length === 0) return
+    const rect = globe.renderer().domElement.getBoundingClientRect()
+    raycaster.setFromCamera(
+      new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      ),
+      globe.camera() as THREE.PerspectiveCamera,
+    )
+    const over = raycaster.intersectObjects(pickTargets, false).length > 0
+    if (over !== hovering) {
+      hovering = over
+      globe.renderer().domElement.style.cursor = over ? 'pointer' : ''
+    }
   }
   globe.renderer().domElement.addEventListener('pointerdown', onDown)
+  globe.renderer().domElement.addEventListener('pointermove', onMove)
   globe.renderer().domElement.addEventListener('click', onClick)
 
   void fetch(STARS_URL)
@@ -196,11 +231,18 @@ export function setupStars(globe: GlobeInstance, onStarPick: (s: StarPick | null
   return {
     update(camera: THREE.Object3D) {
       dome.position.copy(camera.position) // ride with the camera: stars at infinity
+      focus.update(performance.now() / 1000) // boil/spin/pulse the focused star
+    },
+    defocus() {
+      focus.defocus()
     },
     dispose() {
       disposed = true
+      focus.dispose()
       globe.renderer().domElement.removeEventListener('pointerdown', onDown)
+      globe.renderer().domElement.removeEventListener('pointermove', onMove)
       globe.renderer().domElement.removeEventListener('click', onClick)
+      globe.renderer().domElement.style.cursor = ''
       globe.scene().remove(dome)
       pickGeo.dispose()
       pickMat.dispose()

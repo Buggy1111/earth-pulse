@@ -141,6 +141,28 @@ test('solar mode places the deep-space probes from their baked trajectories', as
     null,
     { timeout: 15_000 },
   )
+  // the procedural 3D star (clicking a star flies to it) shares one GL context:
+  // reveal the reusable focus sphere and render a frame so its shader actually
+  // compiles in headless — a GLSL slip would surface as a console error below
+  const litStar = await page.evaluate(() => {
+    const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+      scene(): { traverse(cb: (o: unknown) => void): void }
+      renderer(): { render(s: unknown, c: unknown): void }
+      camera(): unknown
+    }
+    let mesh: { visible: boolean; material: { uniforms: { uTime: { value: number } } } } | null = null
+    g.scene().traverse((o) => {
+      const m = o as { isMesh?: boolean; material?: { uniforms?: { uValley?: unknown } } }
+      if (m.isMesh && m.material?.uniforms?.uValley) mesh = o as typeof mesh
+    })
+    if (!mesh) return false
+    mesh.visible = true
+    mesh.material.uniforms.uTime.value = 1
+    g.renderer().render(g.scene(), g.camera())
+    mesh.visible = false
+    return true
+  })
+  expect(litStar).toBe(true)
   expect(errors).toEqual([])
 })
 

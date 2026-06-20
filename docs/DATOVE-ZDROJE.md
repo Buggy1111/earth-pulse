@@ -74,6 +74,12 @@ Polohy a fáze se počítají čistou matematikou v `src/lib/` — bez sítě:
 - **Mapový detail při zoomu** © Esri & contributors
 - **Portréty/textury měsíců** — NASA / USGS (public domain), stahuje `npm run fetch-moons`
 - **Vesmírné pozadí** — skutečná Mléčná dráha `public/stars-milky-way.webp` (8K equirect, SSS CC BY; zjasněná multiplikativně, max anisotropy)
+- **Hvězdný katalog (🌟 noční obloha v solar view)** — `public/stars/stars.json` z **HYG databáze** (astronexus) — **CC-BY-SA 4.0**; čáry souhvězdí z **d3-celestial** (BSD). Peče `npm run fetch-stars`.
+- **Fotky hvězd v kartě** `public/stars/cards/<slug>.webp` (13 slavných hvězd; zbytek jsou nerozlišené body bez reálné „podobenky"), stahuje `npm run fetch-star-photos`:
+  - **ESO** (CC BY 4.0) — Betelgeuse (eso2003a, SPHERE rozlišený povrch), Antares (eso1726a, VLTI rozlišený povrch)
+  - **NASA** (public domain) — Fomalhaut (PIA04942, Hubble disk), Vega (PIA16610, Spitzer koncept), Rigel (PIA17553, Čarodějova hlava), Rigil Kentaurus/Toliman (Hubble α Cen A&B)
+  - **Wikimedia Commons** (PD / CC BY 4.0, NASA/ESA Hubble + CHARA) — Sirius, Proxima Centauri, Polaris, Barnardova hvězda, Canopus, Altair (CHARA rozlišený zploštělý disk)
+  - Klikatelné hvězdy se zobrazí jako **procedurální 3D koule** (`starMaterial.ts` shader: barva z teploty, granulace, limb darkening, korona — žádná textura; velikost/barva z reálné fyziky v `lib/starLook.ts`).
 - **Kontinentální drift (🗺 Drift režim)** — paleogeografické mapy `public/planets/paleo/paleo-*.webp` (Pangea 340 Ma → dnešek, po 10 Myr) © Scotese et al., PALEOMAP, Zenodo `10.5281/zenodo.10659112` — **CC-BY-4.0**, stahuje `npm run fetch-paleo` (rectilinear/equirektangulární set, downscale na 1024×512).
 - **Budoucnost driftu** `paleo-fut*.webp` (today → +250 My) = **projektovaný koncept**. Endpoint `paleo-fut250.webp` (Pangaea Proxima) = reprojekce z Mollweide na equirektangulární z Wikimedia Commons „250 Million Years Future World (Pangaea Proxima)" — **CC-BY-SA 4.0**. Mezikroky `paleo-fut050…200.webp` = **SDF morph** (signed distance field) mezi dneškem a Proximou (`npm run gen-future`) → plynulé slévání kontinentů; jsou to deriváty → **CC-BY-SA 4.0**. Vědecky přesnější future (Scotese, GPlates) jsou copyright/NC. V appce jasně „projected".
 

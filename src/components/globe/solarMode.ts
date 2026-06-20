@@ -34,6 +34,8 @@ export interface SolarModeDeps {
   onProbePick: (id: string) => void
   /** A star was clicked — opens its info card. */
   onStarPick: (s: StarPick | null) => void
+  /** Handle GlobeView uses to fly back out when the star card is closed. */
+  starFocusRef: { current: { defocus: () => void } | null }
 }
 
 /** Build/show the solar system and reshape the scene for it; returns the
@@ -58,8 +60,10 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   // trails + craft, ticked from the (wrapped) solar frame so they share the
   // one warped clock. Their display distance is clamped to fit the envelope.
   const probes = setupProbes(globe, group, deps.probeMeshesRef, deps.onProbePick)
-  // 🌟 the real naked-eye sky as a camera-following skydome (never clips)
-  const stars = setupStars(globe, deps.onStarPick)
+  // 🌟 the real naked-eye sky as a camera-following skydome (never clips);
+  // clicking a labelled star flies to a procedural 3D close-up of it
+  const stars = setupStars(globe, deps.onStarPick, deps.pinTargetRef)
+  deps.starFocusRef.current = { defocus: () => stars.defocus() }
   const baseFrame = deps.solarFrameRef.current
   deps.solarFrameRef.current = (now) => {
     baseFrame(now)
@@ -115,6 +119,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     deps.solarFrameRef.current = baseFrame
     probes.dispose()
     stars.dispose()
+    deps.starFocusRef.current = null
     group.visible = false
     shrink.forEach((o) => o.scale.setScalar(1))
     sky.sunSprite.visible = true

@@ -56,6 +56,8 @@ export interface GlobeViewProps {
   onPlanetPick: (id: string) => void
   /** A star was clicked in the solar sky — opens its info card. */
   onStarPick: (s: StarPick | null) => void
+  /** The focused star, or null when its card is closed (drives fly-back). */
+  pickedStar: StarPick | null
   /** Simulated-time anchor: simMs advances `warp`× faster than real time. */
   solarTime: { realMs: number; simMs: number; warp: number }
   followIss: boolean

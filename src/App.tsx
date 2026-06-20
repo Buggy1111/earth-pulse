@@ -265,6 +265,7 @@ export default function App() {
         focusPlanet={focusPlanet}
         onPlanetPick={onPlanetPick}
         onStarPick={onStarPick}
+        pickedStar={pickedStar}
         solarTime={solarTime}
         initialPov={initialView?.camera ?? null}
         onPovChange={onPovChange}

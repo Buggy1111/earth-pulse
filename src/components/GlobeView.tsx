@@ -80,6 +80,7 @@ export function GlobeView(props: GlobeViewProps) {
   const planetMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const moonMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
   const probeMeshesRef = useRef<Map<string, THREE.Object3D>>(new Map())
+  const starFocusRef = useRef<{ defocus: () => void } | null>(null)
   const sunMeshRef = useRef<THREE.Mesh | null>(null)
   const solarAnimRef = useRef<SolarAnimEntry[]>([])
   const solarFrameRef = useRef<(now: Date) => void>(() => {})
@@ -303,8 +304,12 @@ export function GlobeView(props: GlobeViewProps) {
       // a clicked probe focuses just like a clicked planet (fly in + orbit it)
       onProbePick: (id) => cb.current.onPlanetPick(id),
       onStarPick: (s) => cb.current.onStarPick(s),
+      starFocusRef,
     })
   }, [solarMode])
+
+  // closing the star card (pickedStar → null) flies back out of the close-up
+  useEffect(() => void (!props.pickedStar && starFocusRef.current?.defocus()), [props.pickedStar])
 
   // camera focus within solar mode: Sun overview or a chosen planet
   useEffect(() => {
