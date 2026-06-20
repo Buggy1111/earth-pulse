@@ -188,7 +188,7 @@ export function SolarNavTree({
       {probes.length > 0 && (
         <div className="mt-2 border-t border-white/10 pt-1.5">
           <div className="px-1.5 pb-1 text-[10px] tracking-wide text-slate-500 uppercase">
-            🛰 Deep-space probes
+            🛰 Spacecraft
           </div>
           {probes.map((pr) => {
             const info = PROBE_INFO[pr.id]
