@@ -7,7 +7,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { EARTH_DISPLAY } from '../../lib/planets'
 import { ensureSolarSystem } from './solar'
-import { HOME_VIEW } from './helpers'
+import { returnHome } from './helpers'
 import { setupProbes } from './probesLayer'
 import { setupStars } from './starsLayer'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -133,8 +133,6 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     cam.updateProjectionMatrix()
     controls.maxDistance = prevMax
     deps.pinTargetRef.current = null
-    controls.target.set(0, 0, 0)
-    controls.update()
-    globe.pointOfView(HOME_VIEW, 0)
+    returnHome(globe, 0)
   }
 }

@@ -12,6 +12,7 @@ import {
 } from './panels'
 import { EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
 import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
+import { HudCard } from './HudCard'
 import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
 import { PlanetPanel } from '../PlanetPanel'
@@ -175,7 +176,7 @@ export function Hud(p: HudProps) {
   // the day/night terminator and the satellites). Solar view has its own copy.
   const timeWarpEl =
     p.mode === 'earth' ? (
-      <div className="hud pointer-events-auto w-72 px-4 py-2">
+      <HudCard className="w-72 px-4 py-2">
         <TimeWarp
           now={p.solarSimNow}
           realNow={p.now}
@@ -183,7 +184,7 @@ export function Hud(p: HudProps) {
           onWarp={p.onWarp}
           onWarpReset={p.onWarpReset}
         />
-      </div>
+      </HudCard>
     ) : null
   const aboveEl =
     p.mode === 'earth' && p.userLoc ? (

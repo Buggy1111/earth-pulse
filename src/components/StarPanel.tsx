@@ -3,12 +3,13 @@
 
 import { spectralDesc, STAR_FACTS, type StarPick } from '../lib/stars'
 import { STAR_PHOTOS } from '../lib/starLook'
+import { HudCard } from './hud/HudCard'
 
 export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => void }) {
   const left = star.distLy > 0 ? new Date().getUTCFullYear() - Math.round(star.distLy) : 0
   const photo = STAR_PHOTOS[star.name]
   return (
-    <div className="hud pointer-events-auto w-72 px-4 py-3">
+    <HudCard className="w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">⭐ {star.name}</h2>
         <button
@@ -44,6 +45,6 @@ export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => vo
         {star.mag ? ` · magnitude ${star.mag}` : ''}
       </p>
       {STAR_FACTS[star.name] && <p className="mt-1 text-xs text-slate-400">✨ {STAR_FACTS[star.name]}</p>}
-    </div>
+    </HudCard>
   )
 }

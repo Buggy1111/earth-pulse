@@ -2,6 +2,7 @@
  * detail. Split out of panels.tsx to keep each file under the 400-line ADR. */
 
 import { memo } from 'react'
+import { HudCard } from './HudCard'
 import { formatCoords, formatCountdown, formatKm, formatKmh, formatMag, timeAgo } from '../../lib/format'
 import type { IssPass } from '../../lib/satellites'
 import type { IssState } from '../../lib/iss'
@@ -14,10 +15,7 @@ export function MissionCard({ name, onClose }: { name: string; onClose: () => vo
   const m = SAT_MISSIONS[name]
   if (!m) return null
   return (
-    <div
-      className="hud fade-up pointer-events-auto w-72 px-4 py-3"
-      style={{ borderColor: `${m.color}66`, animationDelay: '60ms' }}
-    >
+    <HudCard className="w-72 px-4 py-3" delay={60} style={{ borderColor: `${m.color}66` }}>
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold text-slate-100">🛰 {name}</h2>
         <button
@@ -35,7 +33,7 @@ export function MissionCard({ name, onClose }: { name: string; onClose: () => vo
       <p className="mt-0.5 text-xs text-slate-400">🚀 launched {m.launched}</p>
       <p className="mt-0.5 text-xs text-slate-400">🛰 {m.orbit}</p>
       <p className="mt-1.5 text-xs text-slate-300">✨ {m.fact}</p>
-    </div>
+    </HudCard>
   )
 }
 
@@ -51,7 +49,7 @@ export function EventsPanel({
   const latest = events[0]
   const lm = eventMeta(latest.category)
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '160ms' }}>
+    <HudCard className="w-72 px-4 py-3" delay={160}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Live on Earth · {events.length}
       </h2>
@@ -74,7 +72,7 @@ export function EventsPanel({
         latest: {lm.icon} <span className="text-slate-200">{latest.title}</span>
       </button>
       <p className="mt-2 text-[10px] text-slate-600">data: NASA EONET, live natural events</p>
-    </div>
+    </HudCard>
   )
 }
 
@@ -88,7 +86,7 @@ export function IssPanel({
   now: number
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '240ms' }}>
+    <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={240}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         🛰 ISS right now
       </h2>
@@ -116,7 +114,7 @@ export function IssPanel({
           )}
         </p>
       )}
-    </div>
+    </HudCard>
   )
 }
 
@@ -128,10 +126,7 @@ export const WikiPanel = memo(function WikiPanel({
   totalSeen: number
 }) {
   return (
-    <div
-      className="hud fade-up pointer-events-auto hidden w-72 px-5 py-4 md:block"
-      style={{ animationDelay: '360ms' }}
-    >
+    <HudCard className="hidden w-72 px-5 py-4 md:block" delay={360}>
       <h2 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Wikipedia, live
         <span className="num text-[10px] font-normal text-slate-500 normal-case">
@@ -159,13 +154,13 @@ export const WikiPanel = memo(function WikiPanel({
           </li>
         ))}
       </ul>
-    </div>
+    </HudCard>
   )
 })
 
 export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number; onClose: () => void }) {
   return (
-    <div className="hud pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4">
+    <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="num text-2xl font-bold text-amber-300">{formatMag(quake.mag)}</div>
@@ -184,6 +179,6 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
           ✕
         </button>
       </div>
-    </div>
+    </HudCard>
   )
 }

@@ -2,6 +2,7 @@
  * scene; this shows live facts and the landing site you tapped. */
 
 import { APOLLO_SITES, LUNAR_SITES, type LunarSite, type MoonState } from '../lib/moon'
+import { HudCard } from './hud/HudCard'
 
 export function MoonPanel({
   moon,
@@ -13,7 +14,7 @@ export function MoonPanel({
   onBack: () => void
 }) {
   return (
-    <div className="hud pointer-events-auto w-72 px-4 py-3">
+    <HudCard className="w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
           🌙 Orbiting the Moon
@@ -50,6 +51,6 @@ export function MoonPanel({
           firsts on the hemisphere that never faces Earth (orbit around to find them). Tap a flag.
         </p>
       )}
-    </div>
+    </HudCard>
   )
 }

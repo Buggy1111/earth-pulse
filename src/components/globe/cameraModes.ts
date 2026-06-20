@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import type { Quake } from '../../lib/quakes'
 import { subsolarPoint } from '../../lib/sun'
 import { followPixelRatio } from '../perf'
-import { HOME_VIEW, type OrbitObject } from './helpers'
+import { returnHome, type OrbitObject } from './helpers'
 
 /** Glide between live points of interest every 8 s. */
 export function startTour(
@@ -66,7 +66,9 @@ export function followSatellite(
   const cam = globe.camera() as THREE.PerspectiveCamera
   const p = new THREE.Vector3()
   target.getWorldPosition(p)
-  const dir = p.clone().normalize() // Earth-centre → satellite
+  // Earth-centre → satellite; guard a degenerate (origin) position so a bad
+  // propagation can't feed NaN into the camera and freeze the renderer
+  const dir = p.lengthSq() > 1e-6 ? p.clone().normalize() : new THREE.Vector3(0, 1, 0)
   // sit just beyond and above the satellite, looking back at it (Earth below)
   cam.position.copy(p).addScaledVector(dir, 14).add(new THREE.Vector3(0, 7, 0))
   pinTargetRef.current = target // the rAF chase keeps the camera flying with it
@@ -77,9 +79,7 @@ export function followSatellite(
     controls.minDistance = prevMin
     controls.autoRotate = prevAuto
     renderer.setPixelRatio(prevRatio)
-    controls.target.set(0, 0, 0)
-    controls.update()
-    globe.pointOfView(HOME_VIEW, 800)
+    returnHome(globe, 800)
   }
 }
 
@@ -95,7 +95,9 @@ export function enterMoonMode(
   controls.autoRotate = false
   controls.minDistance = 7 // moon radius is 5
   // camera between Earth and Moon, slightly offset, looking at the Moon
-  const dir = moon.position.clone().normalize()
+  // (origin-guarded so a degenerate Moon position can't NaN the camera)
+  const dir =
+    moon.position.lengthSq() > 1e-6 ? moon.position.clone().normalize() : new THREE.Vector3(0, 1, 0)
   const cam = globe.camera() as THREE.PerspectiveCamera
   cam.position.copy(moon.position).addScaledVector(dir, -22).add(new THREE.Vector3(0, 6, 0))
   pinTargetRef.current = moon
@@ -104,8 +106,6 @@ export function enterMoonMode(
   return () => {
     pinTargetRef.current = null
     controls.minDistance = prevMin
-    controls.target.set(0, 0, 0)
-    controls.update()
-    globe.pointOfView(HOME_VIEW, 0)
+    returnHome(globe, 0)
   }
 }

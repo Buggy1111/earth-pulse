@@ -1,6 +1,7 @@
 /** Read-only HUD panels: title, space weather, quakes, ISS, wiki, overhead. */
 
 import { memo } from 'react'
+import { HudCard } from './HudCard'
 import { formatLocalClock, formatMag, timeAgo } from '../../lib/format'
 import type { OverheadSat } from '../../lib/satellites'
 import { quakeStats, type Quake } from '../../lib/quakes'
@@ -24,7 +25,7 @@ export function TitleCard({
   subtitle?: string
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4">
+    <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4">
       <h1 className="flex items-baseline gap-3 text-lg font-bold tracking-tight">
         🌍 Earth Pulse
         <span className="num text-xs font-medium text-slate-400">{formatLocalClock(now)}</span>
@@ -43,7 +44,7 @@ export function TitleCard({
         {subtitle ??
           `the planet, live — earthquakes · ${satCount > 0 ? `${satCount} satellites` : 'ISS'} · space weather · Wikipedia`}
       </p>
-    </div>
+    </HudCard>
   )
 }
 
@@ -58,7 +59,7 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
 }) {
   const { kp, wind } = weather
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '180ms' }}>
+    <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={180}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         ☀️ Space weather
       </h2>
@@ -90,7 +91,7 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
       <p className="mt-2 text-[10px] text-slate-600">
         data: NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
       </p>
-    </div>
+    </HudCard>
   )
 })
 
@@ -102,7 +103,7 @@ export function AbovePanel({
   onPickSat: (id: string, name: string) => void
 }) {
   return (
-    <div className="hud fade-up pointer-events-auto hidden w-72 px-4 py-3 sm:block">
+    <HudCard className="hidden w-72 px-4 py-3 sm:block">
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         📡 Above you now
       </h2>
@@ -125,7 +126,7 @@ export function AbovePanel({
           ))}
         </ul>
       )}
-    </div>
+    </HudCard>
   )
 }
 
@@ -158,7 +159,7 @@ export function QuakePanel({
     </button>
   )
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3 sm:px-5 sm:py-4" style={{ animationDelay: '120ms' }}>
+    <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={120}>
       <h2 className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Earthquakes · last 24 h
         <button
@@ -192,7 +193,7 @@ export function QuakePanel({
         <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
       )}
       <p className="mt-2 text-[10px] text-slate-600">data: USGS, refreshed every minute</p>
-    </div>
+    </HudCard>
   )
 }
 
@@ -222,7 +223,7 @@ export function DataLayerPanel({
     </button>
   )
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '200ms' }}>
+    <HudCard className="w-72 px-4 py-3" delay={200}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         🛰 NASA data layers
       </h2>
@@ -269,7 +270,7 @@ export function DataLayerPanel({
           </p>
         </div>
       )}
-    </div>
+    </HudCard>
   )
 }
 

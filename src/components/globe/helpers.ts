@@ -1,6 +1,7 @@
 /** Shared bits for the globe feature modules: tooltip/texture helpers,
  * cross-module datum types and tuning constants. */
 
+import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { SatPos, TrackedSat } from '../../lib/satellites'
 
@@ -13,6 +14,16 @@ export const ARROW_LOOP_MS = 22_000
  * camera pose, so every fly-back (reset, exit moon/solar/satellite) lands in the
  * exact same place. Durations stay per-call; only the destination is shared. */
 export const HOME_VIEW = { lat: 25, lng: 15, altitude: 2.2 }
+
+/** Glide the camera back to the default Earth view, re-centred on the globe —
+ * the one shared "go home" every mode's exit (moon, solar, satellite) calls, so
+ * leaving any view lands the same way. */
+export function returnHome(globe: GlobeInstance, durationMs: number): void {
+  const controls = globe.controls()
+  controls.target.set(0, 0, 0)
+  controls.update()
+  globe.pointOfView(HOME_VIEW, durationMs)
+}
 
 export const ARROW_GEO = new THREE.ConeGeometry(0.8, 2.4, 8)
 export const ARROW_MAT = new THREE.MeshBasicMaterial({

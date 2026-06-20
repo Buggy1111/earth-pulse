@@ -1,6 +1,7 @@
 /** The ⚙ customize panel: layers, satellite search, orbits, location, link. */
 
 import { useState } from 'react'
+import { HudCard } from './HudCard'
 import { formatCoords } from '../../lib/format'
 import { LAYER_LABELS, type LayerState, type OrbitEntry } from './types'
 
@@ -56,7 +57,7 @@ export function SettingsPanel({
     <>
       {/* Compact toggle lives in the corner column; the panel itself opens as a
           full-height left drawer so it never collides with the other panels. */}
-      <div className="hud fade-up pointer-events-auto w-72 px-4 py-3" style={{ animationDelay: '240ms' }}>
+      <HudCard className="w-72 px-4 py-3" delay={240}>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
@@ -66,7 +67,7 @@ export function SettingsPanel({
           ⚙ customize
           <span className="text-slate-500">{open ? '▾' : '▸'}</span>
         </button>
-      </div>
+      </HudCard>
 
       {open && (
         <aside className="hud slide-in pointer-events-auto fixed top-3 bottom-3 left-3 z-30 flex w-72 flex-col px-4 py-3 sm:top-6 sm:bottom-6 sm:left-6">

@@ -113,6 +113,7 @@ export function startOrbitEngine(
   let prevPinObj: THREE.Object3D | null = null
   let satsParked = false
   let lastSunAz = NaN // for the "Earth spins" camera follow (Sun's world azimuth)
+  let prevAutoRotate = false // idle auto-rotate paused during Earth-spin, restored after
   const frame = () => {
     frameNo++
     // warped clock: everything physical follows it (sats speed up too)
@@ -180,9 +181,13 @@ export function startOrbitEngine(
       if (deps.earthSpinRef.current && warp !== 1 && !deps.pinTargetRef.current) {
         // our Sun-tracking IS the rotation — turn off BOTH the idle auto-rotate
         // and damping, which each otherwise nudge the camera every frame and make
-        // the Sun drift off-screen. Restored in the else branch for normal drag.
+        // the Sun drift off-screen. Both are restored in the else branch (damping
+        // doubles as the "are we mid-spin" flag, so we capture autoRotate once).
+        if (ctrl.enableDamping) {
+          prevAutoRotate = ctrl.autoRotate
+          ctrl.enableDamping = false
+        }
         ctrl.autoRotate = false
-        ctrl.enableDamping = false
         // track the Sun's WORLD azimuth (not its longitude — globe.gl maps lng to
         // azimuth with a sign flip) and rotate the camera by the same delta.
         const s = subsolarPoint(new Date(now.getTime() + deps.timeOffsetMsRef.current))
@@ -200,7 +205,10 @@ export function startOrbitEngine(
         }
         lastSunAz = az
       } else {
-        if (!ctrl.enableDamping) ctrl.enableDamping = true // restore smooth drag
+        if (!ctrl.enableDamping) {
+          ctrl.enableDamping = true // restore smooth drag
+          ctrl.autoRotate = prevAutoRotate // and the idle auto-rotate we paused
+        }
         lastSunAz = NaN
       }
     }

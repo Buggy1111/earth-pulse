@@ -5,6 +5,7 @@
  * locked target. */
 
 import { useState } from 'react'
+import { HudCard } from './HudCard'
 import { PLANET_MOONS, PLANETS, planetPositions } from '../../lib/planets'
 import { ACTIVE_SPACECRAFT_COUNT, SOLAR_SYSTEM_SPACECRAFT } from '../../lib/spacecraft'
 import { PROBE_INFO, type ProbeTraj } from '../../lib/probes'
@@ -91,7 +92,7 @@ export function SolarNavTree({
     })
 
   return (
-    <div className="hud fade-up pointer-events-auto w-72 px-4 py-3">
+    <HudCard className="w-72 px-4 py-3">
       <h2 className="flex items-center justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
         🧭 Navigator
         <button
@@ -223,6 +224,6 @@ export function SolarNavTree({
         🛰 <span className="text-slate-300">{ACTIVE_SPACECRAFT_COUNT}</span> active spacecraft
         exploring the solar system right now
       </div>
-    </div>
+    </HudCard>
   )
 }

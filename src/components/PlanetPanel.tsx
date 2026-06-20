@@ -3,6 +3,7 @@
 
 import { earthHelio, PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
 import { AU_KM, PROBE_INFO, probePosAu, probeSpeedKms, type ProbeTraj } from '../lib/probes'
+import { HudCard } from './hud/HudCard'
 import { TimeWarp } from './hud/TimeWarp'
 
 function fmtRotation(h: number): string {
@@ -73,7 +74,7 @@ export function PlanetPanel({
   const moons = p ? (PLANET_MOONS[p.id] ?? []) : []
   const moon = focus && !p && !probeInfo ? MOON_INFO.find((m) => m.id === focus) : null
   return (
-    <div className="hud pointer-events-auto w-72 px-4 py-3">
+    <HudCard className="w-72 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
           {probeInfo ? '🛰' : moon ? '🌑' : '🪐'}{' '}
@@ -190,6 +191,6 @@ export function PlanetPanel({
       <div className="mt-2 border-t border-white/10 pt-2">
         <TimeWarp now={now} realNow={realNow} warp={warp} onWarp={onWarp} onWarpReset={onWarpReset} />
       </div>
-    </div>
+    </HudCard>
   )
 }
