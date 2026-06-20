@@ -129,9 +129,14 @@ export default function App() {
   const [resetView, setResetView] = useState(0)
   const onResetView = useCallback(() => setResetView((v) => v + 1), [])
 
-  // phones & tablets get slide-out drawers so the globe stays clear; desktop
-  // keeps the corner dashboards
+  // ≥1024px wide still mounts the globe through the Drift view (enough GPU memory
+  // for two WebGL contexts); narrower unmounts it to avoid a mobile-GPU crash.
   const isDesktop = useMediaQuery('(min-width: 1024px)')
+  // The always-on corner dashboards only fit on a genuinely roomy screen — every
+  // laptop, tablet and phone gets the sci-fi slide-out drawers instead, so the
+  // globe stays the hero and you pull up only what you need. (Earlier the corners
+  // overlapped on short laptops; this keeps it clean on every screen.)
+  const roomyHud = useMediaQuery('(min-width: 1280px) and (min-height: 900px)')
   const [drawer, setDrawer] = useState<'left' | 'right' | null>(null)
   const toggleLeft = useCallback(() => setDrawer((d) => (d === 'left' ? null : 'left')), [])
   const toggleRight = useCallback(() => setDrawer((d) => (d === 'right' ? null : 'right')), [])
@@ -294,7 +299,7 @@ export default function App() {
       {!hudOff && (
         <Hud
           mode={driftMode ? 'drift' : mode}
-          isDesktop={isDesktop}
+          isDesktop={roomyHud}
           drawer={drawer}
           onToggleLeft={toggleLeft}
           onToggleRight={toggleRight}
