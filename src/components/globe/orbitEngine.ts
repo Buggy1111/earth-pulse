@@ -16,6 +16,7 @@ import {
 } from '../../lib/satellites'
 import type { LayerState } from '../hud/types'
 import { makeNameSprite } from '../spaceObjects'
+import { detectWeakGpu, glIsSoftware } from '../perf'
 import { cloneSatModel, preloadSatModels } from './spaceModels'
 import { escapeHtml, tooltip, type OrbitObject, type Trail } from './helpers'
 import { buildSatObject } from './satObject'
@@ -114,48 +115,60 @@ export function startOrbitEngine(
   let satsParked = false
   let lastSunAz = NaN // for the "Earth spins" camera follow (Sun's world azimuth)
   let prevAutoRotate = false // idle auto-rotate paused during Earth-spin, restored after
-  // 🚀 adaptive resolution: a weak / fill-rate-bound GPU (integrated Intel, a
-  // phone) chokes on pixels long before it chokes on geometry. So when the frame
-  // budget slips we render FEWER pixels (scale the device pixel ratio down) and
-  // climb back up once there's headroom — smooth beats sharp. Owned here, in the
-  // one render loop; eco/normal sets the CEILING, this scales underneath it, and
-  // it pauses while a body is pinned so it never fights the close-up ratio cap.
+  // 🚀 interaction-aware resolution (weak GPUs only). A fill-rate-bound GPU
+  // (integrated Intel, a phone) chokes on pixels long before geometry — but a
+  // STILL view is cheap. So render at FULL resolution while you're just looking
+  // (crisp), and drop to fewer pixels only while you drag / zoom / time-warp —
+  // the heavy moments — then snap back to crisp ~0.45 s after it settles.
+  // Powerful GPUs always render full res (the whole block is skipped).
   const renderer = globe.renderer()
-  let renderScale = 1
-  let adaptMs = 0
-  let adaptFrames = 0
-  let lastFrameT = performance.now()
+  const MOVE_SCALE = 0.62 // pixel-ratio multiplier while the view is moving
+  const needsScaling =
+    detectWeakGpu() ||
+    (() => {
+      try {
+        return glIsSoftware(renderer.getContext())
+      } catch {
+        return false
+      }
+    })()
+  let interacting = false
+  let sharpSince = 0
+  let curScale = 1
+  const renderCap = () => (deps.ecoRef.current ? 1 : Math.min(window.devicePixelRatio || 1, 2))
+  const applyScale = (s: number) => {
+    const want = renderCap() * s
+    if (Math.abs(renderer.getPixelRatio() - want) > 0.01) renderer.setPixelRatio(want)
+    curScale = s
+  }
+  const onInteractStart = () => {
+    interacting = true
+  }
+  const onInteractEnd = () => {
+    interacting = false
+  }
+  if (needsScaling) {
+    globe.controls().addEventListener('start', onInteractStart)
+    globe.controls().addEventListener('end', onInteractEnd)
+  }
   const frame = () => {
     frameNo++
     // warped clock: everything physical follows it (sats speed up too)
     const t = deps.solarTimeRef.current
     const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
 
-    // sample the frame budget once a second and nudge the render resolution; skip
-    // while a body is pinned (the close-up cap owns the ratio then) and reset the
-    // window so a pin never skews the next sample.
-    const tNow = performance.now()
-    const dt = tNow - lastFrameT
-    lastFrameT = tNow
-    if (deps.pinTargetRef.current) {
-      adaptMs = 0
-      adaptFrames = 0
-    } else {
-      adaptFrames++
-      adaptMs += dt
-      if (adaptMs >= 1000) {
-        const fps = (adaptFrames * 1000) / adaptMs
-        const ceil = deps.ecoRef.current ? 1 : Math.min(window.devicePixelRatio || 1, 2)
-        let s = renderScale
-        if (fps < 34 && s > 0.6) s = Math.max(0.6, s - 0.12)
-        else if (fps > 52 && s < 1) s = Math.min(1, s + 0.12)
-        const want = ceil * s
-        if (s !== renderScale || Math.abs(renderer.getPixelRatio() - want) > 0.01) {
-          renderScale = s
-          renderer.setPixelRatio(want)
-        }
-        adaptMs = 0
-        adaptFrames = 0
+    // resolution: crisp while still, lighter only while moving (weak GPUs only).
+    // Snap down the instant a drag/zoom/time-warp starts; ~0.45 s after it stops,
+    // go back to full resolution so a still view is sharp to look at.
+    if (needsScaling) {
+      const moving = interacting || t.warp !== 1
+      if (moving) {
+        sharpSince = 0
+        if (curScale !== MOVE_SCALE) applyScale(MOVE_SCALE)
+      } else {
+        const nowMs = performance.now()
+        if (sharpSince === 0) sharpSince = nowMs
+        else if (nowMs - sharpSince > 450 && curScale !== 1) applyScale(1)
       }
     }
 
@@ -377,6 +390,10 @@ export function startOrbitEngine(
   return () => {
     disposed = true
     cancelAnimationFrame(raf)
+    if (needsScaling) {
+      globe.controls().removeEventListener('start', onInteractStart)
+      globe.controls().removeEventListener('end', onInteractEnd)
+    }
     for (const c of orbitGroup.children) {
       ;(c as THREE.Line).geometry.dispose()
       ;((c as THREE.Line).material as THREE.Material).dispose()
