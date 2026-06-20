@@ -15,6 +15,8 @@ import { skyBodies } from '../lib/arBodies'
 import { sunElevationDeg } from '../lib/sun'
 import { createArScene, type ArScene } from './arScene'
 import { ArMarkers } from './ArMarkers'
+import { ArCalibrate } from './ArCalibrate'
+import { useArCalibration } from './useArCalibration'
 import type { Marker } from './arTypes'
 import { BTN_BASE } from './arButtonStyle'
 
@@ -39,6 +41,8 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
   const [camDenied, setCamDenied] = useState(false)
   const [markers, setMarkers] = useState<Marker[]>([])
   const [heading, setHeading] = useState(0)
+  // 🧭 manual alignment offset (compass bias / FOV vary by device) — persisted
+  const { calib, calibRef, nudge, reset } = useArCalibration()
   const [hasMotion, setHasMotion] = useState(false)
   const [pointed, setPointed] = useState<{ name: string; elevationDeg: number; distanceText: string; accent: string } | null>(null)
   // live sensor diagnostics, surfaced in a debug strip so we can see whether the
@@ -185,12 +189,13 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       orient.current = { heading, pitch, live: true }
       orientRaw.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, compass }
       orientCount.current++
-      arScene.current?.setPose(heading, pitch) // smooth camera aim at sensor rate
+      // apply the manual calibration offset to the camera aim
+      arScene.current?.setPose(heading + calibRef.current.heading, pitch + calibRef.current.pitch)
       setHasMotion(true)
     }
     window.addEventListener('deviceorientation', onOrient, true)
     return () => window.removeEventListener('deviceorientation', onOrient, true)
-  }, [started])
+  }, [started, calibRef])
 
   // recompute marker positions ~8×/s from the live pose + propagated sats
   useEffect(() => {
@@ -205,7 +210,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       const h = window.innerHeight
       const view = { width: w, height: h, hFovDeg: 55, vFovDeg: 55 * (h / w) }
       const { heading, pitch } = orient.current
-      const pose = { headingDeg: heading, pitchDeg: pitch }
+      const pose = { headingDeg: heading + calibRef.current.heading, pitchDeg: pitch + calibRef.current.pitch }
       // named satellites: propagated fresh each tick (only ~150, cheap)
       const named: Marker[] = []
       for (const p of propagateSats(sats, new Date())) {
@@ -272,7 +277,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [started, userLoc, sats])
+  }, [started, userLoc, sats, calibRef])
 
   const compass = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(heading / 45) % 8]
 
@@ -381,6 +386,9 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
           waiting for motion sensors — on desktop there are none, try it on your phone
         </div>
       )}
+
+      {/* 🧭 calibrate: nudge the overlay until the Moon lines up (saved offset) */}
+      {started && userLoc && <ArCalibrate calib={calib} onNudge={nudge} onReset={reset} />}
     </div>
   )
 }
