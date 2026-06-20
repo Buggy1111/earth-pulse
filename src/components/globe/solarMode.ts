@@ -87,16 +87,19 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   sky.sunSprite.visible = false // the solar Sun has its own glow
   sky.moonMesh.visible = false // would sit inside the mini-Earth
 
-  // widen the camera envelope: Pluto orbits ~39 AU out
+  // widen the camera envelope to the REAL edge of the system: the Voyagers sit
+  // at ~170 AU (~375k scene units), far past Pluto's ~49 AU — you have to be
+  // able to zoom all the way out to them. Raising near alongside far keeps the
+  // depth buffer precise (far/near ratio stays smaller than the old 260k view).
   const cam = globe.camera() as THREE.PerspectiveCamera
   const controls = globe.controls()
   const prevFar = cam.far
+  const prevNear = cam.near
   const prevMax = controls.maxDistance
-  // Pluto's orbit line reaches ~49 AU (108k); camera fully zoomed out on
-  // the opposite side must still see it: 130k + 108k < far
-  cam.far = 260_000
+  cam.near = 1
+  cam.far = 950_000
   cam.updateProjectionMatrix()
-  controls.maxDistance = 130_000
+  controls.maxDistance = 850_000
   controls.autoRotate = false
   deps.userInteractedRef.current = true
   return () => {
@@ -110,6 +113,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     // the earth-frame terminator immediately (exit always returns to live)
     sky.applySky(new Date())
     cam.far = prevFar
+    cam.near = prevNear
     cam.updateProjectionMatrix()
     controls.maxDistance = prevMax
     deps.pinTargetRef.current = null

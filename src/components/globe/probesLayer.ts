@@ -16,7 +16,7 @@ import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
 
 const PROBES_URL = 'probes/probes.json'
-const MAX_DISPLAY_AU = 55 // clamp display distance to just past Pluto's orbit (~49 AU)
+const MAX_DISPLAY_AU = 200 // safety cap only; the real probes (Voyager 1 ~170 AU) all fit, shown true
 const MODEL_TARGET = 13 // scene units the real glb model is normalised to
 
 // every probe gets a real spacecraft model. Voyager, New Horizons, Europa
@@ -73,9 +73,12 @@ function makeBody(color: string): THREE.Object3D {
       opacity: 0.95,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      // constant on-screen size (like the labels) — a probe 170 AU out is a
+      // sub-pixel speck in world units, so keep it a visible dot at any zoom
+      sizeAttenuation: false,
     }),
   )
-  glow.scale.set(26, 26, 1)
+  glow.scale.set(0.045, 0.045, 1)
   g.add(core, glow)
   return g
 }
