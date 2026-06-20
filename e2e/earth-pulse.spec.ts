@@ -125,6 +125,22 @@ test('solar mode places the deep-space probes from their baked trajectories', as
   )
   // the solar navigator lists the probes (click a name to fly out to the craft)
   await page.waitForFunction(() => /Voyager/.test(document.body.innerText), null, { timeout: 15_000 })
+  // and the real ~8.9k-star sky builds as a Points cloud (shader compiles cleanly)
+  await page.waitForFunction(
+    () => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        scene(): { traverse(cb: (o: unknown) => void): void }
+      }
+      let stars = 0
+      g.scene().traverse((o) => {
+        const p = o as { isPoints?: boolean; geometry?: { attributes?: { position?: { count?: number } } } }
+        if (p.isPoints) stars = Math.max(stars, p.geometry?.attributes?.position?.count ?? 0)
+      })
+      return stars > 5000
+    },
+    null,
+    { timeout: 15_000 },
+  )
   expect(errors).toEqual([])
 })
 

@@ -8,6 +8,7 @@ import * as THREE from 'three'
 import { EARTH_DISPLAY } from '../../lib/planets'
 import { ensureSolarSystem } from './solar'
 import { setupProbes } from './probesLayer'
+import { setupStars } from './starsLayer'
 import type { SolarAnimEntry } from './orbitEngine'
 import type { setupSky } from './sky'
 import type { setupSurface } from './surface'
@@ -60,6 +61,9 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     probes.update(now)
   }
 
+  // 🌟 the real naked-eye sky as the far backdrop (static, no per-frame work)
+  const stars = setupStars(group)
+
   // Earth shrinks to its TRUE relative size (with satellites, clouds, all).
   // The three-globe root attaches to the scene after our setup ran, so we
   // resolve it here, lazily.
@@ -105,6 +109,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   return () => {
     deps.solarFrameRef.current = baseFrame
     probes.dispose()
+    stars.dispose()
     group.visible = false
     shrink.forEach((o) => o.scale.setScalar(1))
     sky.sunSprite.visible = true
