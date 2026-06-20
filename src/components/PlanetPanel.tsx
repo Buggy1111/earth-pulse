@@ -2,7 +2,7 @@
  * faithful encyclopedic data: spin, year, tilt, temperature, moons. */
 
 import { earthHelio, PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
-import { PROBE_INFO, probePosAu, type ProbeTraj } from '../lib/probes'
+import { PROBE_INFO, probePosAu, probeSpeedKms, type ProbeTraj } from '../lib/probes'
 import { TimeWarp } from './hud/TimeWarp'
 
 const AU_KM = 149_597_870
@@ -15,6 +15,12 @@ function fmtRotation(h: number): string {
 
 function fmtYear(d: number): string {
   return d >= 700 ? `${(d / 365.25).toFixed(1)} years` : `${Math.round(d)} days`
+}
+
+function fmtKm(km: number): string {
+  if (km >= 1e9) return `${(km / 1e9).toFixed(1)} bil. km`
+  if (km >= 1e6) return `${Math.round(km / 1e6).toLocaleString('en-US')} mil. km`
+  return `${Math.round(km).toLocaleString('en-US')} km`
 }
 
 /** Flat moon lookup + its parent's name (moon ids are globally unique). Earth
@@ -55,11 +61,13 @@ export function PlanetPanel({
   const probeTraj = focus ? probes.find((t) => t.id === focus) : undefined
   let probeSunAu = 0
   let probeEarthAu = 0
+  let probeSpeed = 0
   if (probeTraj) {
     const [px, py, pz] = probePosAu(probeTraj, new Date(now))
     probeSunAu = Math.hypot(px, py, pz)
     const [ex, ey, ez] = earthHelio(new Date(now))
     probeEarthAu = Math.hypot(px - ex, py - ey, pz - ez)
+    probeSpeed = probeSpeedKms(probeTraj, new Date(now))
   }
   const positions = planetPositions(new Date(now))
   const p = focus && focus !== 'sun' && !probeInfo ? positions.find((x) => x.id === focus) : null
@@ -103,11 +111,12 @@ export function PlanetPanel({
           <span className="num">🛰 {probeInfo.operator} · launched {probeInfo.launched}</span>
           <span className="text-slate-300">✨ {probeInfo.blurb}</span>
           <span className="num">
-            ☀️ {probeSunAu.toFixed(2)} AU from the Sun · 🌍 {probeEarthAu.toFixed(2)} AU from Earth
+            🚀 {probeSpeed.toFixed(1)} km/s · ☀️ {probeSunAu.toFixed(2)} AU from the Sun
           </span>
-          <span className="num text-slate-500">
-            {Math.round((probeSunAu * AU_KM) / 1e6).toLocaleString('en-US')} mil. km out · drawn at the scene edge
+          <span className="num">
+            🌍 {probeEarthAu.toFixed(2)} AU from Earth · {fmtKm(probeEarthAu * AU_KM)}
           </span>
+          <span className="text-[10px] text-slate-600">drawn at the scene edge — really far out there</span>
         </div>
       ) : moon ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">

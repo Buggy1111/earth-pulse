@@ -6,7 +6,8 @@
 import { EARTH_RADIUS_KM } from './satellites'
 import { lookAngles, type LookAngles } from './arMath'
 import { subLunarPoint } from './moon'
-import { planetPositions } from './planets'
+import { earthHelio, planetPositions } from './planets'
+import { PROBE_INFO, probePosAu, type ProbeTraj } from './probes'
 
 const AU_KM = 149_597_870.7
 
@@ -41,9 +42,12 @@ const PLANET_COLOR: Record<string, string> = {
  * RA − GMST) at its true distance, so the existing topocentric lookAngles() —
  * which already accounts for the observer's offset from Earth's centre — gives
  * the right azimuth/elevation (the Moon's ~1° parallax included). */
+const RAD = Math.PI / 180
+
 export function skyBodies(
   observer: { lat: number; lng: number },
   date: Date = new Date(),
+  probes: ProbeTraj[] = [],
 ): SkyBody[] {
   const out: SkyBody[] = []
 
@@ -70,6 +74,36 @@ export function skyBodies(
       color: PLANET_COLOR[p.id] ?? '#dcdcdc',
       distanceLabel: `${p.distEarthAu.toFixed(2)} AU`,
     })
+  }
+
+  // 🛰 deep-space probes — point your phone and find where Voyager really is.
+  // Their geocentric direction comes from the baked heliocentric position minus
+  // Earth's; the obliquity rotation takes ecliptic → equatorial like the planets.
+  if (probes.length) {
+    const eps = 23.439 * RAD
+    const ce = Math.cos(eps)
+    const se = Math.sin(eps)
+    const [ex, ey, ez] = earthHelio(date)
+    for (const t of probes) {
+      const [px, py, pz] = probePosAu(t, date)
+      const gx = px - ex
+      const gy = py - ey
+      const gz = pz - ez
+      const dist = Math.hypot(gx, gy, gz)
+      const ra = ((Math.atan2(gy * ce - gz * se, gx) / RAD) + 360) % 360
+      const dec = Math.asin((gy * se + gz * ce) / dist) / RAD
+      let lng = ra - gmst
+      lng = (((lng % 360) + 540) % 360) - 180
+      const la = lookAngles(observer, { lat: dec, lng, altKm: dist * AU_KM - EARTH_RADIUS_KM })
+      if (la.elevationDeg <= 0) continue
+      const info = PROBE_INFO[t.id]
+      out.push({
+        ...la,
+        name: info?.name ?? t.id,
+        color: info?.color ?? '#cbd5e1',
+        distanceLabel: `${dist.toFixed(2)} AU`,
+      })
+    }
   }
 
   out.sort((a, b) => b.elevationDeg - a.elevationDeg)

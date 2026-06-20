@@ -78,6 +78,15 @@ function parseVectors(text, stepDays) {
 
 const round = (s) => Math.round(Number(s) * 1e6) / 1e6
 
+// only keep a trajectory that actually covers "now" — some craft (e.g. JUICE)
+// only have a future SPK arc in HORIZONS, which would freeze them at a stale
+// spot. A window can "resolve" with real vectors that still miss today.
+const NOW_JD = Date.now() / 86_400_000 + 2_440_587.5
+function coversNow(parsed) {
+  const end = parsed.jd0 + (parsed.pos.length / 3 - 1) * parsed.stepDays
+  return NOW_JD >= parsed.jd0 - 10 && NOW_JD <= end + 10
+}
+
 const out = []
 for (const p of PROBES) {
   let got = null
@@ -86,7 +95,7 @@ for (const p of PROBES) {
       const resp = await fetch(horizonsUrl(p.h, w))
       if (!resp.ok) continue
       const parsed = parseVectors(await resp.text(), w.step)
-      if (parsed) {
+      if (parsed && coversNow(parsed)) {
         got = parsed
         break
       }

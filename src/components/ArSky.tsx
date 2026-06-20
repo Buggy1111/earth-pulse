@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
 import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
 import { skyBodies } from '../lib/arBodies'
+import type { ProbeTraj } from '../lib/probes'
 import { sunElevationDeg } from '../lib/sun'
 import { createArScene, type ArScene } from './arScene'
 import { ArMarkers } from './ArMarkers'
@@ -27,11 +28,13 @@ interface OrientPermission {
 interface ArSkyProps {
   sats: TrackedSat[]
   userLoc: { lat: number; lng: number } | null
+  /** Deep-space probe trajectories, so AR can point at where Voyager really is. */
+  probes: ProbeTraj[]
   onLocate: () => void
   onClose: () => void
 }
 
-export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.ReactElement {
+export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps): React.ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const arScene = useRef<ArScene | null>(null)
@@ -242,7 +245,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
       // 🌙🪐 the Moon + naked-eye planets above the horizon — same look-angle
       // maths as the satellites, just with celestial-body ephemerides
       const bodies: Marker[] = []
-      for (const b of skyBodies(userLoc, new Date())) {
+      for (const b of skyBodies(userLoc, new Date(), probes)) {
         const proj = projectToView(b, pose, view)
         if (!proj.visible) continue
         bodies.push({ id: 'body-' + b.name, name: b.name, x: proj.x, y: proj.y, elevationDeg: b.elevationDeg, rangeKm: b.rangeKm, iss: false, kind: 'body', label: true, color: b.color, distanceLabel: b.distanceLabel })
@@ -277,7 +280,7 @@ export function ArSky({ sats, userLoc, onLocate, onClose }: ArSkyProps): React.R
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [started, userLoc, sats, calibRef])
+  }, [started, userLoc, sats, probes, calibRef])
 
   const compass = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(heading / 45) % 8]
 

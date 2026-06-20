@@ -375,7 +375,7 @@ export default function App() {
       {!hudOff && !arMode && !driftMode && <ArLaunchButton onOpen={() => setArMode(true)} />}
       {arMode && (
         <Suspense fallback={null}>
-          <ArSky sats={sats} userLoc={userLoc} onLocate={onLocate} onClose={() => setArMode(false)} />
+          <ArSky sats={sats} userLoc={userLoc} probes={probes} onLocate={onLocate} onClose={() => setArMode(false)} />
         </Suspense>
       )}
 

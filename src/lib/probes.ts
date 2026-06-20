@@ -38,6 +38,9 @@ export const PROBE_INFO: Record<string, ProbeInfo> = {
   lucy: { id: 'lucy', name: 'Lucy', operator: 'NASA', launched: 2021, color: '#f4a3c0', blurb: "the first tour of Jupiter's Trojan asteroids" },
 }
 
+/** Kilometres in one astronomical unit. */
+export const AU_KM = 149_597_870.7
+
 /** JD at the Unix epoch (1970-01-01 00:00 UTC). */
 const JD_UNIX = 2440587.5
 
@@ -57,4 +60,13 @@ export function probePosAu(t: ProbeTraj, date: Date): [number, number, number] {
     t.pos[xi + 1] + (t.pos[xj + 1] - t.pos[xi + 1]) * a,
     t.pos[xi + 2] + (t.pos[xj + 2] - t.pos[xi + 2]) * a,
   ]
+}
+
+/** Heliocentric speed (km/s) at `date`, from a one-day finite difference of the
+ * trajectory — the local segment slope, i.e. how fast it's actually moving. */
+export function probeSpeedKms(t: ProbeTraj, date: Date): number {
+  const a = probePosAu(t, date)
+  const b = probePosAu(t, new Date(date.getTime() + 86_400_000))
+  const dAu = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])
+  return (dAu * AU_KM) / 86_400
 }
