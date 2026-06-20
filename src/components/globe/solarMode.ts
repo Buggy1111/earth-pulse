@@ -8,6 +8,7 @@ import * as THREE from 'three'
 import { EARTH_DISPLAY } from '../../lib/planets'
 import { ensureSolarSystem } from './solar'
 import { returnHome } from './helpers'
+import { glIsSoftware } from '../perf'
 import { setupProbes } from './probesLayer'
 import { setupStars } from './starsLayer'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -115,6 +116,19 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   cam.updateProjectionMatrix()
   controls.maxDistance = 700_000
   controls.autoRotate = false
+  // On a software / CPU renderer the frame rate is low, and OrbitControls' damping
+  // inertia coasts for whole seconds at low FPS — the view "keeps drifting" after
+  // you let go. Turn damping off there so a drag stops the instant you release
+  // (crisp control beats laggy glide when frames are scarce). Restored on exit.
+  const prevDamping = controls.enableDamping
+  const onCpu = (() => {
+    try {
+      return glIsSoftware(globe.renderer().getContext())
+    } catch {
+      return false
+    }
+  })()
+  if (onCpu) controls.enableDamping = false
   deps.userInteractedRef.current = true
   return () => {
     deps.solarFrameRef.current = baseFrame
@@ -132,6 +146,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     cam.near = prevNear
     cam.updateProjectionMatrix()
     controls.maxDistance = prevMax
+    controls.enableDamping = prevDamping
     deps.pinTargetRef.current = null
     returnHome(globe, 0)
   }

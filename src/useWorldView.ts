@@ -64,7 +64,9 @@ export function useWorldView() {
     (id: string) => {
       if (id === 'earth') return onSolarExit()
       setPickedStar(null)
-      setFocusPlanet(id)
+      // click the body you're already orbiting → let go and pull back to the
+      // system overview, exactly like clicking a followed satellite again
+      setFocusPlanet((prev) => (prev === id ? null : id))
     },
     [onSolarExit],
   )
