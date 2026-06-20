@@ -19,12 +19,18 @@ const PROBES_URL = 'probes/probes.json'
 const MAX_DISPLAY_AU = 55 // clamp display distance to just past Pluto's orbit (~49 AU)
 const MODEL_TARGET = 13 // scene units the real glb model is normalised to
 
-// real NASA public-domain models: the iconic probes get their own, the rest a
-// generic deep-space-probe bus (Deep Space 1) — every probe is a real craft.
+// every probe gets a real spacecraft model. Voyager, New Horizons, Europa
+// Clipper and Psyche are their own craft; Lucy, JUICE (no freely-downloadable
+// model exists) borrow a visually-matched NASA probe — Dawn and Juno share
+// their big solar-wing silhouettes. All NASA/public-domain glb.
 const MODEL_FILE: Record<string, string> = {
   voyager1: 'voyager.glb',
   voyager2: 'voyager.glb',
   newhorizons: 'new-horizons.glb',
+  europaclipper: 'europa-clipper.glb',
+  psyche: 'psyche.glb',
+  lucy: 'dawn.glb',
+  juice: 'juno.glb',
 }
 const GENERIC_MODEL = 'generic.glb'
 
@@ -75,32 +81,52 @@ function makeBody(color: string): THREE.Object3D {
 }
 
 /** A comet trail along the baked path: dark tail → bright head, additive. */
-function makeTrail(traj: ProbeTraj, color: string): THREE.Line {
+interface ProbeTrail {
+  line: THREE.Line
+  colors: THREE.BufferAttribute
+  base: THREE.Color
+  n: number
+}
+
+function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
   const n = traj.pos.length / 3
   const pts: THREE.Vector3[] = []
-  const colors = new Float32Array(n * 3)
-  const c = new THREE.Color(color)
   for (let i = 0; i < n; i++) {
     const [x, y, z] = clampAu(traj.pos[i * 3], traj.pos[i * 3 + 1], traj.pos[i * 3 + 2])
     pts.push(new THREE.Vector3(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE))
-    const f = (i / (n - 1)) ** 1.5 // fade lingers near the head
-    colors[i * 3] = c.r * f
-    colors[i * 3 + 1] = c.g * f
-    colors[i * 3 + 2] = c.b * f
   }
+  const colors = new THREE.BufferAttribute(new Float32Array(n * 3), 3)
   const geom = new THREE.BufferGeometry().setFromPoints(pts)
-  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  geom.setAttribute('color', colors)
   const line = new THREE.Line(
     geom,
-    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
   )
   line.renderOrder = 1
-  return line
+  return { line, colors, base: new THREE.Color(color), n }
+}
+
+/** Repaint the trail as a comet tail BEHIND the live head: bright at `headF`
+ * (the craft's current spot along the path), fading back into the trajectory it
+ * already flew, nothing drawn ahead of it — exactly like the satellite trails. */
+function paintTail(t: ProbeTrail, headF: number): void {
+  const c = t.colors.array as Float32Array
+  const head = Math.max(0, Math.min(t.n - 1, Math.round(headF)))
+  const span = Math.max(2, Math.floor(t.n * 0.55))
+  for (let i = 0; i < t.n; i++) {
+    const k = head - i // how far behind the head (k < 0 = ahead → hidden)
+    const a = k >= 0 && k <= span ? (1 - k / span) ** 1.3 : 0
+    c[i * 3] = t.base.r * a
+    c[i * 3 + 1] = t.base.g * a
+    c[i * 3 + 2] = t.base.b * a
+  }
+  t.colors.needsUpdate = true
 }
 
 interface Built {
   traj: ProbeTraj
   body: THREE.Object3D
+  trail: ProbeTrail
 }
 
 export function setupProbes(
@@ -153,11 +179,11 @@ export function setupProbes(
         body.userData.probeId = traj.id
         body.userData.displayRadius = MODEL_TARGET // camera framing when focused
         body.add(makeNameSprite(info?.name ?? traj.name, 7, true, color))
-        group.add(trail, body)
-        added.push(trail, body)
+        group.add(trail.line, body)
+        added.push(trail.line, body)
         bodies.push(body)
         probeMeshesRef.current.set(traj.id, body)
-        built.push({ traj, body })
+        built.push({ traj, body, trail })
 
         // swap the placeholder for the real NASA model once it loads
         void loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL)
@@ -196,11 +222,14 @@ export function setupProbes(
 
   return {
     update(now: Date) {
+      const jd = now.getTime() / 86_400_000 + 2_440_587.5
       for (const b of built) {
         const [x, y, z] = clampAu(...probePosAu(b.traj, now))
         b.body.position.set(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE)
+        paintTail(b.trail, (jd - b.traj.jd0) / b.traj.stepDays)
       }
     },
+
     dispose() {
       disposed = true
       globe.renderer().domElement.removeEventListener('pointerdown', onDown)
