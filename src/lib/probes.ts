@@ -4,8 +4,6 @@
  * interpolate it here for a live-ish heliocentric position. Same frame/units as
  * lib/planets (heliocentric ecliptic AU), so they drop into the scene directly. */
 
-import { earthHelio } from './planets'
-
 /** One probe's baked trajectory: a uniform-step sample of heliocentric ecliptic
  * positions (flat x,y,z triples in AU), as written by scripts/fetch-probes. */
 export interface ProbeTraj {
@@ -38,25 +36,6 @@ export const PROBE_INFO: Record<string, ProbeInfo> = {
   europaclipper: { id: 'europaclipper', name: 'Europa Clipper', operator: 'NASA', launched: 2024, color: '#8fb6ef', blurb: "will probe whether Europa's hidden ocean could host life" },
   psyche: { id: 'psyche', name: 'Psyche', operator: 'NASA', launched: 2023, color: '#e0a96d', blurb: 'en route to a metal-rich asteroid — a possible planetary core' },
   lucy: { id: 'lucy', name: 'Lucy', operator: 'NASA', launched: 2021, color: '#f4a3c0', blurb: "the first tour of Jupiter's Trojan asteroids" },
-  // GOES weather sats orbit Earth (geostationary), but they're spacecraft too —
-  // shown here beside the deep-space probes so the solar view lists every craft.
-  goes16: { id: 'goes16', name: 'GOES-16', operator: 'NOAA', launched: 2016, color: '#7dd3fc', blurb: 'GOES-East — geostationary weather watch over the Americas' },
-  goes18: { id: 'goes18', name: 'GOES-18', operator: 'NOAA', launched: 2022, color: '#93c5fd', blurb: 'GOES-West — geostationary weather watch over the eastern Pacific' },
-}
-
-/** Earth-orbiting craft (geostationary), shown in the solar view riding along
- * with Earth. Keyed by probe id. The display offset is a small artistic nudge so
- * each one sits just off the mini-Earth, visible — like the probes' clamped
- * distances, not to scale. The real altitude is surfaced in the panel. */
-export const EARTH_SAT_OFFSET: Record<string, [number, number, number]> = {
-  goes16: [0.013, 0.007, 0.001],
-  goes18: [-0.013, -0.007, -0.001],
-}
-export const EARTH_SAT_IDS = new Set(Object.keys(EARTH_SAT_OFFSET))
-/** Real geostationary facts for the panel (the scene offset above is artistic). */
-export const EARTH_SAT_INFO: Record<string, { altKm: number; slot: string }> = {
-  goes16: { altKm: 35_786, slot: '75.2°W · GOES-East' },
-  goes18: { altKm: 35_786, slot: '137.0°W · GOES-West' },
 }
 
 /** Kilometres in one astronomical unit. */
@@ -90,23 +69,4 @@ export function probeSpeedKms(t: ProbeTraj, date: Date): number {
   const b = probePosAu(t, new Date(date.getTime() + 86_400_000))
   const dAu = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])
   return (dAu * AU_KM) / 86_400
-}
-
-/** Synthetic "trajectories" for the Earth-orbiting craft (GOES): sample Earth's
- * heliocentric path over ~a year and add each craft's small fixed offset, so it
- * rides along with Earth and renders just off the mini-Earth in the solar view —
- * reusing the whole probe pipeline (nav, panel, focus, model) with no baked data
- * file. Same heliocentric ecliptic AU frame as the probes/planets. */
-export function earthSatTrajectories(now: Date = new Date()): ProbeTraj[] {
-  const stepDays = 5
-  const samples = 75 // ~one year, so the warp clock stays inside the window
-  const jd0 = now.getTime() / 86_400_000 + JD_UNIX
-  return Object.entries(EARTH_SAT_OFFSET).map(([id, off]) => {
-    const pos: number[] = []
-    for (let i = 0; i < samples; i++) {
-      const [ex, ey, ez] = earthHelio(new Date(now.getTime() + i * stepDays * 86_400_000))
-      pos.push(ex + off[0], ey + off[1], ez + off[2])
-    }
-    return { id, name: PROBE_INFO[id]?.name ?? id, jd0, stepDays, pos }
-  })
 }

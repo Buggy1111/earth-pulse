@@ -2,7 +2,7 @@
  * faithful encyclopedic data: spin, year, tilt, temperature, moons. */
 
 import { earthHelio, PLANET_MOONS, PLANETS, planetPositions } from '../lib/planets'
-import { AU_KM, EARTH_SAT_INFO, PROBE_INFO, probePosAu, probeSpeedKms, type ProbeTraj } from '../lib/probes'
+import { AU_KM, PROBE_INFO, probePosAu, probeSpeedKms, type ProbeTraj } from '../lib/probes'
 import { HudCard } from './hud/HudCard'
 import { TimeWarp } from './hud/TimeWarp'
 
@@ -57,9 +57,6 @@ export function PlanetPanel({
   onBack: () => void
 }) {
   const probeInfo = focus ? PROBE_INFO[focus] : undefined
-  // GOES are Earth-orbiting (geostationary) — the scene offset is artistic, so
-  // show their real altitude instead of the probe's heliocentric distances.
-  const earthSat = focus ? EARTH_SAT_INFO[focus] : undefined
   const probeTraj = focus ? probes.find((t) => t.id === focus) : undefined
   let probeSunAu = 0
   let probeEarthAu = 0
@@ -112,25 +109,13 @@ export function PlanetPanel({
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
           <span className="num">🛰 {probeInfo.operator} · launched {probeInfo.launched}</span>
           <span className="text-slate-300">✨ {probeInfo.blurb}</span>
-          {earthSat ? (
-            <>
-              <span className="num">
-                🛰 geostationary · {earthSat.altKm.toLocaleString('en-US')} km above Earth
-              </span>
-              <span className="num">📍 parked over {earthSat.slot}</span>
-              <span className="text-[10px] text-slate-600">shown beside Earth — it rides round the Sun with us</span>
-            </>
-          ) : (
-            <>
-              <span className="num">
-                🚀 {probeSpeed.toFixed(1)} km/s · ☀️ {probeSunAu.toFixed(2)} AU from the Sun
-              </span>
-              <span className="num">
-                🌍 {probeEarthAu.toFixed(2)} AU from Earth · {fmtKm(probeEarthAu * AU_KM)}
-              </span>
-              <span className="text-[10px] text-slate-600">drawn at the scene edge — really far out there</span>
-            </>
-          )}
+          <span className="num">
+            🚀 {probeSpeed.toFixed(1)} km/s · ☀️ {probeSunAu.toFixed(2)} AU from the Sun
+          </span>
+          <span className="num">
+            🌍 {probeEarthAu.toFixed(2)} AU from Earth · {fmtKm(probeEarthAu * AU_KM)}
+          </span>
+          <span className="text-[10px] text-slate-600">drawn at the scene edge — really far out there</span>
         </div>
       ) : moon ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">

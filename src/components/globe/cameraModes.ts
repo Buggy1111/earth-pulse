@@ -74,12 +74,15 @@ export function followSatellite(
   pinTargetRef.current = target // the rAF chase keeps the camera flying with it
   controls.target.copy(p)
   controls.update()
+  // NOTE: cleanup does NOT glide home — switching straight from one satellite to
+  // another would otherwise fire this home-glide and fight the new lock (the
+  // "click the second sat and nothing happens" bug). The caller flies home only
+  // on a genuine release (followSat → null).
   return () => {
     pinTargetRef.current = null
     controls.minDistance = prevMin
     controls.autoRotate = prevAuto
     renderer.setPixelRatio(prevRatio)
-    returnHome(globe, 800)
   }
 }
 

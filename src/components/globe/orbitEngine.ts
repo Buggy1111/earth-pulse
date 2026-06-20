@@ -157,7 +157,7 @@ export function startOrbitEngine(
     const t = deps.solarTimeRef.current
     const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
 
-    // resolution: crisp while still, lighter only while moving (weak GPUs only).
+    // resolution (weak GPUs only): crisp while still, lighter only while moving.
     // Snap down the instant a drag/zoom/time-warp starts; ~0.45 s after it stops,
     // go back to full resolution so a still view is sharp to look at.
     if (needsScaling) {

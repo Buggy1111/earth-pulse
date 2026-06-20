@@ -11,14 +11,13 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
-import { EARTH_SAT_IDS, PROBE_INFO, earthSatTrajectories, probePosAu, type ProbeTraj } from '../../lib/probes'
+import { PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { makeNameSprite } from '../spaceObjects'
 import { getGlowTexture } from './helpers'
 
 const PROBES_URL = 'probes/probes.json'
 const MAX_DISPLAY_AU = 200 // safety cap only; the real probes (Voyager 1 ~170 AU) all fit, shown true
 const MODEL_TARGET = 13 // scene units the real glb model is normalised to
-const EARTH_SAT_TARGET = 6 // smaller — they sit right next to the little mini-Earth
 
 // every probe gets a real spacecraft model. Voyager, New Horizons, Europa
 // Clipper and Psyche are their own craft; Lucy, JUICE (no freely-downloadable
@@ -32,8 +31,6 @@ const MODEL_FILE: Record<string, string> = {
   psyche: 'psyche.glb',
   lucy: 'dawn.glb',
   juice: 'juno.glb',
-  goes16: 'goes.glb',
-  goes18: 'goes.glb',
 }
 const GENERIC_MODEL = 'generic.glb'
 
@@ -132,8 +129,7 @@ function paintTail(t: ProbeTrail, headF: number): void {
 interface Built {
   traj: ProbeTraj
   body: THREE.Object3D
-  /** null for Earth-orbiting craft (GOES) — they ride Earth, no comet trail. */
-  trail: ProbeTrail | null
+  trail: ProbeTrail
 }
 
 export function setupProbes(
@@ -177,36 +173,28 @@ export function setupProbes(
   const addCraft = (traj: ProbeTraj) => {
     const info = PROBE_INFO[traj.id]
     const color = info?.color ?? '#cbd5e1'
-    const earthSat = EARTH_SAT_IDS.has(traj.id)
-    const target = earthSat ? EARTH_SAT_TARGET : MODEL_TARGET
+    const trail = makeTrail(traj, color)
     const body = makeBody(color)
     body.userData.probeId = traj.id
-    body.userData.displayRadius = target // camera framing when focused
-    body.add(makeNameSprite(info?.name ?? traj.name, earthSat ? 4 : 7, true, color))
-    // never frustum-cull the craft or its trail — they sit way out and their
+    body.userData.displayRadius = MODEL_TARGET // camera framing when focused
+    body.add(makeNameSprite(info?.name ?? traj.name, 7, true, color))
+    // never frustum-cull the craft or its long trail — they're way out and their
     // bounding spheres make them pop in/out at the view edges otherwise
+    trail.line.frustumCulled = false
     body.traverse((o) => (o.frustumCulled = false))
-    group.add(body)
-    added.push(body)
+    group.add(trail.line, body)
+    added.push(trail.line, body)
     bodies.push(body)
     probeMeshesRef.current.set(traj.id, body)
-    // GOES orbit Earth — no interstellar comet trail (it would just retrace
-    // Earth's own orbit line). Deep-space probes get the fading tail.
-    const trail = earthSat ? null : makeTrail(traj, color)
-    if (trail) {
-      trail.line.frustumCulled = false
-      group.add(trail.line)
-      added.push(trail.line)
-    }
     built.push({ traj, body, trail })
 
-    // swap the placeholder for the real model once it loads
+    // swap the placeholder for the real NASA model once it loads
     void loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL)
       .then((model) => {
         if (disposed) return
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
-        model.scale.setScalar(target / (Math.max(size.x, size.y, size.z) || 1))
+        model.scale.setScalar(MODEL_TARGET / (Math.max(size.x, size.y, size.z) || 1))
         // self-lit tint so the craft reads in its own colour at any lighting
         model.traverse((o) => {
           const mesh = o as THREE.Mesh
@@ -232,10 +220,6 @@ export function setupProbes(
       })
   }
 
-  // GOES weather sats ride along with Earth — build them straight away (no fetch
-  // needed), so they always appear beside the deep-space probes.
-  for (const traj of earthSatTrajectories()) addCraft(traj)
-
   void fetch(PROBES_URL)
     .then((r) => (r.ok ? (r.json() as Promise<ProbeTraj[]>) : Promise.reject(new Error('no probes'))))
     .then((trajs) => {
@@ -252,7 +236,7 @@ export function setupProbes(
       for (const b of built) {
         const [x, y, z] = clampAu(...probePosAu(b.traj, now))
         b.body.position.set(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE)
-        if (b.trail) paintTail(b.trail, (jd - b.traj.jd0) / b.traj.stepDays)
+        paintTail(b.trail, (jd - b.traj.jd0) / b.traj.stepDays)
       }
     },
 

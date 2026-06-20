@@ -9,7 +9,7 @@ import { auroraOvals } from '../lib/aurora'
 import type { IssState } from '../lib/iss'
 import { globeAltitude } from '../lib/satellites'
 import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
-import { HOME_VIEW, type OrbitObject, type Trail } from './globe/helpers'
+import { HOME_VIEW, returnHome, type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers } from './globe/quakesLayer'
 import { setupSky } from './globe/sky'
@@ -344,15 +344,28 @@ export function GlobeView(props: GlobeViewProps) {
   // 🛰 lock onto a clicked satellite: snap in, fly with it, orbit around it.
   // Clearing followSat (or switching sats) runs the cleanup → releases & glides out.
   const { followSat } = props
+  const followingRef = useRef(false)
   useEffect(() => {
     const globe = globeRef.current
-    if (!globe || !followSat) return
+    if (!globe) return
+    if (!followSat) {
+      // genuine release (clicked the followed sat again) → glide home, but only
+      // if we were actually following (never on first mount)
+      if (followingRef.current) {
+        followingRef.current = false
+        returnHome(globe, 800)
+      }
+      return
+    }
     const o = orbitObjectsRef.current.get(followSat.id) as
       | (OrbitObject & { __threeObjObject?: THREE.Object3D; __threeObj?: THREE.Object3D })
       | undefined
     const mesh = o?.__threeObjObject ?? o?.__threeObj
     if (!mesh) return
     userInteractedRef.current = true
+    followingRef.current = true
+    // switching straight to another sat just snaps to it (the old lock's cleanup
+    // no longer flies home, so it can't fight this new lock)
     return followSatellite(globe, mesh, pinTargetRef)
   }, [followSat])
 
