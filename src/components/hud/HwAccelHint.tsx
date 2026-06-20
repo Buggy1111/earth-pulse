@@ -25,7 +25,7 @@ export function HwAccelHint() {
     setShow(false)
   }
   return (
-    <div className="hud pointer-events-auto fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 px-4 py-2 text-xs text-amber-200 sm:right-auto sm:left-1/2 sm:-translate-x-1/2">
+    <div className="hud pointer-events-auto fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 px-4 py-2 safe-pb text-xs text-amber-200 sm:right-auto sm:left-1/2 sm:-translate-x-1/2">
       <span>
         ⚠ 3D is running on the CPU — turn on <b>hardware acceleration</b> in your browser
         settings for a smooth globe.

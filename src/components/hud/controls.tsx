@@ -111,8 +111,8 @@ export function SideDrawer({
           boxShadow: `${isLeft ? '' : '-'}1px 0 0 ${accent}80, 0 0 60px -10px ${accent}40, 0 24px 60px -20px rgba(0,0,0,0.9)`,
           [isLeft ? 'borderRight' : 'borderLeft']: `2px solid ${accent}aa`,
         }}
-        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto p-3 backdrop-blur-xl transition-transform duration-300 ease-out ${
-          isLeft ? 'left-0' : 'right-0'
+        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto p-3 safe-pt safe-pb backdrop-blur-xl transition-transform duration-300 ease-out ${
+          isLeft ? 'left-0 safe-pl' : 'right-0 safe-pr'
         } ${open ? 'translate-x-0' : isLeft ? '-translate-x-full' : 'translate-x-full'}`}
         aria-hidden={!open}
       >
@@ -154,7 +154,7 @@ export function ShowHudButton({ onShow }: { onShow: () => void }) {
       onClick={onShow}
       title="show interface (H)"
       aria-label="Show interface"
-      className="hud pointer-events-auto fixed top-4 right-4 z-20 cursor-pointer px-3 py-1.5 text-sm text-slate-300 hover:text-slate-100"
+      className="hud pointer-events-auto fixed top-4 right-4 z-20 cursor-pointer px-3 py-1.5 safe-pt safe-pr text-sm text-slate-300 hover:text-slate-100"
     >
       👁
     </button>

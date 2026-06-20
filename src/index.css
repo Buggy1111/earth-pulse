@@ -23,6 +23,24 @@ body {
   color: #e7e9ee;
 }
 
+/* iOS notch / home-indicator safe areas — inset the fixed UI in a standalone
+   PWA on a notched device (iPhone 11 etc.) while the globe stays edge-to-edge.
+   Plain (unlayered) CSS so it overrides Tailwind padding utilities on iOS; with
+   no fallback the declaration is invalid (ignored) off a notched standalone, so
+   normal padding is untouched. */
+.safe-pt {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-pl {
+  padding-left: env(safe-area-inset-left);
+}
+.safe-pr {
+  padding-right: env(safe-area-inset-right);
+}
+
 /* ——— Instrument panel: every .hud is a precision console cell. One sharp,
    cyan-lit glass plate with faint scanlines, a top inner light and two
    diagonal corner brackets — so the whole UI reads as one spacecraft HUD. ——— */

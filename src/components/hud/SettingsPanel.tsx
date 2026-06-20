@@ -70,7 +70,7 @@ export function SettingsPanel({
       </HudCard>
 
       {open && (
-        <aside className="hud slide-in pointer-events-auto fixed top-3 bottom-3 left-3 z-30 flex w-72 flex-col px-4 py-3 sm:top-6 sm:bottom-6 sm:left-6">
+        <aside className="hud slide-in pointer-events-auto fixed top-3 bottom-3 left-3 z-30 flex w-72 flex-col px-4 py-3 safe-pt safe-pb safe-pl sm:top-6 sm:bottom-6 sm:left-6">
           <div className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
             ⚙ customize
             <button

@@ -258,7 +258,7 @@ export function Hud(p: HudProps) {
       <ViewportFrame mode={p.mode} now={p.now} satCount={p.satCount} />
 
       {/* world switcher — always visible above everything, both layouts */}
-      <div className="pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 sm:top-4">
+      <div className="pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 safe-pt sm:top-4">
         <span className="vf-eyebrow hidden sm:block">◂ orbital telemetry console ▸</span>
         <ModeSwitcher
           mode={p.mode}
@@ -327,7 +327,7 @@ export function Hud(p: HudProps) {
         </>
       )}
 
-      <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 text-center text-[10px] text-slate-600">
+      <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 safe-pb text-center text-[10px] text-slate-600">
         Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
         Solar System Scope (CC BY)
       </p>

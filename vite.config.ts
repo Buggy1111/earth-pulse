@@ -51,9 +51,11 @@ export default defineConfig({
             urlPattern: /\/(models|draco)\/.*|\.(?:glb|jpg|jpeg|webp)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'ep-assets-v1',
+              cacheName: 'ep-assets-v2',
               expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
+              // only cache real successes — never an opaque/errored model response
+              // (that's what left old installs showing fallback primitives)
+              cacheableResponse: { statuses: [200] },
             },
           },
         ],
