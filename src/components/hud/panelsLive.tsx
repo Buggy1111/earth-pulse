@@ -21,7 +21,8 @@ export function MissionCard({ name, onClose }: { name: string; onClose: () => vo
         <button
           type="button"
           onClick={onClose}
-          className="cursor-pointer text-xs text-slate-500 hover:text-slate-200"
+          aria-label="Close"
+          className="cursor-pointer rounded px-1 text-xs text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
         </button>
@@ -174,7 +175,7 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="cursor-pointer rounded-lg px-2 py-1 text-slate-400 hover:bg-white/10"
+          className="cursor-pointer rounded-lg px-2 py-1 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
         </button>

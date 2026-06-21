@@ -290,6 +290,59 @@ body {
 /* ——— Viewport frame: the signature. Four glowing brackets pin the screen
    corners so the live globe sits inside a spacecraft viewport, with a faint
    scanline veil and a mission-control status read-out along the bottom. ——— */
+/* ─── Premium sci-fi navigation: the world switcher as a gold-lit console menu.
+   Cyan stays the data/globe language; gold is the "you are here / interact"
+   accent, like a high-end sci-fi game's main menu. ─── */
+.mode-switch {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgba(245, 196, 81, 0.3);
+  background:
+    repeating-linear-gradient(0deg, rgba(245, 196, 81, 0.035) 0, rgba(245, 196, 81, 0.035) 1px, transparent 1px, transparent 3px),
+    linear-gradient(158deg, rgba(22, 17, 8, 0.9), rgba(11, 9, 6, 0.72));
+  /* notched corners — the signature sci-fi frame cut */
+  clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
+  box-shadow:
+    0 12px 44px -18px rgba(0, 0, 0, 0.85),
+    0 0 22px -10px rgba(245, 196, 81, 0.5),
+    inset 0 1px 0 rgba(245, 196, 81, 0.14);
+  backdrop-filter: blur(16px) saturate(1.15);
+}
+.mode-seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.95rem;
+  color: #cbd5e1;
+  letter-spacing: 0.02em;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+.mode-seg + .mode-seg {
+  border-left: 1px solid rgba(245, 196, 81, 0.16);
+}
+.mode-seg:hover {
+  color: #fde68a;
+  background: rgba(245, 196, 81, 0.07);
+}
+.mode-seg-active {
+  color: #fde68a;
+  background: linear-gradient(180deg, rgba(245, 196, 81, 0.26), rgba(245, 196, 81, 0.07));
+  text-shadow: 0 0 12px rgba(245, 196, 81, 0.55);
+}
+/* a glowing gold underline marks the active world */
+.mode-seg-active::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f5c451, transparent);
+  box-shadow: 0 0 9px rgba(245, 196, 81, 0.85);
+}
+
 .vf {
   position: fixed;
   inset: 0;

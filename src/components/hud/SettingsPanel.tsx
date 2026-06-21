@@ -98,7 +98,7 @@ export function SettingsPanel({
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close customize panel"
-              className="cursor-pointer px-1 text-slate-500 hover:text-slate-200"
+              className="cursor-pointer rounded px-1 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
             >
               ✕
             </button>

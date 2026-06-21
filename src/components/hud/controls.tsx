@@ -22,16 +22,15 @@ export function ModeSwitcher({
     id: 'earth' | 'moon' | 'solar' | 'drift'
     icon: string
     label: string
-    color: string
     go: () => void
   }[] = [
-    { id: 'earth', icon: '🌍', label: 'Earth', color: 'text-sky-300', go: onEarth },
-    { id: 'moon', icon: '🌙', label: 'Moon', color: 'text-slate-200', go: onMoon },
-    { id: 'solar', icon: '🪐', label: 'Solar', color: 'text-violet-300', go: onSolar },
-    { id: 'drift', icon: '🗺', label: 'Drift', color: 'text-amber-300', go: onDrift },
+    { id: 'earth', icon: '🌍', label: 'Earth', go: onEarth },
+    { id: 'moon', icon: '🌙', label: 'Moon', go: onMoon },
+    { id: 'solar', icon: '🪐', label: 'Solar', go: onSolar },
+    { id: 'drift', icon: '🗺', label: 'Drift', go: onDrift },
   ]
   return (
-    <div className="hud pointer-events-auto flex overflow-hidden text-xs">
+    <div className="mode-switch pointer-events-auto text-xs font-medium tracking-wide">
       {worlds.map((w, i) => {
         const active = mode === w.id
         return (
@@ -41,9 +40,7 @@ export function ModeSwitcher({
             onClick={w.go}
             aria-pressed={active}
             title={`${w.label} (${i + 1})`}
-            className={`flex cursor-pointer items-center gap-1.5 px-3 py-1.5 transition-colors ${
-              i > 0 ? 'border-l border-white/8' : ''
-            } ${active ? `bg-white/10 ${w.color}` : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
+            className={`mode-seg cursor-pointer ${active ? 'mode-seg-active' : ''}`}
           >
             <span>{w.icon}</span>
             <span className="hidden sm:inline">{w.label}</span>
@@ -135,7 +132,7 @@ export function SideDrawer({
             type="button"
             onClick={onToggle}
             aria-label={`Close ${title}`}
-            className="cursor-pointer rounded px-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-100"
+            className="cursor-pointer rounded px-1.5 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
           >
             ✕
           </button>
