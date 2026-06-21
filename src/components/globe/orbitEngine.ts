@@ -108,6 +108,10 @@ export function startOrbitEngine(
   let lastBuildSim = lastBuildReal
   const dir = new THREE.Vector3()
   const Y_UP = new THREE.Vector3(0, 1, 0) // hoisted: was re-allocated per trail/frame
+  // lead the direction arrow ahead of the satellite model so it points the way
+  // from IN FRONT instead of skewering the body — clears even the ISS (~8 units
+  // across) plus the cone's own half-height (1.2), in globe.gl scene units
+  const ARROW_LEAD = 6
   const pinWorld = new THREE.Vector3()
   const pinDelta = new THREE.Vector3()
   const prevPinWorld = new THREE.Vector3()
@@ -311,8 +315,9 @@ export function startOrbitEngine(
         if (n < 2) continue
         const a = trail.vectors[n - 2]
         const b = trail.vectors[n - 1]
-        trail.arrow.position.copy(b)
         dir.subVectors(b, a).normalize()
+        // sit ahead of the body along its heading, not on top of it
+        trail.arrow.position.copy(b).addScaledVector(dir, ARROW_LEAD)
         trail.arrow.quaternion.setFromUnitVectors(Y_UP, dir)
       }
     }
