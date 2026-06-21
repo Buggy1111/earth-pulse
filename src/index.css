@@ -342,7 +342,12 @@ body {
   bottom: calc(22px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
+  /* Hidden by default — only the ≥1024px desktop layout shows it; below that the
+     nowrap line overflows a narrow viewport and clips at both edges. Visibility is
+     owned HERE, not via a Tailwind `hidden lg:flex` class: this rule loads after
+     the utilities, so a plain `.hidden` (same specificity) loses the cascade to
+     `.vf-status` and never hides anything. */
+  display: none;
   align-items: center;
   gap: 10px;
   white-space: nowrap;
@@ -351,6 +356,11 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(186, 213, 224, 0.9);
+}
+@media (min-width: 1024px) {
+  .vf-status {
+    display: flex;
+  }
 }
 .vf-status b {
   color: #7fe3f5;

@@ -31,11 +31,11 @@ export function ViewportFrame({
       <span className="vf-corner vf-bl" />
       <span className="vf-corner vf-br" />
 
-      {/* mission-control status line — only on the desktop layout (≥1024px, same
-          as isDesktop). Below that the nowrap line overflowed a narrow viewport
-          and got clipped at both edges + collided with the credits line, so it
-          stays hidden through the whole phone/tablet drawer range. */}
-      <div className="vf-status hidden lg:flex">
+      {/* mission-control status line — visibility is owned by the .vf-status CSS
+          (display:none below 1024px), NOT a Tailwind `hidden` class: that rule
+          loads after the utilities and would lose the cascade, so `hidden` never
+          actually hid it. Shown only on the ≥1024px desktop layout. */}
+      <div className="vf-status">
         <span className="vf-online" />
         <b>systems nominal</b>
         <span className="sep">/</span>
