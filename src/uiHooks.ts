@@ -2,7 +2,13 @@
  * browser geolocation. Pure React state machines — no globe knowledge. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { detectWeakGpu, loadEcoPreference, sampleFps, saveEcoPreference } from './components/perf'
+import {
+  detectWeakGpu,
+  isMobileDevice,
+  loadEcoPreference,
+  sampleFps,
+  saveEcoPreference,
+} from './components/perf'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
@@ -10,11 +16,16 @@ import { encodeView, parseView } from './lib/share'
 
 const ecoPreference = loadEcoPreference()
 
-/** Eco/performance mode: saved preference > weak-GPU heuristic, plus an FPS
- * watchdog a few seconds after first paint. */
+/** Eco/performance mode: saved preference > weak-GPU heuristic > mobile, plus an
+ * FPS watchdog a few seconds after first paint.
+ *
+ * Mobiles (incl. iPhone/iPad, which report "Apple GPU" and slip past the
+ * weak-GPU name check) MUST start in eco: the 8K textures at 2× DPR overrun an
+ * installed PWA's memory budget on iOS and the app crash-reloads. See
+ * isMobileDevice(). Users on a strong phone can still toggle full quality on. */
 export function useEcoMode(ready: boolean) {
   // lazy initializer — the GPU probe must run ONCE, not on every render
-  const [eco, setEco] = useState(() => ecoPreference ?? detectWeakGpu())
+  const [eco, setEco] = useState(() => ecoPreference ?? (detectWeakGpu() || isMobileDevice()))
   const onToggleEco = useCallback(() => {
     setEco((e) => {
       saveEcoPreference(!e)

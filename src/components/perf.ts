@@ -50,6 +50,31 @@ export function detectWeakGpu(): boolean {
   }
 }
 
+/** Phone/tablet check: a coarse primary pointer + a touchscreen.
+ *
+ * These devices have a far smaller GPU/RAM budget than a desktop — and as an
+ * INSTALLED standalone PWA, iOS caps a page's memory lower still than a Safari
+ * tab. The 8K day+night textures at 2× pixel ratio cost ≈0.5–0.7 GB of GPU
+ * memory, which silently trips WebKit's limit: the app blanks (lost WebGL
+ * context) or iOS kills and reloads it — read as "it crashes / keeps
+ * restarting". So mobiles must default to eco (2K + 1× DPR), which stays well
+ * under the budget.
+ *
+ * Deliberately separate from `detectWeakGpu` (a GPU-name allow-list): iOS
+ * reports "Apple GPU", which is NOT in that list — but so does an M-series Mac,
+ * which is plenty powerful. The pointer+touch test is what tells them apart: a
+ * Mac has a fine pointer and no touch, so it correctly keeps full quality. */
+let mobileCache: boolean | null = null
+export function isMobileDevice(): boolean {
+  if (mobileCache !== null) return mobileCache
+  try {
+    return (mobileCache =
+      window.matchMedia('(pointer: coarse)').matches && (navigator.maxTouchPoints ?? 0) > 0)
+  } catch {
+    return (mobileCache = false)
+  }
+}
+
 /** Pixel ratio to use while the camera is locked up close to a satellite.
  *
  * Close-up a heavy GLB model (Hubble, SWOT, Suomi NPP…) fills the whole
