@@ -14,6 +14,7 @@ import { AU_SCENE } from '../../lib/planets'
 import { SUNLIT_LAYER } from './solar'
 import { PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { makeNameSprite } from '../spaceObjects'
+import { isMobileDevice } from '../perf'
 import { getGlowTexture } from './helpers'
 
 const PROBES_URL = 'probes/probes.json'
@@ -189,8 +190,12 @@ export function setupProbes(
     probeMeshesRef.current.set(traj.id, body)
     built.push({ traj, body, trail })
 
-    // swap the placeholder for the real NASA model once it loads
-    void loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL)
+    // swap the placeholder for the real NASA model once it loads — but NOT on
+    // phones: the decoded GLB fleet (~70–100 MB of VRAM) is what tips an iPhone
+    // into an OOM page-reload on entering solar. The lightweight placeholder glint
+    // + the comet trail still tell the whole story at a phone's tiny solar scale.
+    if (!isMobileDevice())
+      void loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL)
       .then((model) => {
         if (disposed) return
         const box = new THREE.Box3().setFromObject(model)

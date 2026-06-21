@@ -21,6 +21,7 @@ import {
   SUN_DISPLAY,
 } from '../../lib/planets'
 import { makeNameSprite } from '../spaceObjects'
+import { isMobileDevice } from '../perf'
 import { getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
@@ -78,11 +79,33 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const group = new THREE.Group()
   const solarTrails: SolarTrail[] = []
   const loader = new THREE.TextureLoader()
+  // On phones the full-res planet/moon textures are ~137 MB of VRAM — a big part
+  // of what OOM-reloads the page on entering solar mode. Halve them to 1024-wide:
+  // a planet is a small disc on a phone, so it reads identically at 4× less memory.
+  const TEX_CAP = isMobileDevice() ? 1024 : Infinity
+  const capTexture = (tex: THREE.Texture): THREE.Texture => {
+    const img = tex.image as { width?: number; height?: number } | undefined
+    if (!img?.width || img.width <= TEX_CAP) return tex
+    const w = TEX_CAP
+    const h = Math.max(1, Math.round((img.height! / img.width) * w))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return tex
+    ctx.drawImage(img as CanvasImageSource, 0, 0, w, h)
+    const capped = new THREE.CanvasTexture(canvas)
+    capped.colorSpace = tex.colorSpace
+    tex.dispose() // free the full-res upload we just downscaled
+    return capped
+  }
   // sun-lit bodies: the texture doubles as a faint emissive floor so the
   // night side reads as a dim disc instead of vanishing into space
   const loadTex = (mesh: THREE.Mesh, url: string, tint = '#ffffff') => {
     if (!url) return
-    loader.load(url, (tex) => {
+    loader.load(url, (raw) => {
+      raw.colorSpace = THREE.SRGBColorSpace
+      const tex = capTexture(raw)
       tex.colorSpace = THREE.SRGBColorSpace
       const m = mesh.material as THREE.MeshLambertMaterial
       m.map = tex
@@ -202,7 +225,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity }),
       )
       if (tex)
-        loader.load(tex, (t) => {
+        loader.load(tex, (raw) => {
+          const t = capTexture(raw)
           t.colorSpace = THREE.SRGBColorSpace
           const m = ring.material as THREE.MeshBasicMaterial
           m.map = t

@@ -25,12 +25,16 @@ import { isMobileDevice } from './perf'
 import type { GlobeViewProps } from './globe/globeView.types'
 
 /** Texture resolution for the day/night globe stack:
- *  - mobile  → 4K  (sharp, ≈0.18 GB — safe under iOS's PWA memory cap)
+ *  - solar/Moon view → 2K  (Earth is a distant dot — 8K would be ~0.5 GB of VRAM
+ *    held for a few pixels; 2K reads identically and frees the memory for the
+ *    solar system. The single biggest memory win when you leave the Earth view.)
+ *  - mobile  → 4K  (sharp, safe under iOS's memory cap)
  *  - desktop eco → 2K (fill-rate relief for weak integrated GPUs)
- *  - desktop full → 8K (≈0.7 GB — only desktops have the headroom)
+ *  - desktop full → 8K (≈0.5 GB — only desktops have the headroom)
  * Mobile is decided by the device, NOT the eco flag, so 8K can never load on a
  * phone even if a stale preference leaves eco off. */
-function pickTextureRes(eco: boolean): '2k' | '4k' | '8k' {
+function pickTextureRes(eco: boolean, solarMode: boolean, moonMode: boolean): '2k' | '4k' | '8k' {
+  if (solarMode || moonMode) return '2k'
   if (isMobileDevice()) return '4k'
   return eco ? '2k' : '8k'
 }
@@ -107,7 +111,7 @@ export function GlobeView(props: GlobeViewProps) {
   // (a fill-rate win for weak integrated GPUs), full desktop is 8K. This is
   // decided at the render layer so 8K can never reach mobile even via a stale
   // preference or the runtime swap (eco is also force-locked on mobile).
-  const textureResRef = useRef<'2k' | '4k' | '8k'>(pickTextureRes(eco))
+  const textureResRef = useRef<'2k' | '4k' | '8k'>(pickTextureRes(eco, solarMode, moonMode))
   const gibsActiveRef = useRef(false)
   const gibsMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
@@ -153,7 +157,9 @@ export function GlobeView(props: GlobeViewProps) {
     s?.updateLabels()
   }, [layers.clouds, layers.borders, layers.volcanoes, layers.detail, layers.labels])
 
-  // eco/performance mode: pixel ratio + texture resolution swap on the fly
+  // eco/performance + view-mode: pixel ratio + texture resolution swap on the fly.
+  // Re-runs when entering/leaving the solar or Moon view so the Earth drops to 2K
+  // there (it's a distant dot) and restores its full tier on return.
   useEffect(() => {
     ecoRef.current = eco
     const globe = globeRef.current
@@ -162,12 +168,12 @@ export function GlobeView(props: GlobeViewProps) {
     // other half of the memory blow-up (textures are capped via pickTextureRes)
     const lowDpr = eco || isMobileDevice()
     globe.renderer().setPixelRatio(lowDpr ? 1 : Math.min(window.devicePixelRatio, 2))
-    const wanted = pickTextureRes(eco)
+    const wanted = pickTextureRes(eco, solarMode, moonMode)
     const material = globeMaterialRef.current
     if (!material || textureResRef.current === wanted) return
     textureResRef.current = wanted
     swapGlobeTextures(material, wanted, () => textureResRef.current === wanted && !!globeRef.current)
-  }, [eco])
+  }, [eco, solarMode, moonMode])
 
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
   useEffect(() => {
