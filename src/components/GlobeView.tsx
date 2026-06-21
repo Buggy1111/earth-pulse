@@ -25,17 +25,17 @@ import { isMobileDevice } from './perf'
 import type { GlobeViewProps } from './globe/globeView.types'
 
 /** Texture resolution for the day/night globe stack:
- *  - solar/Moon view → 2K  (Earth is a distant dot — 8K would be ~0.5 GB of VRAM
- *    held for a few pixels; 2K reads identically and frees the memory for the
- *    solar system. The single biggest memory win when you leave the Earth view.)
- *  - mobile  → 4K  (sharp, safe under iOS's memory cap)
+ *  - mobile, solar/Moon view → 2K  (Earth is a distant dot there; dropping its
+ *    4K stack to 2K is what lets the solar system fit under iOS's memory cap so
+ *    the view stops OOM-restarting. Mobile only.)
+ *  - mobile, Earth view → 4K  (sharp, safe under the cap)
  *  - desktop eco → 2K (fill-rate relief for weak integrated GPUs)
- *  - desktop full → 8K (≈0.5 GB — only desktops have the headroom)
+ *  - desktop full → 8K, in EVERY view — desktop keeps best quality even in solar
+ *    (you can fly the camera back to Earth there), and has the headroom for it.
  * Mobile is decided by the device, NOT the eco flag, so 8K can never load on a
  * phone even if a stale preference leaves eco off. */
 function pickTextureRes(eco: boolean, solarMode: boolean, moonMode: boolean): '2k' | '4k' | '8k' {
-  if (solarMode || moonMode) return '2k'
-  if (isMobileDevice()) return '4k'
+  if (isMobileDevice()) return solarMode || moonMode ? '2k' : '4k'
   return eco ? '2k' : '8k'
 }
 
