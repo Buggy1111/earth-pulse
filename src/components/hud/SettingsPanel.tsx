@@ -15,6 +15,7 @@ export function SettingsPanel({
   onPickSat,
   eco,
   onToggleEco,
+  ecoLocked,
   earthSpin,
   onToggleEarthSpin,
   kioskEnabled,
@@ -32,6 +33,7 @@ export function SettingsPanel({
   onPickSat: (id: string, name: string) => void
   eco: boolean
   onToggleEco: () => void
+  ecoLocked: boolean
   earthSpin: boolean
   onToggleEarthSpin: () => void
   kioskEnabled: boolean
@@ -124,11 +126,23 @@ export function SettingsPanel({
               </label>
             ))}
             <label
-              className="mt-1 flex cursor-pointer items-center gap-2 border-t border-white/10 pt-2 text-xs text-slate-300"
-              title="Fast version: 2K textures, simpler satellites, lighter clouds, half-rate propagation — for laptops and integrated GPUs. Off = full 8K detail."
+              className={`mt-1 flex items-center gap-2 border-t border-white/10 pt-2 text-xs ${
+                ecoLocked ? 'cursor-not-allowed text-slate-500' : 'cursor-pointer text-slate-300'
+              }`}
+              title={
+                ecoLocked
+                  ? 'Always on for phones & tablets — full 8K detail needs more GPU memory than a mobile browser allows, so it would crash the app.'
+                  : 'Fast version: 2K textures, simpler satellites, lighter clouds, half-rate propagation — for laptops and integrated GPUs. Off = full 8K detail.'
+              }
             >
-              <input type="checkbox" checked={eco} onChange={onToggleEco} className="accent-emerald-400" />
-              ⚡ fast mode (2K)
+              <input
+                type="checkbox"
+                checked={eco}
+                onChange={onToggleEco}
+                disabled={ecoLocked}
+                className="accent-emerald-400 disabled:opacity-60"
+              />
+              ⚡ fast mode (2K){ecoLocked ? ' · on for mobile' : ''}
             </label>
             <label
               className="flex cursor-pointer items-center gap-2 text-xs text-slate-300"

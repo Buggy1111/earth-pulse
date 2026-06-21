@@ -73,7 +73,7 @@ export default function App() {
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   // 📡 sky AR overlay: point the phone at the sky to spot overhead satellites
   const [arMode, setArMode] = useState(false)
-  const { eco, onToggleEco } = useEcoMode(ready)
+  const { eco, onToggleEco, ecoLocked } = useEcoMode(ready)
   // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
   const [earthSpin, setEarthSpin] = useState(
     () => localStorage.getItem('earth-pulse-spin') !== 'off',
@@ -337,6 +337,7 @@ export default function App() {
           onPickSat={onPickSat}
           eco={eco}
           onToggleEco={onToggleEco}
+          ecoLocked={ecoLocked}
           earthSpin={earthSpin}
           onToggleEarthSpin={onToggleEarthSpin}
           kioskEnabled={kioskEnabled}

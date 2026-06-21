@@ -16,25 +16,31 @@ import { encodeView, parseView } from './lib/share'
 
 const ecoPreference = loadEcoPreference()
 
-/** Eco/performance mode: saved preference > weak-GPU heuristic > mobile, plus an
- * FPS watchdog a few seconds after first paint.
+/** Eco/performance mode: saved preference > weak-GPU heuristic, plus an FPS
+ * watchdog a few seconds after first paint.
  *
- * Mobiles (incl. iPhone/iPad, which report "Apple GPU" and slip past the
- * weak-GPU name check) MUST start in eco: the 8K textures at 2× DPR overrun an
- * installed PWA's memory budget on iOS and the app crash-reloads. See
- * isMobileDevice(). Users on a strong phone can still toggle full quality on. */
+ * On a phone/tablet eco is FORCED ON and LOCKED — full quality (8K textures at
+ * 2× DPR ≈ 0.5–0.7 GB of GPU memory) overruns an installed PWA's memory budget
+ * on iOS and the app crash-reloads. Critically this OVERRIDES any saved
+ * preference: a tap on the "fast mode" toggle used to persist eco=off, which
+ * then OOM-crashed the device on every launch. The toggle is a no-op on mobile
+ * (and the UI disables it). See isMobileDevice(). */
 export function useEcoMode(ready: boolean) {
+  // mobiles physically can't render full quality without OOM — lock eco on and
+  // ignore the persisted preference (which a past tap may have poisoned to off)
+  const ecoLocked = isMobileDevice()
   // lazy initializer — the GPU probe must run ONCE, not on every render
-  const [eco, setEco] = useState(() => ecoPreference ?? (detectWeakGpu() || isMobileDevice()))
+  const [eco, setEco] = useState(() => (ecoLocked ? true : (ecoPreference ?? detectWeakGpu())))
   const onToggleEco = useCallback(() => {
+    if (ecoLocked) return // full mode OOM-crashes the GPU on phones — don't allow it
     setEco((e) => {
       saveEcoPreference(!e)
       return !e
     })
-  }, [])
+  }, [ecoLocked])
   const watchdogRan = useRef(false)
   useEffect(() => {
-    if (!ready || watchdogRan.current || ecoPreference !== null) return
+    if (!ready || watchdogRan.current || ecoPreference !== null || ecoLocked) return
     watchdogRan.current = true
     let cancelled = false
     void sampleFps(4_000).then((fps) => {
@@ -43,8 +49,8 @@ export function useEcoMode(ready: boolean) {
     return () => {
       cancelled = true
     }
-  }, [ready])
-  return { eco, onToggleEco }
+  }, [ready, ecoLocked])
+  return { eco, onToggleEco, ecoLocked }
 }
 
 /** 24h earthquake timeline: offsetH −24…0, 0 = live; play replays the day. */

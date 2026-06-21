@@ -21,6 +21,7 @@ import { focusSolarBody } from './globe/solarFocus'
 import { enterSolarMode } from './globe/solarMode'
 import { setupScene, swapGlobeTextures } from './globe/sceneSetup'
 import { applyGibsImage } from './globe/gibsLayer'
+import { isMobileDevice } from './perf'
 import type { GlobeViewProps } from './globe/globeView.types'
 
 export function GlobeView(props: GlobeViewProps) {
@@ -90,7 +91,12 @@ export function GlobeView(props: GlobeViewProps) {
   const moonMeshRef = useRef<THREE.Mesh | null>(null)
   const surfaceRef = useRef<ReturnType<typeof setupSurface> | null>(null)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
-  const textureResRef = useRef<'2k' | '8k'>(eco ? '2k' : '8k')
+  // Phones/tablets NEVER load the 8K textures: ≈0.5 GB of GPU memory OOM-crashes
+  // an installed PWA on iOS. This caps it at the render layer regardless of the
+  // eco flag — a belt-and-suspenders guard even if a stale preference or a toggle
+  // somehow leaves eco off. (eco is also force-locked on mobile in useEcoMode.)
+  const lowMem = eco || isMobileDevice()
+  const textureResRef = useRef<'2k' | '8k'>(lowMem ? '2k' : '8k')
   const gibsActiveRef = useRef(false)
   const gibsMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
@@ -141,8 +147,10 @@ export function GlobeView(props: GlobeViewProps) {
     ecoRef.current = eco
     const globe = globeRef.current
     if (!globe) return
-    globe.renderer().setPixelRatio(eco ? 1 : Math.min(window.devicePixelRatio, 2))
-    const wanted: '2k' | '8k' = eco ? '2k' : '8k'
+    // on mobile keep 1× DPR + 2K textures no matter the eco flag (see textureResRef)
+    const lowMem = eco || isMobileDevice()
+    globe.renderer().setPixelRatio(lowMem ? 1 : Math.min(window.devicePixelRatio, 2))
+    const wanted: '2k' | '8k' = lowMem ? '2k' : '8k'
     const material = globeMaterialRef.current
     if (!material || textureResRef.current === wanted) return
     textureResRef.current = wanted
