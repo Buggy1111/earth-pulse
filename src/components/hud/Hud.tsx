@@ -10,7 +10,7 @@ import {
   SpaceWeatherPanel,
   TitleCard,
 } from './panels'
-import { EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
+import { EventDetail, EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
 import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { HudCard } from './HudCard'
 import { SettingsPanel } from './SettingsPanel'
@@ -95,6 +95,8 @@ interface HudProps {
   // events + data layers
   events: ComponentProps<typeof EventsPanel>['events']
   onEventClick: ComponentProps<typeof EventsPanel>['onEventClick']
+  selectedEvent: ComponentProps<typeof EventDetail>['event'] | null
+  onCloseEvent: () => void
   gibsLayer: ComponentProps<typeof DataLayerPanel>['active']
   onSelectGibs: ComponentProps<typeof DataLayerPanel>['onSelect']
   gibsDaysBack: number
@@ -236,6 +238,10 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' && p.selected ? (
       <QuakeDetail quake={p.selected} now={p.now} onClose={p.onCloseQuake} />
     ) : null
+  const eventDetailEl =
+    p.mode === 'earth' && p.selectedEvent ? (
+      <EventDetail event={p.selectedEvent} now={p.now} onClose={p.onCloseEvent} />
+    ) : null
   const missionEl =
     p.mode === 'earth' && p.selectedMission ? (
       <MissionCard name={p.selectedMission} onClose={p.onCloseMission} />
@@ -299,6 +305,7 @@ export function Hud(p: HudProps) {
             </div>
             <div className="flex flex-col items-end gap-3">
               {quakeDetailEl}
+              {eventDetailEl}
               {missionEl}
               {dockEl}
               {issEl}
@@ -329,12 +336,13 @@ export function Hud(p: HudProps) {
             {issEl}
             {topRightEl}
             {quakeDetailEl}
+            {eventDetailEl}
             {missionEl}
           </SideDrawer>
         </>
       )}
 
-      <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 safe-pb text-center text-[10px] text-slate-600">
+      <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 safe-pb text-center text-[10px] text-slate-400">
         Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
         Solar System Scope (CC BY)
       </p>

@@ -220,7 +220,9 @@ export default function App() {
   }, [])
 
   const events = useEvents()
+  const [selectedEvent, setSelectedEvent] = useState<EarthEvent | null>(null)
   const onEventClick = useCallback((e: EarthEvent) => {
+    setSelectedEvent(e)
     setFlyTo((f) => ({ lat: e.lat, lng: e.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
 
@@ -361,6 +363,8 @@ export default function App() {
           onCloseQuake={() => setSelected(null)}
           events={events}
           onEventClick={onEventClick}
+          selectedEvent={selectedEvent}
+          onCloseEvent={() => setSelectedEvent(null)}
           gibsLayer={gibsLayer}
           onSelectGibs={setGibsLayer}
           gibsDaysBack={gibsDaysBack}

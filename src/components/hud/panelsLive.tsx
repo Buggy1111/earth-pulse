@@ -72,7 +72,7 @@ export function EventsPanel({
       >
         latest: {lm.icon} <span className="text-slate-200">{latest.title}</span>
       </button>
-      <p className="mt-2 text-[10px] text-slate-600">data: NASA EONET, live natural events</p>
+      <p className="mt-2 text-[10px] text-amber-300/80">📡 NASA EONET, live natural events</p>
     </HudCard>
   )
 }
@@ -93,14 +93,14 @@ export function IssPanel({
       </h2>
       {iss ? (
         <>
-          <div className="num mt-1 text-xl font-bold text-sky-300">{formatKmh(iss.velocityKmh)}</div>
+          <div className="num readout mt-1 text-xl font-bold text-sky-300">{formatKmh(iss.velocityKmh)}</div>
           <p className="num mt-0.5 text-xs text-slate-400">
             {formatKm(iss.altitudeKm)} above {formatCoords(iss.lat, iss.lng)} ·{' '}
             {iss.visibility === 'daylight' ? 'in sunlight' : 'in shadow'}
           </p>
         </>
       ) : (
-        <p className="mt-1 text-xs text-slate-500">acquiring signal…</p>
+        <p className="mt-1 text-xs text-slate-400">acquiring signal…</p>
       )}
       {pass && (
         <p className="mt-1.5 text-xs text-emerald-300">
@@ -130,12 +130,12 @@ export const WikiPanel = memo(function WikiPanel({
     <HudCard className="hidden w-72 px-5 py-4 md:block" delay={360}>
       <h2 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Wikipedia, live
-        <span className="num text-[10px] font-normal text-slate-500 normal-case">
+        <span className="num text-[10px] font-normal text-slate-400 normal-case">
           {totalSeen} edits while you watch
         </span>
       </h2>
       <ul className="mt-2 flex flex-col gap-1.5">
-        {edits.length === 0 && <li className="text-xs text-slate-500">listening…</li>}
+        {edits.length === 0 && <li className="text-xs text-slate-400">listening…</li>}
         {edits.map((e, i) => (
           <li key={`${e.url}-${i}`} className={i === 0 ? 'slide-in' : ''}>
             <a
@@ -164,7 +164,7 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
     <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="num text-2xl font-bold text-amber-300">{formatMag(quake.mag)}</div>
+          <div className="num readout text-2xl font-bold text-amber-300">{formatMag(quake.mag)}</div>
           <p className="mt-0.5 max-w-64 text-sm text-slate-200">{quake.place}</p>
           <p className="num mt-1 text-xs text-slate-400">
             depth {quake.depthKm.toFixed(0)} km · {timeAgo(quake.time, now)} ·{' '}
@@ -179,6 +179,64 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
         >
           ✕
         </button>
+      </div>
+    </HudCard>
+  )
+}
+
+/** Detail card for a clicked NASA EONET natural event — the events' answer to
+ * QuakeDetail, so a wildfire/storm/volcano reads as richly as an earthquake. */
+export function EventDetail({
+  event,
+  now,
+  onClose,
+}: {
+  event: EarthEvent
+  now: number
+  onClose: () => void
+}) {
+  const m = eventMeta(event.category)
+  return (
+    <HudCard className="w-72 px-4 py-3" style={{ borderColor: `${m.color}66` }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl" aria-hidden>
+              {m.icon}
+            </span>
+            <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: m.color }}>
+              {m.label}
+            </span>
+          </div>
+          <h2 className="mt-1.5 max-w-60 text-sm font-semibold text-slate-100">{event.title}</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="cursor-pointer rounded-lg px-2 py-1 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+        >
+          ✕
+        </button>
+      </div>
+      <p className="num mt-1.5 text-xs text-slate-400">
+        {event.magnitude
+          ? `${Math.round(event.magnitude).toLocaleString('en-US')} ${event.magnitudeUnit ?? ''} · `
+          : ''}
+        {timeAgo(event.date, now)} · {formatCoords(event.lat, event.lng)}
+      </p>
+      <div className="mt-1.5 flex items-center justify-between">
+        <span className="text-[10px] text-amber-300/80">📡 NASA EONET</span>
+        {event.link?.startsWith('https://') && (
+          <a
+            href={event.link}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] text-cyan-300 hover:text-cyan-200"
+          >
+            source ↗
+          </a>
+        )}
       </div>
     </HudCard>
   )
