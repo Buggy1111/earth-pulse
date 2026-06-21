@@ -24,24 +24,29 @@ import { applyGibsImage } from './globe/gibsLayer'
 import { isMobileDevice } from './perf'
 import type { GlobeViewProps } from './globe/globeView.types'
 
-/** Texture resolution for the day/night globe stack:
- *  - mobile, solar/Moon view → 2K  (Earth is a distant dot there; dropping its
- *    4K stack to 2K is what lets the solar system fit under iOS's memory cap so
- *    the view stops OOM-restarting. Mobile only.)
- *  - mobile, Earth view → 4K  (sharp, safe under the cap)
- *  - desktop eco → 2K (fill-rate relief for weak integrated GPUs)
- *  - desktop full → 8K, in EVERY view — desktop keeps best quality even in solar
- *    (you can fly the camera back to Earth there), and has the headroom for it.
- * Mobile is decided by the device, NOT the eco flag, so 8K can never load on a
- * phone even if a stale preference leaves eco off. */
-function pickTextureRes(eco: boolean, solarMode: boolean, moonMode: boolean): '2k' | '4k' | '8k' {
-  if (isMobileDevice()) return solarMode || moonMode ? '2k' : '4k'
-  return eco ? '2k' : '8k'
+/** Texture resolution for the day/night globe stack, from the user's quality
+ * pick plus the view-mode + device clamps:
+ *  - desktop → exactly the picked tier (2K/4K/8K), in EVERY view — it keeps best
+ *    quality even in solar (you can fly the camera back to Earth there).
+ *  - mobile, Earth view → the pick, capped to 4K (8K OOMs a phone).
+ *  - mobile, solar/Moon view → 2K — the Earth is a distant dot, so dropping it is
+ *    what lets the solar system fit under iOS's memory cap (no more OOM restart).
+ * Mobile is decided by the device, so 8K can never reach a phone. */
+function pickTextureRes(
+  quality: '2k' | '4k' | '8k',
+  solarMode: boolean,
+  moonMode: boolean,
+): '2k' | '4k' | '8k' {
+  if (isMobileDevice()) {
+    if (solarMode || moonMode) return '2k'
+    return quality === '2k' ? '2k' : '4k'
+  }
+  return quality
 }
 
 export function GlobeView(props: GlobeViewProps) {
   const { quakes, flashes, iss, sats, kp, layers, selectedOrbitIds, userLoc, locVersion } = props
-  const { eco, focusSat, flyTo, simNow, tour, moonMode, solarMode, focusPlanet, solarTime } = props
+  const { eco, quality, focusSat, flyTo, simNow, tour, moonMode, solarMode, focusPlanet, solarTime } = props
   const { followIss, onQuakeClick } = props
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -111,7 +116,7 @@ export function GlobeView(props: GlobeViewProps) {
   // (a fill-rate win for weak integrated GPUs), full desktop is 8K. This is
   // decided at the render layer so 8K can never reach mobile even via a stale
   // preference or the runtime swap (eco is also force-locked on mobile).
-  const textureResRef = useRef<'2k' | '4k' | '8k'>(pickTextureRes(eco, solarMode, moonMode))
+  const textureResRef = useRef<'2k' | '4k' | '8k'>(pickTextureRes(quality, solarMode, moonMode))
   const gibsActiveRef = useRef(false)
   const gibsMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
@@ -168,12 +173,12 @@ export function GlobeView(props: GlobeViewProps) {
     // other half of the memory blow-up (textures are capped via pickTextureRes)
     const lowDpr = eco || isMobileDevice()
     globe.renderer().setPixelRatio(lowDpr ? 1 : Math.min(window.devicePixelRatio, 2))
-    const wanted = pickTextureRes(eco, solarMode, moonMode)
+    const wanted = pickTextureRes(quality, solarMode, moonMode)
     const material = globeMaterialRef.current
     if (!material || textureResRef.current === wanted) return
     textureResRef.current = wanted
     swapGlobeTextures(material, wanted, () => textureResRef.current === wanted && !!globeRef.current)
-  }, [eco, solarMode, moonMode])
+  }, [eco, quality, solarMode, moonMode])
 
   // aurora ovals around the geomagnetic poles, scaled by the live Kp index
   useEffect(() => {

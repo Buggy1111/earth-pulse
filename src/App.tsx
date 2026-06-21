@@ -11,7 +11,7 @@ import { useEvents } from './hooks'
 import type { EarthEvent } from './lib/events'
 import { gibsImageDate, type GibsLayer } from './lib/gibs'
 import {
-  useEcoMode,
+  useQuality,
   useGeolocate,
   useIdleKiosk,
   useKioskShow,
@@ -73,7 +73,7 @@ export default function App() {
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   // 📡 sky AR overlay: point the phone at the sky to spot overhead satellites
   const [arMode, setArMode] = useState(false)
-  const { eco, onToggleEco, ecoLocked } = useEcoMode(ready)
+  const { quality, setQuality, eco, mobile } = useQuality(ready)
   // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
   const [earthSpin, setEarthSpin] = useState(
     () => localStorage.getItem('earth-pulse-spin') !== 'off',
@@ -257,6 +257,7 @@ export default function App() {
         userLoc={userLoc}
         locVersion={locVersion}
         eco={eco}
+        quality={quality}
         earthSpin={earthSpin}
         focusSat={focusSat}
           followSat={followSat}
@@ -335,9 +336,9 @@ export default function App() {
           onClearOrbits={onClearOrbits}
           satList={satList}
           onPickSat={onPickSat}
-          eco={eco}
-          onToggleEco={onToggleEco}
-          ecoLocked={ecoLocked}
+          quality={quality}
+          onSetQuality={setQuality}
+          mobile={mobile}
           earthSpin={earthSpin}
           onToggleEarthSpin={onToggleEarthSpin}
           kioskEnabled={kioskEnabled}

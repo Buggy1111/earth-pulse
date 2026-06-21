@@ -13,9 +13,9 @@ export function SettingsPanel({
   onClearOrbits,
   satList,
   onPickSat,
-  eco,
-  onToggleEco,
-  ecoLocked,
+  quality,
+  onSetQuality,
+  mobile,
   earthSpin,
   onToggleEarthSpin,
   kioskEnabled,
@@ -31,9 +31,9 @@ export function SettingsPanel({
   onClearOrbits: () => void
   satList: OrbitEntry[]
   onPickSat: (id: string, name: string) => void
-  eco: boolean
-  onToggleEco: () => void
-  ecoLocked: boolean
+  quality: '2k' | '4k' | '8k'
+  onSetQuality: (q: '2k' | '4k' | '8k') => void
+  mobile: boolean
   earthSpin: boolean
   onToggleEarthSpin: () => void
   kioskEnabled: boolean
@@ -125,25 +125,45 @@ export function SettingsPanel({
                 {label}
               </label>
             ))}
-            <label
-              className={`mt-1 flex items-center gap-2 border-t border-white/10 pt-2 text-xs ${
-                ecoLocked ? 'cursor-not-allowed text-slate-500' : 'cursor-pointer text-slate-300'
-              }`}
-              title={
-                ecoLocked
-                  ? 'Phones & tablets run a balanced 4K stack automatically — sharp, but light enough to stay under a mobile browser’s memory limit. The full 8K detail needs more GPU memory than mobile allows and would crash the app.'
-                  : 'Fast version: 2K textures, simpler satellites, lighter clouds, half-rate propagation — for laptops and integrated GPUs. Off = full 8K detail.'
-              }
-            >
-              <input
-                type="checkbox"
-                checked={eco}
-                onChange={onToggleEco}
-                disabled={ecoLocked}
-                className="accent-emerald-400 disabled:opacity-60"
-              />
-              {ecoLocked ? '⚡ balanced 4K · auto on mobile' : '⚡ fast mode (2K)'}
-            </label>
+            <div className="mt-1 border-t border-white/10 pt-2 text-xs text-slate-300">
+              <span className="mb-1.5 flex items-center gap-1.5">🌍 texture quality</span>
+              <div className="flex gap-1" role="group" aria-label="Texture quality">
+                {(['2k', '4k', '8k'] as const).map((q) => {
+                  const disabled = mobile && q === '8k'
+                  const active = quality === q
+                  return (
+                    <button
+                      key={q}
+                      type="button"
+                      disabled={disabled}
+                      aria-pressed={active}
+                      onClick={() => onSetQuality(q)}
+                      title={
+                        q === '2k'
+                          ? 'Fast: 2K textures + simpler satellites + half-rate propagation — for weak GPUs'
+                          : q === '4k'
+                            ? 'Balanced: crisp 4K textures at full detail'
+                            : disabled
+                              ? '8K is desktop-only — too much GPU memory for a phone'
+                              : 'Ultra: full 8K detail (~0.5 GB of GPU memory)'
+                      }
+                      className={`flex-1 rounded border px-2 py-1 text-[11px] font-semibold tracking-wider uppercase transition-colors ${
+                        active
+                          ? 'border-emerald-400/60 bg-emerald-500/25 text-emerald-200'
+                          : 'border-white/10 text-slate-400 hover:bg-white/5'
+                      } ${disabled ? 'cursor-not-allowed opacity-35 hover:bg-transparent' : 'cursor-pointer'}`}
+                    >
+                      {q.toUpperCase()}
+                    </button>
+                  )
+                })}
+              </div>
+              {mobile && (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  8K is desktop-only — too much GPU memory for a phone
+                </p>
+              )}
+            </div>
             <label
               className="flex cursor-pointer items-center gap-2 text-xs text-slate-300"
               title="Earth spins on its axis while the Sun stays put (the textbook view). Off = the Sun travels around a fixed Earth. Most visible when you speed up time."

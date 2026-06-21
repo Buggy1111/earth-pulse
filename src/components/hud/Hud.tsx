@@ -68,9 +68,9 @@ interface HudProps {
   onClearOrbits: () => void
   satList: OrbitEntry[]
   onPickSat: (id: string, name: string) => void
-  eco: boolean
-  onToggleEco: () => void
-  ecoLocked: boolean
+  quality: '2k' | '4k' | '8k'
+  onSetQuality: (q: '2k' | '4k' | '8k') => void
+  mobile: boolean
   earthSpin: boolean
   onToggleEarthSpin: () => void
   kioskEnabled: boolean
@@ -161,9 +161,9 @@ export function Hud(p: HudProps) {
         onClearOrbits={p.onClearOrbits}
         satList={p.satList}
         onPickSat={p.onPickSat}
-        eco={p.eco}
-        onToggleEco={p.onToggleEco}
-        ecoLocked={p.ecoLocked}
+        quality={p.quality}
+        onSetQuality={p.onSetQuality}
+        mobile={p.mobile}
         earthSpin={p.earthSpin}
         onToggleEarthSpin={p.onToggleEarthSpin}
         kioskEnabled={p.kioskEnabled}

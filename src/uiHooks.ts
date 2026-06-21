@@ -2,55 +2,68 @@
  * browser geolocation. Pure React state machines — no globe knowledge. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  detectWeakGpu,
-  isMobileDevice,
-  loadEcoPreference,
-  sampleFps,
-  saveEcoPreference,
-} from './components/perf'
+import { detectWeakGpu, isMobileDevice, sampleFps } from './components/perf'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { encodeView, parseView } from './lib/share'
 
-const ecoPreference = loadEcoPreference()
+export type Quality = '2k' | '4k' | '8k'
+const QUALITY_KEY = 'earth-pulse-quality'
+function loadQuality(): Quality | null {
+  try {
+    const v = localStorage.getItem(QUALITY_KEY)
+    return v === '2k' || v === '4k' || v === '8k' ? v : null
+  } catch {
+    return null
+  }
+}
+function saveQuality(q: Quality): void {
+  try {
+    localStorage.setItem(QUALITY_KEY, q)
+  } catch {
+    // private mode — choice just won't persist
+  }
+}
+const savedQuality = loadQuality()
 
-/** Eco/performance mode: saved preference > weak-GPU heuristic, plus an FPS
- * watchdog a few seconds after first paint.
+/** Texture-quality tier the user picks (2K / 4K / 8K) plus the derived lite-perf
+ * `eco` flag (1× DPR, simpler satellites, half-rate propagation).
  *
- * On a phone/tablet eco is FORCED ON and LOCKED — full quality (8K textures at
- * 2× DPR ≈ 0.5–0.7 GB of GPU memory) overruns an installed PWA's memory budget
- * on iOS and the app crash-reloads. Critically this OVERRIDES any saved
- * preference: a tap on the "fast mode" toggle used to persist eco=off, which
- * then OOM-crashed the device on every launch. The toggle is a no-op on mobile
- * (and the UI disables it). See isMobileDevice(). */
-export function useEcoMode(ready: boolean) {
-  // mobiles physically can't render full quality without OOM — lock eco on and
-  // ignore the persisted preference (which a past tap may have poisoned to off)
-  const ecoLocked = isMobileDevice()
+ * Phones are CAPPED at 4K — 8K (~0.5 GB of VRAM) overruns iOS's memory budget
+ * and crash-reloads the app — and always run the lite-perf path. A weak desktop
+ * GPU defaults to 2K (also via an FPS watchdog a few seconds after first paint).
+ * Default: desktop → 8K, phone → 4K. */
+export function useQuality(ready: boolean) {
+  const mobile = isMobileDevice()
   // lazy initializer — the GPU probe must run ONCE, not on every render
-  const [eco, setEco] = useState(() => (ecoLocked ? true : (ecoPreference ?? detectWeakGpu())))
-  const onToggleEco = useCallback(() => {
-    if (ecoLocked) return // full mode OOM-crashes the GPU on phones — don't allow it
-    setEco((e) => {
-      saveEcoPreference(!e)
-      return !e
-    })
-  }, [ecoLocked])
+  const [quality, setQualityState] = useState<Quality>(() => {
+    if (mobile) return savedQuality === '2k' ? '2k' : '4k' // never 8K on a phone
+    return savedQuality ?? (detectWeakGpu() ? '2k' : '8k')
+  })
+  const setQuality = useCallback(
+    (q: Quality) => {
+      const next: Quality = mobile && q === '8k' ? '4k' : q // 8K OOM-crashes phones
+      saveQuality(next)
+      setQualityState(next)
+    },
+    [mobile],
+  )
   const watchdogRan = useRef(false)
   useEffect(() => {
-    if (!ready || watchdogRan.current || ecoPreference !== null || ecoLocked) return
+    if (!ready || watchdogRan.current || savedQuality !== null || mobile) return
     watchdogRan.current = true
     let cancelled = false
     void sampleFps(4_000).then((fps) => {
-      if (!cancelled && fps < 36) setEco(true)
+      if (!cancelled && fps < 36) setQualityState('2k')
     })
     return () => {
       cancelled = true
     }
-  }, [ready, ecoLocked])
-  return { eco, onToggleEco, ecoLocked }
+  }, [ready, mobile])
+  // lite-perf path: always on mobile, and on the desktop 2K tier
+  const eco = quality === '2k' || mobile
+  return { quality, setQuality, eco, mobile }
 }
 
 /** 24h earthquake timeline: offsetH −24…0, 0 = live; play replays the day. */

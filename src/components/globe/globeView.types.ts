@@ -25,8 +25,11 @@ export interface GlobeViewProps {
   userLoc: { lat: number; lng: number } | null
   /** Bumped on every locate click so we re-fly even to an unchanged position. */
   locVersion: number
-  /** Eco/performance mode: 4K textures, 1× pixel ratio, 30 Hz propagation. */
+  /** Lite-perf path: 1× pixel ratio, simpler satellites, 30 Hz propagation. */
   eco: boolean
+  /** User-picked texture tier for the day/night globe (desktop 2K/4K/8K; phones
+   * are capped to 2K/4K). The view-mode + device clamps live in pickTextureRes. */
+  quality: '2k' | '4k' | '8k'
   /** "Earth spins" view: camera follows the Sun so the Earth appears to rotate. */
   earthSpin: boolean
   /** Camera restored from a shared link — overrides the default opening view. */
