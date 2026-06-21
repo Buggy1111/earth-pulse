@@ -38,6 +38,10 @@ test('boots the globe with no console errors and no Starlink swarm by default', 
 test('enabling the Starlink layer builds a ~10k InstancedMesh with positioned instances', async ({
   page,
 }) => {
+  // cold start (first Vite compile of the full module graph + SwiftShader context)
+  // plus fetching the 1.8 MB TLE snapshot and building 10k instances can exceed the
+  // default 60 s on a cold run; give this one test headroom (warm runs take ~35 s).
+  test.setTimeout(120_000)
   await bootGlobe(page)
 
   // open the customize panel, then flip the Starlink layer on

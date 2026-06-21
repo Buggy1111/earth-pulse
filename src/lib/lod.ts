@@ -12,9 +12,15 @@ export function selectNearest(distSq: ArrayLike<number>, n: number): number[] {
   // ~10k swarm at 2 Hz that was thousands of throwaway pair-arrays every tick.
   const idx: number[] = new Array(len)
   for (let i = 0; i < len; i++) idx[i] = i
-  // ascending by distance; ties keep their original order so the pick is stable
-  // (non-finite distances fall to the end, exactly like the old comparator).
-  idx.sort((a, b) => distSq[a] - distSq[b] || a - b)
+  // ascending by distance; ties keep their original order so the pick is stable.
+  // Map non-finite distances to +Infinity so they reliably sort LAST — a raw
+  // `distSq[a] - distSq[b]` yields NaN for those pairs, which gives JS engines
+  // an undefined ordering and could let a hidden sat outrank a visible one.
+  idx.sort((a, b) => {
+    const da = Number.isFinite(distSq[a]) ? distSq[a] : Infinity
+    const db = Number.isFinite(distSq[b]) ? distSq[b] : Infinity
+    return da - db || a - b
+  })
   idx.length = Math.min(n, len)
   return idx
 }

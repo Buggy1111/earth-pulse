@@ -14,7 +14,12 @@ export interface ViewState {
   layersOff: string[]
 }
 
-const LAYER_KEYS = new Set(['sats', 'iss', 'quakes', 'aurora', 'clouds', 'borders', 'detail'])
+// allow-list of toggleable layer keys (mirrors LayerState) — a shared link can
+// only ever switch these OFF; anything else in the URL is ignored
+const LAYER_KEYS = new Set([
+  'sats', 'orbits', 'iss', 'starlink', 'quakes', 'events',
+  'aurora', 'clouds', 'borders', 'labels', 'volcanoes', 'detail',
+])
 
 export function encodeView(view: ViewState): string {
   const parts: string[] = []

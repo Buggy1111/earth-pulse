@@ -66,9 +66,9 @@ interface PositionsMsg {
 /** True only for a genuine software rasteriser (SwiftShader/llvmpipe in
  * headless/CI), read from the globe's OWN GL context. We must NOT spawn a
  * throwaway probe context to test this: iOS caps the number of live WebGL
- * contexts, and once globe.gl holds one the probe fails — which the old
- * isSoftwareRenderer() then misread as "software" and hid the swarm models on
- * the phone (while AR, which never probes, showed them fine). Unknown = real. */
+ * contexts, and once globe.gl holds one a probe context fails — which a probe
+ * would then misread as "software" and hide the swarm models on the phone
+ * (while AR, which never probes, showed them fine). Unknown = real. */
 function rendererIsSoftware(globe: GlobeInstance): boolean {
   try {
     const gl = globe.renderer().getContext()

@@ -6,6 +6,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { IssState } from '../../lib/iss'
 import type { MoonDef } from '../../lib/planets'
+import { warpedSimMs } from '../../lib/clock'
 import { subsolarPoint } from '../../lib/sun'
 import {
   globeAltitude,
@@ -16,7 +17,7 @@ import {
 } from '../../lib/satellites'
 import type { LayerState } from '../hud/types'
 import { makeNameSprite } from '../spaceObjects'
-import { detectWeakGpu, glIsSoftware } from '../perf'
+import { detectWeakGpu, globeIsSoftware } from '../perf'
 import { cloneSatModel, preloadSatModels } from './spaceModels'
 import { escapeHtml, tooltip, type OrbitObject, type Trail } from './helpers'
 import { buildSatObject } from './satObject'
@@ -127,15 +128,7 @@ export function startOrbitEngine(
   // Powerful GPUs always render full res (the whole block is skipped).
   const renderer = globe.renderer()
   const MOVE_SCALE = 0.62 // pixel-ratio multiplier while the view is moving
-  const needsScaling =
-    detectWeakGpu() ||
-    (() => {
-      try {
-        return glIsSoftware(renderer.getContext())
-      } catch {
-        return false
-      }
-    })()
+  const needsScaling = detectWeakGpu() || globeIsSoftware(globe)
   let interacting = false
   let sharpSince = 0
   let curScale = 1
@@ -159,7 +152,7 @@ export function startOrbitEngine(
     frameNo++
     // warped clock: everything physical follows it (sats speed up too)
     const t = deps.solarTimeRef.current
-    const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
+    const now = new Date(warpedSimMs(t, Date.now()))
 
     // resolution (weak GPUs only): crisp while still, lighter only while moving.
     // Snap down the instant a drag/zoom/time-warp starts; ~0.45 s after it stops,
@@ -234,7 +227,7 @@ export function startOrbitEngine(
       // the spin is imperceptible, so we leave globe.gl's gentle idle auto-rotate
       // alone. Skipped while a body is pinned (the chase block owns the camera).
       const warp = deps.solarTimeRef.current.warp
-      const ctrl = globe.controls() as unknown as { autoRotate: boolean; enableDamping: boolean }
+      const ctrl = globe.controls()
       if (deps.earthSpinRef.current && warp !== 1 && !deps.pinTargetRef.current) {
         // our Sun-tracking IS the rotation — turn off BOTH the idle auto-rotate
         // and damping, which each otherwise nudge the camera every frame and make

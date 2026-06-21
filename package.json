@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "fetch-tle": "node scripts/fetch-tle.mjs",
     "fetch-volcanoes": "node scripts/fetch-volcanoes.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

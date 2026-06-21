@@ -7,6 +7,10 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
 
+    /* Strictness — the code already follows strict-null discipline (every ref is
+       T | null and guarded); turning it on locks that in (verified: 0 new errors) */
+    "strict": true,
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

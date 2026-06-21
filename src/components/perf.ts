@@ -6,48 +6,32 @@
  * tablets are a separate tier (4K, see isMobileDevice + GlobeView).
  */
 
-const ECO_KEY = 'earth-pulse-eco'
-
-export function loadEcoPreference(): boolean | null {
-  try {
-    const v = localStorage.getItem(ECO_KEY)
-    return v === null ? null : v === '1'
-  } catch {
-    return null
-  }
-}
-
-export function saveEcoPreference(eco: boolean): void {
-  try {
-    localStorage.setItem(ECO_KEY, eco ? '1' : '0')
-  } catch {
-    // private mode — preference just won't persist
-  }
-}
-
 /** Heuristic: GPUs that are known to struggle with this scene.
  *
- * Cached after the first call and the probe context is explicitly released —
- * every WebGL context counts against the browser's ~16-context budget, and
- * exceeding it kills the globe's context (visible as the globe blinking). */
+ * Cached after the first call and the probe context is explicitly released in a
+ * `finally` — every WebGL context counts against the browser's ~16-context
+ * budget, and exceeding it kills the globe's context (visible as the globe
+ * blinking). Releasing in `finally` means even a throwing getParameter still
+ * frees the probe. */
 let weakGpuCache: boolean | null = null
 export function detectWeakGpu(): boolean {
   if (weakGpuCache !== null) return weakGpuCache
+  let gl: WebGLRenderingContext | null = null
   try {
-    const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl')
+    gl = document.createElement('canvas').getContext('webgl')
     if (!gl) return (weakGpuCache = true)
     const ext = gl.getExtension('WEBGL_debug_renderer_info')
     const renderer = ext
       ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
       : String(gl.getParameter(gl.RENDERER))
-    gl.getExtension('WEBGL_lose_context')?.loseContext()
     weakGpuCache = /intel.*(uhd|hd graphics)|llvmpipe|swiftshader|angle.*intel|mali|adreno|videocore/i.test(
       renderer,
     )
     return weakGpuCache
   } catch {
     return (weakGpuCache = false)
+  } finally {
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
   }
 }
 
@@ -90,28 +74,7 @@ export function followPixelRatio(devicePixelRatio: number): number {
   return Math.min(devicePixelRatio || 1, 1.25)
 }
 
-/** True on a software/CPU WebGL renderer (SwiftShader, LLVMpipe) — i.e. a
- * headless/CI browser with no GPU. The Starlink model LOD skips the real GLB
- * there: 10k× a real mesh has no chance on a software rasteriser, and it would
- * just hang the e2e run. Real mobile/desktop GPUs are NOT flagged. */
-let softwareCache: boolean | null = null
-export function isSoftwareRenderer(): boolean {
-  if (softwareCache !== null) return softwareCache
-  try {
-    const gl = document.createElement('canvas').getContext('webgl')
-    if (!gl) return (softwareCache = true)
-    const ext = gl.getExtension('WEBGL_debug_renderer_info')
-    const renderer = ext
-      ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
-      : String(gl.getParameter(gl.RENDERER))
-    gl.getExtension('WEBGL_lose_context')?.loseContext()
-    return (softwareCache = /swiftshader|llvmpipe|software|basic render/i.test(renderer))
-  } catch {
-    return (softwareCache = false)
-  }
-}
-
-/** Same software-renderer test, but reading an EXISTING GL context (the globe's
+/** Software-renderer test reading an EXISTING GL context (the globe's
  * own) instead of creating a probe. Prefer this once the globe is up: a probe
  * context can fail spuriously under iOS's live-context cap and misreport a
  * perfectly good GPU as "software". */
@@ -122,6 +85,19 @@ export function glIsSoftware(gl: WebGLRenderingContext | WebGL2RenderingContext)
       ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
       : String(gl.getParameter(gl.RENDERER))
     return /swiftshader|llvmpipe|software|basic render/i.test(renderer)
+  } catch {
+    return false
+  }
+}
+
+/** `glIsSoftware` against a globe's live context, guarded — `getContext()` can
+ * throw on a torn-down globe. The one place callers ask "is this globe on a CPU
+ * renderer?" (no throwaway probe context — see the iOS context-cap note above). */
+export function globeIsSoftware(globe: {
+  renderer(): { getContext(): WebGLRenderingContext | WebGL2RenderingContext }
+}): boolean {
+  try {
+    return glIsSoftware(globe.renderer().getContext())
   } catch {
     return false
   }

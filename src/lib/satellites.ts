@@ -1,8 +1,8 @@
 /** Celestrak TLE parsing + local SGP4 propagation via satellite.js.
  *
- * The app ships a build-time TLE snapshot (public/tle/visual.txt, ~160
- * brightest satellites) and propagates positions locally — truly live motion
- * with zero runtime API calls. TLEs stay accurate for days.
+ * The app ships a build-time TLE snapshot (public/tle/famous.txt, ~30
+ * hand-picked well-known satellites) and propagates positions locally — truly
+ * live motion with zero runtime API calls. TLEs stay accurate for days.
  */
 
 import {

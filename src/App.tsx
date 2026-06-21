@@ -9,6 +9,7 @@ import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { useEvents } from './hooks'
 import type { EarthEvent } from './lib/events'
+import { warpedSimMs } from './lib/clock'
 import { gibsImageDate, type GibsLayer } from './lib/gibs'
 import {
   useQuality,
@@ -119,7 +120,7 @@ export default function App() {
   const moonState = useMemo(() => subLunarPoint(new Date(minuteNow * 60_000)), [minuteNow])
   const moonLabel = useMemo(() => moonPhaseLabel(moonState), [moonState])
 
-  const solarSimNow = solarTime.simMs + (now - solarTime.realMs) * solarTime.warp
+  const solarSimNow = warpedSimMs(solarTime, now)
 
   // 👁 clean view: hide the whole HUD for an unobstructed globe (great for
   // screenshots, video, ambient/kiosk). Toggle with the dock button or H.
@@ -225,6 +226,21 @@ export default function App() {
     setSelectedEvent(e)
     setFlyTo((f) => ({ lat: e.lat, lng: e.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
+
+  // the quake / event / mission detail cards are Earth-view only — drop them the
+  // moment we leave Earth so a card opened before hopping to the Moon, the solar
+  // system or Drift doesn't pop back up on return. React's documented "adjust
+  // state while rendering when a tracked value changes" pattern — no effect.
+  const awayFromEarth = mode !== 'earth' || driftMode
+  const [wasAwayFromEarth, setWasAwayFromEarth] = useState(awayFromEarth)
+  if (awayFromEarth !== wasAwayFromEarth) {
+    setWasAwayFromEarth(awayFromEarth)
+    if (awayFromEarth) {
+      setSelected(null)
+      setSelectedEvent(null)
+      setSelectedMission(null)
+    }
+  }
 
   // NASA GIBS data layer + playback date (days back from now)
   const [gibsLayer, setGibsLayer] = useState<GibsLayer | null>(null)

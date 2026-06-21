@@ -36,6 +36,7 @@ interface ArSkyProps {
 
 export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps): React.ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const arScene = useRef<ArScene | null>(null)
   const [model3D, setModel3D] = useState(false) // real 3D models loaded → drop the dots
@@ -88,6 +89,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
+      streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play().catch(() => {})
@@ -133,8 +135,17 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     }
   }
 
-  // tear the Starlink worker down when the AR overlay closes
-  useEffect(() => () => slWorker.current?.terminate(), [])
+  // tear the Starlink worker AND the camera down when the AR overlay closes —
+  // the back camera must be released (privacy indicator + battery) since closing
+  // AR unmounts this component but the MediaStream tracks keep running otherwise
+  useEffect(
+    () => () => {
+      slWorker.current?.terminate()
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    },
+    [],
+  )
 
   // the 3D layer: a transparent WebGL canvas over the camera that draws the real
   // Starlink model where each satellite is. Built once started; kept in sync via

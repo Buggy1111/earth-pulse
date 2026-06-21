@@ -8,7 +8,6 @@ import type { SatPos, TrackedSat } from '../../lib/satellites'
 export const SUN_REFRESH_MS = 60_000
 export const CLOUDS_ALTITUDE = 0.006
 export const CLOUDS_DEG_PER_FRAME = -0.002
-export const ARROW_LOOP_MS = 22_000
 
 /** The default "home" Earth framing every view returns to — the one canonical
  * camera pose, so every fly-back (reset, exit moon/solar/satellite) lands in the

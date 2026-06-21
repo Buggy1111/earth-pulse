@@ -25,9 +25,8 @@ export function flyCamera(
   // controls.update() every frame, and the camera careens around — the
   // "wheel of fortune" when you orbit a focused star and then fly back out.
   // Flushed to zero on the first update below; restored exactly on land/cancel.
-  const controlsD = controls as unknown as { enableDamping: boolean }
-  const prevDamping = controlsD.enableDamping
-  controlsD.enableDamping = false
+  const prevDamping = controls.enableDamping
+  controls.enableDamping = false
   const t0 = performance.now()
   let raf = 0
   let done = false
@@ -35,7 +34,7 @@ export function flyCamera(
   const finish = () => {
     cancelAnimationFrame(raf)
     controls.removeEventListener('start', onDrag)
-    controlsD.enableDamping = prevDamping
+    controls.enableDamping = prevDamping
   }
   const land = () => {
     if (done) return

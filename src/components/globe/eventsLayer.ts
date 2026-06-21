@@ -117,6 +117,7 @@ function getBurstTexture(): THREE.CanvasTexture {
 let running = false
 let animGlobe: GlobeInstance | null = null
 let frame = 0
+let rafId = 0
 function ensureAnim(globe: GlobeInstance): void {
   animGlobe = globe
   if (running) return
@@ -131,7 +132,15 @@ function ensureAnim(globe: GlobeInstance): void {
     frame++
     const t = frame * 0.05
     const group = animGlobe ? animGlobe.scene().getObjectByName(GLOW_GROUP) : null
-    if (group) {
+    // nothing to animate (events hidden/empty, or the globe was torn down) → stop
+    // the loop and let the main thread idle; applyEventsLayer re-arms it when
+    // events come back. Prevents a forever-rAF holding a destroyed globe alive.
+    if (!group || group.children.length === 0) {
+      running = false
+      rafId = 0
+      return
+    }
+    {
       for (const child of group.children) {
         const ud = child.userData
         const sprite = child as THREE.Sprite
@@ -156,9 +165,19 @@ function ensureAnim(globe: GlobeInstance): void {
         }
       }
     }
-    requestAnimationFrame(tick)
+    rafId = requestAnimationFrame(tick)
   }
-  requestAnimationFrame(tick)
+  rafId = requestAnimationFrame(tick)
+}
+
+/** Stop the events animation loop and release the globe reference. Called from
+ * the scene cleanup so a torn-down globe (e.g. switching to Drift, which unmounts
+ * GlobeView) isn't kept alive by a perpetual rAF. */
+export function stopEventsAnim(): void {
+  if (rafId) cancelAnimationFrame(rafId)
+  rafId = 0
+  running = false
+  animGlobe = null
 }
 
 export function applyEventsLayer(
@@ -179,7 +198,9 @@ export function applyEventsLayer(
       const e = d as EarthEvent
       const m = eventMeta(e.category)
       const mag = e.magnitude ? ` · ${Math.round(e.magnitude).toLocaleString('en-US')} ${e.magnitudeUnit ?? ''}` : ''
-      return tooltip(`${m.icon} <b>${escapeHtml(e.title)}</b> · ${m.label}${mag}`)
+      // both title and label come from the EONET feed → escape both (the label
+      // is the raw category id for any category not in our static map)
+      return tooltip(`${m.icon} <b>${escapeHtml(e.title)}</b> · ${escapeHtml(m.label)}${mag}`)
     })
     .onPointClick((d) => onClick(d as EarthEvent))
 

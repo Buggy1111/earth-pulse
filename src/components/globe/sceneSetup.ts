@@ -5,8 +5,10 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { LayerState } from '../hud/types'
-import { glIsSoftware } from '../perf'
+import { globeIsSoftware } from '../perf'
+import { warpedSimMs } from '../../lib/clock'
 import { HOME_VIEW } from './helpers'
+import { stopEventsAnim } from './eventsLayer'
 import { setupPointer } from './pointer'
 import { setupSky } from './sky'
 import { setupSurface } from './surface'
@@ -67,10 +69,8 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   // solar-system bodies live on SUNLIT_LAYER (lit only by the Sun's light)
   ;(globe.camera() as THREE.PerspectiveCamera).layers.enable(SUNLIT_LAYER)
 
-  const simNowMs = () => {
-    const t = deps.solarTimeRef.current
-    return t.simMs + (Date.now() - t.realMs) * t.warp + deps.timeOffsetMsRef.current
-  }
+  const simNowMs = () =>
+    warpedSimMs(deps.solarTimeRef.current, Date.now(), deps.timeOffsetMsRef.current)
   const sky = setupSky(globe, simNowMs)
   deps.skyRef.current = sky
   deps.applySkyRef.current = sky.applySky
@@ -114,15 +114,12 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   // e2e hook: headless tests steer the camera through this handle
   ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
   // if WebGL fell back to the CPU (hardware acceleration off / GPU blocklisted)
-  // nothing here will be smooth — surface a nudge. Read the globe's OWN context,
+  // nothing here will be smooth — surface a nudge. Reads the globe's OWN context,
   // never a probe (a probe can fail on iOS's context cap and misreport a good GPU).
-  try {
-    if (glIsSoftware(globe.renderer().getContext())) deps.cb.current.onSoftwareRenderer?.()
-  } catch {
-    // no debug-renderer extension — skip the hint rather than guess
-  }
+  if (globeIsSoftware(globe)) deps.cb.current.onSoftwareRenderer?.()
   return () => {
     deps.globeRef.current = null
+    stopEventsAnim()
     disposePointer()
     surface.dispose()
     sky.dispose()

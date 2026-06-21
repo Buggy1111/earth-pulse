@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectWeakGpu, isMobileDevice, sampleFps } from './components/perf'
 import type { LayerState, OrbitEntry } from './components/hud/types'
+import { warpedSimMs } from './lib/clock'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { encodeView, parseView } from './lib/share'
@@ -107,7 +108,7 @@ export function useSolarTime() {
     // keep the simulated moment continuous; ×1 = pause at that moment
     setSolarTime((prev) => {
       const real = Date.now()
-      return { realMs: real, simMs: prev.simMs + (real - prev.realMs) * prev.warp, warp }
+      return { realMs: real, simMs: warpedSimMs(prev, real), warp }
     })
   }, [])
   const onWarpReset = useCallback(() => {
@@ -123,7 +124,7 @@ export function useSolarTime() {
     const real = Date.now()
     setSolarTime((prev) =>
       document.hidden
-        ? { realMs: real, simMs: prev.simMs + (real - prev.realMs) * prev.warp, warp: prev.warp }
+        ? { realMs: real, simMs: warpedSimMs(prev, real), warp: prev.warp }
         : { ...prev, realMs: real },
     )
   }, [])

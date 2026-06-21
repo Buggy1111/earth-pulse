@@ -6,9 +6,10 @@
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { EARTH_DISPLAY } from '../../lib/planets'
+import { warpedSimMs } from '../../lib/clock'
 import { ensureSolarSystem } from './solar'
 import { returnHome } from './helpers'
-import { glIsSoftware } from '../perf'
+import { globeIsSoftware } from '../perf'
 import { setupProbes } from './probesLayer'
 import { setupStars } from './starsLayer'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -56,7 +57,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   })
   group.visible = true
   const t = deps.solarTimeRef.current
-  deps.solarFrameRef.current(new Date(t.simMs + (Date.now() - t.realMs) * t.warp))
+  deps.solarFrameRef.current(new Date(warpedSimMs(t, Date.now())))
 
   // 🛰 deep-space probes: real HORIZONS trajectories as colour-coded comet
   // trails + craft, ticked from the (wrapped) solar frame so they share the
@@ -121,14 +122,7 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   // you let go. Turn damping off there so a drag stops the instant you release
   // (crisp control beats laggy glide when frames are scarce). Restored on exit.
   const prevDamping = controls.enableDamping
-  const onCpu = (() => {
-    try {
-      return glIsSoftware(globe.renderer().getContext())
-    } catch {
-      return false
-    }
-  })()
-  if (onCpu) controls.enableDamping = false
+  if (globeIsSoftware(globe)) controls.enableDamping = false
   deps.userInteractedRef.current = true
   return () => {
     deps.solarFrameRef.current = baseFrame

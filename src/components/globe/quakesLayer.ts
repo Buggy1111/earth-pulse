@@ -20,7 +20,12 @@ export function applyQuakeLayers(
       const q = d as Quake
       const sprite = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: getGlowTexture(),
+          // clone the shared glow: three-globe's custom-layer teardown disposes
+          // material.map when a quake ages out of the 24 h window (~every refresh).
+          // A clone shares the source canvas (no extra CPU memory) but owns its GPU
+          // upload, so disposing it can't yank the texture out from under the Sun,
+          // Moon, events, probes and stars that also use getGlowTexture().
+          map: getGlowTexture().clone(),
           color: magColor(q.mag),
           transparent: true,
           opacity: glowOpacity(q.time, simNow),

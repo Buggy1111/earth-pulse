@@ -6,6 +6,7 @@ import type { GlobeInstance } from 'globe.gl'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { auroraOvals } from '../lib/aurora'
+import { warpedSimMs } from '../lib/clock'
 import type { IssState } from '../lib/iss'
 import { globeAltitude } from '../lib/satellites'
 import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
@@ -21,16 +22,17 @@ import { focusSolarBody } from './globe/solarFocus'
 import { enterSolarMode } from './globe/solarMode'
 import { setupScene, swapGlobeTextures } from './globe/sceneSetup'
 import { applyGibsImage } from './globe/gibsLayer'
-import { isMobileDevice } from './perf'
+import { detectWeakGpu, isMobileDevice } from './perf'
 import type { GlobeViewProps } from './globe/globeView.types'
 
 /** Texture resolution for the day/night globe stack, from the user's quality
  * pick plus the view-mode + device clamps:
- *  - desktop → exactly the picked tier (2K/4K/8K), in EVERY view — it keeps best
- *    quality even in solar (you can fly the camera back to Earth there).
+ *  - strong desktop → exactly the picked tier (2K/4K/8K), in EVERY view — it
+ *    keeps best quality even in solar (you can fly back to Earth there).
  *  - mobile, Earth view → the pick, capped to 4K (8K OOMs a phone).
- *  - mobile, solar/Moon view → 2K — the Earth is a distant dot, so dropping it is
- *    what lets the solar system fit under iOS's memory cap (no more OOM restart).
+ *  - mobile OR weak desktop GPU (Intel UHD…), solar/Moon view → 2K — the Earth
+ *    is a distant dot there, so dropping it frees the memory the solar system
+ *    needs (≈0.5 GB at 8K) instead of pinning it for an invisible dot.
  * Mobile is decided by the device, so 8K can never reach a phone. */
 function pickTextureRes(
   quality: '2k' | '4k' | '8k',
@@ -41,6 +43,7 @@ function pickTextureRes(
     if (solarMode || moonMode) return '2k'
     return quality === '2k' ? '2k' : '4k'
   }
+  if ((solarMode || moonMode) && detectWeakGpu()) return '2k'
   return quality
 }
 
@@ -262,8 +265,7 @@ export function GlobeView(props: GlobeViewProps) {
   useEffect(() => {
     const globe = globeRef.current
     if (globe && sats.length > 0) {
-      const t = solarTimeRef.current
-      const now = new Date(t.simMs + (Date.now() - t.realMs) * t.warp)
+      const now = new Date(warpedSimMs(solarTimeRef.current, Date.now()))
       syncTrails(globe, trailsRef.current, selectedOrbitIds, sats, now)
     }
   }, [selectedOrbitIds, sats])
