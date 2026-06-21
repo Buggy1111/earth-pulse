@@ -31,9 +31,11 @@ export function ViewportFrame({
       <span className="vf-corner vf-bl" />
       <span className="vf-corner vf-br" />
 
-      {/* mission-control status line — hidden on phones, where the corner
-          panels already crowd the bottom edge */}
-      <div className="vf-status hidden md:flex">
+      {/* mission-control status line — only on the desktop layout (≥1024px, same
+          as isDesktop). Below that the nowrap line overflowed a narrow viewport
+          and got clipped at both edges + collided with the credits line, so it
+          stays hidden through the whole phone/tablet drawer range. */}
+      <div className="vf-status hidden lg:flex">
         <span className="vf-online" />
         <b>systems nominal</b>
         <span className="sep">/</span>

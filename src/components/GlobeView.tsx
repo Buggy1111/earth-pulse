@@ -417,16 +417,21 @@ export function GlobeView(props: GlobeViewProps) {
     else globe.resumeAnimation()
   }, [props.paused])
 
-  // follow ISS: chase camera on every position update, pause auto-rotate meanwhile
+  // follow ISS: chase camera on every position update, pause auto-rotate meanwhile.
+  // This re-runs on every ISS poll (iss changes every few seconds), so it must NOT
+  // re-enable the idle auto-rotate outside the Earth view — otherwise an ISS update
+  // flips it back on while you're in the solar/Moon view and the camera spins
+  // endlessly (e.g. after orbiting a star and flying back to the sky).
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
-    globe.controls().autoRotate = !followIss && !userInteractedRef.current
+    globe.controls().autoRotate =
+      !followIss && !userInteractedRef.current && !solarMode && !moonMode
     if (followIss && iss) {
       const altitude = Math.min(globe.pointOfView().altitude ?? 2.2, 1.6)
       globe.pointOfView({ lat: iss.lat, lng: iss.lng, altitude }, 2_700)
     }
-  }, [followIss, iss])
+  }, [followIss, iss, solarMode, moonMode])
 
   return <div ref={containerRef} className="fixed inset-0" />
 }
