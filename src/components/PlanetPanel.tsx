@@ -115,7 +115,7 @@ export function PlanetPanel({
           <span className="num">
             🌍 {probeEarthAu.toFixed(2)} AU from Earth · {fmtKm(probeEarthAu * AU_KM)}
           </span>
-          <span className="text-[10px] text-slate-600">drawn at the scene edge — really far out there</span>
+          <span className="text-[10px] text-slate-400">drawn at the scene edge — really far out there</span>
         </div>
       ) : moon ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
@@ -136,7 +136,7 @@ export function PlanetPanel({
           </span>
           {moon.discoveredBy && <span>🔭 discovered by {moon.discoveredBy}</span>}
           {moon.fact && <span className="text-slate-300">✨ {moon.fact}</span>}
-          <span className="text-[10px] text-slate-600">photo: NASA (public domain)</span>
+          <span className="text-[10px] text-slate-400">photo: NASA (public domain)</span>
         </div>
       ) : p && def ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
@@ -155,13 +155,13 @@ export function PlanetPanel({
           <span className="text-slate-300">✨ {def.facts.fact}</span>
           {def.facts.moonCount > 0 && (
             <div className="mt-1 border-t border-white/10 pt-1">
-              <span className="text-[10px] tracking-wide text-slate-500 uppercase">
+              <span className="text-[10px] tracking-wide text-slate-400 uppercase">
                 Moons ({def.facts.moonCount} known{moons.length > 0 ? `, ${moons.length} shown` : ''})
               </span>
               {moons.map((m) => (
                 <p key={m.name} className="mt-0.5 text-xs">
                   <span className="text-slate-200">{m.name}</span>{' '}
-                  <span className="num text-slate-500">
+                  <span className="num text-slate-400">
                     · orbits in {m.periodD < 2 ? `${(m.periodD * 24).toFixed(0)} h` : `${m.periodD.toFixed(1)} d`}
                     {m.retrograde ? ' ↺' : ''}
                   </span>
@@ -181,7 +181,7 @@ export function PlanetPanel({
           mini-globe. Click it to fly back home.
         </p>
       ) : (
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           the Sun and all 8 planets (Pluto included 💙) at their real positions for right
           now, true orbit ellipses, real relative sizes — Earth is the small blue one, still
           live. Click any body to orbit it; click Earth to come home.

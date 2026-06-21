@@ -150,7 +150,7 @@ export function SolarNavTree({
                     onClick={() => toggle(body.id)}
                     aria-expanded={open}
                     title={`${moons.length} moons`}
-                    className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-slate-500 hover:bg-white/10 hover:text-slate-300"
+                    className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-slate-400 hover:bg-white/10 hover:text-slate-300"
                   >
                     {moons.length} {open ? '▾' : '▸'}
                   </button>
@@ -187,7 +187,7 @@ export function SolarNavTree({
       {/* 🛰 deep-space probes — click a name to fly out and orbit the craft */}
       {probes.length > 0 && (
         <div className="mt-2 border-t border-white/10 pt-1.5">
-          <div className="px-1.5 pb-1 text-[10px] tracking-wide text-slate-500 uppercase">
+          <div className="px-1.5 pb-1 text-[10px] tracking-wide text-slate-400 uppercase">
             🛰 Deep-space probes
           </div>
           {probes.map((pr) => {
@@ -218,7 +218,7 @@ export function SolarNavTree({
 
       {/* 🛰 how many robotic explorers are out there across the system right now */}
       <div
-        className="num mt-2 border-t border-white/10 pt-2 text-[10px] leading-tight text-slate-500"
+        className="num mt-2 border-t border-white/10 pt-2 text-[10px] leading-tight text-slate-400"
         title={SPACECRAFT_BREAKDOWN}
       >
         🛰 <span className="text-slate-300">{ACTIVE_SPACECRAFT_COUNT}</span> active spacecraft

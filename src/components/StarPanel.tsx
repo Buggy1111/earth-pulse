@@ -31,7 +31,7 @@ export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => vo
               ;(e.currentTarget.parentElement as HTMLElement).style.display = 'none'
             }}
           />
-          <figcaption className="mt-0.5 text-[10px] text-slate-600">📷 {photo.credit}</figcaption>
+          <figcaption className="mt-0.5 text-[10px] text-slate-400">📷 {photo.credit}</figcaption>
         </figure>
       )}
       {star.distLy > 0 && (

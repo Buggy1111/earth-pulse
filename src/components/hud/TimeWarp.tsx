@@ -29,7 +29,7 @@ export function TimeWarp({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1">
-        <span className="mr-1 text-[10px] tracking-wide text-slate-500 uppercase">⏩ time</span>
+        <span className="mr-1 text-[10px] tracking-wide text-slate-400 uppercase">⏩ time</span>
         {WARPS.map((w) => (
           <button
             key={w.factor}
@@ -58,7 +58,7 @@ export function TimeWarp({
           <button
             type="button"
             onClick={onWarpReset}
-            className="cursor-pointer text-slate-500 underline hover:text-slate-300"
+            className="cursor-pointer text-slate-400 underline hover:text-slate-300"
           >
             back to now
           </button>

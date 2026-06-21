@@ -34,7 +34,7 @@ export function TitleCard({
           onClick={toggleFullscreen}
           aria-label="Toggle fullscreen"
           title="fullscreen"
-          className="cursor-pointer text-sm text-slate-500 hover:text-slate-200"
+          className="cursor-pointer text-sm text-slate-400 hover:text-slate-200"
         >
           ⛶
         </button>
@@ -66,13 +66,13 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
       {kp ? (
         <p className="mt-1 text-xs text-slate-400">
           Kp{' '}
-          <span className="num text-xl font-bold" style={{ color: kpColor(kp.kp) }}>
+          <span className="num readout text-xl font-bold" style={{ color: kpColor(kp.kp) }}>
             {kp.kp.toFixed(1)}
           </span>{' '}
           <span style={{ color: kpColor(kp.kp) }}>{kpLabel(kp.kp)}</span>
         </p>
       ) : (
-        <p className="mt-1 text-xs text-slate-500">reading magnetometers…</p>
+        <p className="mt-1 text-xs text-slate-400">reading magnetometers…</p>
       )}
       {wind && (
         <p className="num mt-0.5 text-xs text-slate-400">
@@ -86,10 +86,10 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
         title="open the interactive Moon — Apollo landing sites & live phase"
         className="mt-0.5 block cursor-pointer text-left text-xs text-slate-400 hover:text-sky-300"
       >
-        🌙 moon: {moonLabel} <span className="text-slate-600">· explore ▸</span>
+        🌙 moon: {moonLabel} <span className="text-slate-400">· explore ▸</span>
       </button>
-      <p className="mt-2 text-[10px] text-slate-600">
-        data: NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
+      <p className="mt-2 text-[10px] text-amber-300/80">
+        📡 NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
       </p>
     </HudCard>
   )
@@ -108,7 +108,7 @@ export function AbovePanel({
         📡 Above you now
       </h2>
       {overhead.length === 0 ? (
-        <p className="mt-1 text-xs text-slate-500">nothing above 10° right now</p>
+        <p className="mt-1 text-xs text-slate-400">nothing above 10° right now</p>
       ) : (
         <ul className="mt-1 flex flex-col gap-0.5">
           {overhead.slice(0, 5).map((s) => (
@@ -120,7 +120,7 @@ export function AbovePanel({
                 className="flex w-full cursor-pointer items-baseline justify-between gap-2 text-left text-xs text-slate-300 hover:text-sky-300"
               >
                 <span className="truncate">{s.name}</span>
-                <span className="num text-slate-500">{Math.round(s.elevationDeg)}°</span>
+                <span className="num text-slate-400">{Math.round(s.elevationDeg)}°</span>
               </button>
             </li>
           ))}
@@ -155,7 +155,7 @@ export function QuakePanel({
       className="block max-w-56 cursor-pointer text-left text-xs text-slate-400 hover:text-slate-200"
     >
       {label}: <span className={accent}>{formatMag(q.mag)}</span> {q.place}
-      {extra && <span className="num text-slate-500"> · {extra}</span>}
+      {extra && <span className="num text-slate-400"> · {extra}</span>}
     </button>
   )
   return (
@@ -168,13 +168,13 @@ export function QuakePanel({
           aria-pressed={soundOn}
           title={soundOn ? 'new-quake sound ping: on' : 'new-quake sound ping: off'}
           className={`cursor-pointer rounded px-1 text-sm normal-case ${
-            soundOn ? 'text-emerald-300' : 'text-slate-500 hover:text-slate-300'
+            soundOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-300'
           }`}
         >
           {soundOn ? '🔔' : '🔕'}
         </button>
       </h2>
-      <div className="num mt-1 text-3xl font-bold text-amber-300">{stats.count}</div>
+      <div className="num readout mt-1 text-3xl font-bold text-amber-300">{stats.count}</div>
       {fresh && (
         <button
           type="button"
@@ -192,7 +192,7 @@ export function QuakePanel({
       {stats.strongest && (
         <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
       )}
-      <p className="mt-2 text-[10px] text-slate-600">data: USGS, refreshed every minute</p>
+      <p className="mt-2 text-[10px] text-amber-300/80">📡 USGS, refreshed every minute</p>
     </HudCard>
   )
 }
@@ -265,8 +265,8 @@ export function DataLayerPanel({
               <span className="num text-[10px] whitespace-nowrap text-slate-300">{date}</span>
             </div>
           )}
-          <p className="mt-1 text-[10px] text-slate-600">
-            data: NASA GIBS{active.monthly ? '' : ' · slide to replay past days'}
+          <p className="mt-1 text-[10px] text-amber-300/80">
+            📡 NASA GIBS{active.monthly ? '' : ' · slide to replay past days'}
           </p>
         </div>
       )}

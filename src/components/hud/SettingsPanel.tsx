@@ -81,7 +81,7 @@ export function SettingsPanel({
           className="flex w-full cursor-pointer items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
         >
           ⚙ customize
-          <span className="text-slate-500">{open ? '▾' : '▸'}</span>
+          <span className="text-slate-400">{open ? '▾' : '▸'}</span>
         </button>
       </HudCard>
 
@@ -111,7 +111,7 @@ export function SettingsPanel({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="🔭 find a satellite…"
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-cyan-400/50 focus:outline-none"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-400 focus:border-cyan-400/50 focus:outline-none"
               />
               {matches.length > 0 && (
                 <ul className="mt-1 flex flex-col">
@@ -195,7 +195,7 @@ export function SettingsPanel({
                   })}
                 </div>
                 {mobile && (
-                  <p className="mt-1 text-[10px] text-slate-500">8K is desktop-only — too heavy for a phone</p>
+                  <p className="mt-1 text-[10px] text-slate-400">8K is desktop-only — too heavy for a phone</p>
                 )}
               </div>
               <label
@@ -232,14 +232,14 @@ export function SettingsPanel({
                   <button
                     type="button"
                     onClick={onClearOrbits}
-                    className="cursor-pointer text-[10px] text-slate-500 hover:text-rose-300"
+                    className="cursor-pointer text-[10px] text-slate-400 hover:text-rose-300"
                   >
                     clear all
                   </button>
                 )}
               </div>
               {orbits.length === 0 ? (
-                <p className="mt-1.5 text-[11px] text-slate-500">click a satellite to draw its orbit</p>
+                <p className="mt-1.5 text-[11px] text-slate-400">click a satellite to draw its orbit</p>
               ) : (
                 <ul className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto">
                   {orbits.map((o) => (
@@ -249,7 +249,7 @@ export function SettingsPanel({
                         type="button"
                         onClick={() => onRemoveOrbit(o.id)}
                         aria-label={`Remove orbit of ${o.name}`}
-                        className="cursor-pointer px-1 text-slate-500 hover:text-rose-300"
+                        className="cursor-pointer px-1 text-slate-400 hover:text-rose-300"
                       >
                         ✕
                       </button>
@@ -266,7 +266,7 @@ export function SettingsPanel({
                 type="button"
                 onClick={onLocate}
                 disabled={locating}
-                className="cursor-pointer text-left text-xs text-cyan-300 hover:text-cyan-200 disabled:text-slate-500"
+                className="cursor-pointer text-left text-xs text-cyan-300 hover:text-cyan-200 disabled:text-slate-400"
               >
                 📍 {locating ? 'locating…' : userLoc ? 'fly to my location' : 'where am I?'}
               </button>

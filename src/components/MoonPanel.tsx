@@ -42,10 +42,10 @@ export function MoonPanel({
             )}
           </p>
           <p className="text-slate-400">{picked.note}</p>
-          {picked.crew && <p className="text-slate-500">crew · {picked.crew}</p>}
+          {picked.crew && <p className="text-slate-400">crew · {picked.crew}</p>}
         </div>
       ) : (
-        <p className="mt-1.5 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs text-slate-400">
           the flags mark {LUNAR_SITES.length} landing sites — the {APOLLO_SITES.length} crewed
           Apollo missions plus milestone robotic landers, including the two Chinese far-side
           firsts on the hemisphere that never faces Earth (orbit around to find them). Tap a flag.

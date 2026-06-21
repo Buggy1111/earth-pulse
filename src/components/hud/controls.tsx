@@ -205,9 +205,9 @@ export function ModeDock({ actions }: { actions: DockAction[] }) {
           type="button"
           onClick={a.onToggle}
           aria-pressed={a.active}
-          className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-xs transition-colors hover:bg-white/5 ${
+          className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-xs transition-colors hover:bg-amber-400/[0.07] ${
             i > 0 ? 'border-t border-white/8' : ''
-          } ${a.active ? a.activeColor : 'text-slate-400 hover:text-slate-200'}`}
+          } ${a.active ? a.activeColor : 'text-slate-300 hover:text-amber-200'}`}
         >
           <span className="w-5 text-center">{a.icon}</span>
           <span className="truncate">{a.active ? a.activeLabel : a.label}</span>
