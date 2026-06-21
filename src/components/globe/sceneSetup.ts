@@ -24,7 +24,7 @@ export interface SceneSetupDeps {
   solarTimeRef: { current: { realMs: number; simMs: number; warp: number } }
   timeOffsetMsRef: { current: number }
   layersRef: { current: LayerState }
-  textureResRef: { current: '2k' | '8k' }
+  textureResRef: { current: '2k' | '4k' | '8k' }
   gibsActiveRef: { current: boolean }
   globeMaterialRef: { current: THREE.ShaderMaterial | null }
   skyRef: { current: ReturnType<typeof setupSky> | null }
@@ -134,12 +134,13 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   }
 }
 
-/** Swap the day/night globe textures when toggling eco mode (2k ↔ 8k). The
- * caller has already set textureResRef to `wanted`; `isStillWanted` lets a late
- * load bail if the user toggled again or the globe was torn down. */
+/** Swap the day/night globe textures when the resolution changes (2k/4k/8k —
+ * eco toggle on desktop, fixed 4k on mobile). The caller has already set
+ * textureResRef to `wanted`; `isStillWanted` lets a late load bail if the user
+ * toggled again or the globe was torn down. */
 export function swapGlobeTextures(
   material: THREE.ShaderMaterial,
-  wanted: '2k' | '8k',
+  wanted: '2k' | '4k' | '8k',
   isStillWanted: () => boolean,
 ): void {
   const loader = new THREE.TextureLoader()

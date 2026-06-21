@@ -24,6 +24,17 @@ import { applyGibsImage } from './globe/gibsLayer'
 import { isMobileDevice } from './perf'
 import type { GlobeViewProps } from './globe/globeView.types'
 
+/** Texture resolution for the day/night globe stack:
+ *  - mobile  → 4K  (sharp, ≈0.18 GB — safe under iOS's PWA memory cap)
+ *  - desktop eco → 2K (fill-rate relief for weak integrated GPUs)
+ *  - desktop full → 8K (≈0.7 GB — only desktops have the headroom)
+ * Mobile is decided by the device, NOT the eco flag, so 8K can never load on a
+ * phone even if a stale preference leaves eco off. */
+function pickTextureRes(eco: boolean): '2k' | '4k' | '8k' {
+  if (isMobileDevice()) return '4k'
+  return eco ? '2k' : '8k'
+}
+
 export function GlobeView(props: GlobeViewProps) {
   const { quakes, flashes, iss, sats, kp, layers, selectedOrbitIds, userLoc, locVersion } = props
   const { eco, focusSat, flyTo, simNow, tour, moonMode, solarMode, focusPlanet, solarTime } = props
@@ -91,12 +102,12 @@ export function GlobeView(props: GlobeViewProps) {
   const moonMeshRef = useRef<THREE.Mesh | null>(null)
   const surfaceRef = useRef<ReturnType<typeof setupSurface> | null>(null)
   const globeMaterialRef = useRef<THREE.ShaderMaterial | null>(null)
-  // Phones/tablets NEVER load the 8K textures: ≈0.5 GB of GPU memory OOM-crashes
-  // an installed PWA on iOS. This caps it at the render layer regardless of the
-  // eco flag — a belt-and-suspenders guard even if a stale preference or a toggle
-  // somehow leaves eco off. (eco is also force-locked on mobile in useEcoMode.)
-  const lowMem = eco || isMobileDevice()
-  const textureResRef = useRef<'2k' | '8k'>(lowMem ? '2k' : '8k')
+  // Texture tier. Phones/tablets get 4K: sharp, but ≈0.18 GB vs the 8K stack's
+  // ≈0.7 GB that OOM-crashes an installed PWA on iOS. Desktop eco drops to 2K
+  // (a fill-rate win for weak integrated GPUs), full desktop is 8K. This is
+  // decided at the render layer so 8K can never reach mobile even via a stale
+  // preference or the runtime swap (eco is also force-locked on mobile).
+  const textureResRef = useRef<'2k' | '4k' | '8k'>(pickTextureRes(eco))
   const gibsActiveRef = useRef(false)
   const gibsMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
@@ -147,10 +158,11 @@ export function GlobeView(props: GlobeViewProps) {
     ecoRef.current = eco
     const globe = globeRef.current
     if (!globe) return
-    // on mobile keep 1× DPR + 2K textures no matter the eco flag (see textureResRef)
-    const lowMem = eco || isMobileDevice()
-    globe.renderer().setPixelRatio(lowMem ? 1 : Math.min(window.devicePixelRatio, 2))
-    const wanted: '2k' | '8k' = lowMem ? '2k' : '8k'
+    // mobile stays at 1× DPR no matter the eco flag — a 2–3× framebuffer is the
+    // other half of the memory blow-up (textures are capped via pickTextureRes)
+    const lowDpr = eco || isMobileDevice()
+    globe.renderer().setPixelRatio(lowDpr ? 1 : Math.min(window.devicePixelRatio, 2))
+    const wanted = pickTextureRes(eco)
     const material = globeMaterialRef.current
     if (!material || textureResRef.current === wanted) return
     textureResRef.current = wanted

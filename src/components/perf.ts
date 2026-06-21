@@ -1,8 +1,9 @@
 /** Performance-mode helpers: weak-GPU detection + FPS sampling.
  *
- * Integrated/older GPUs (Intel UHD, mobile chips, software renderers) choke
- * on the 8K textures and high devicePixelRatio — eco mode trades them for
- * 4K + 1× pixel ratio + 30 Hz propagation, which they handle smoothly.
+ * Integrated/older GPUs (Intel UHD, software renderers) choke on the 8K
+ * textures and high devicePixelRatio — desktop eco mode trades them for 2K +
+ * 1× pixel ratio + 30 Hz propagation, which they handle smoothly. Phones/
+ * tablets are a separate tier (4K, see isMobileDevice + GlobeView).
  */
 
 const ECO_KEY = 'earth-pulse-eco'
@@ -57,8 +58,9 @@ export function detectWeakGpu(): boolean {
  * tab. The 8K day+night textures at 2× pixel ratio cost ≈0.5–0.7 GB of GPU
  * memory, which silently trips WebKit's limit: the app blanks (lost WebGL
  * context) or iOS kills and reloads it — read as "it crashes / keeps
- * restarting". So mobiles must default to eco (2K + 1× DPR), which stays well
- * under the budget.
+ * restarting". So mobiles render the 4K stack at 1× DPR (≈0.18 GB) — sharp, and
+ * well under the budget. A phone GPU outruns a weak desktop integrated GPU, so
+ * it gets 4K, not the desktop-eco 2K.
  *
  * Deliberately separate from `detectWeakGpu` (a GPU-name allow-list): iOS
  * reports "Apple GPU", which is NOT in that list — but so does an M-series Mac,
