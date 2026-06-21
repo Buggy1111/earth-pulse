@@ -318,10 +318,12 @@ body {
   border: 0 solid rgba(94, 234, 255, 0.55);
   filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
 }
-.vf-tl { top: 14px; left: 14px; border-top-width: 1.5px; border-left-width: 1.5px; }
-.vf-tr { top: 14px; right: 14px; border-top-width: 1.5px; border-right-width: 1.5px; }
-.vf-bl { bottom: 14px; left: 14px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
-.vf-br { bottom: 14px; right: 14px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+/* corners track the safe-area insets so the signature frame never slips under a
+   notch / Dynamic Island / home indicator (calc → env defaults to 0 on desktop) */
+.vf-tl { top: calc(14px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); border-top-width: 1.5px; border-left-width: 1.5px; }
+.vf-tr { top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); border-top-width: 1.5px; border-right-width: 1.5px; }
+.vf-bl { bottom: calc(14px + env(safe-area-inset-bottom)); left: calc(14px + env(safe-area-inset-left)); border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.vf-br { bottom: calc(14px + env(safe-area-inset-bottom)); right: calc(14px + env(safe-area-inset-right)); border-bottom-width: 1.5px; border-right-width: 1.5px; }
 /* a short tick growing inward from each corner — the "machined" detail */
 .vf-corner::after {
   content: '';
@@ -337,7 +339,7 @@ body {
 
 .vf-status {
   position: absolute;
-  bottom: 22px;
+  bottom: calc(22px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;

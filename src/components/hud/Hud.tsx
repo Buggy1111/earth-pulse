@@ -259,8 +259,13 @@ export function Hud(p: HudProps) {
       {/* signature viewport chrome — corner brackets + telemetry status line */}
       <ViewportFrame mode={p.mode} now={p.now} satCount={p.satCount} />
 
-      {/* world switcher — always visible above everything, both layouts */}
-      <div className="pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 safe-pt sm:top-4">
+      {/* world switcher — visible above everything; on phones it fades out while a
+          side drawer is open (the 90vw drawer would otherwise sit under it) */}
+      <div
+        className={`pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 safe-pt transition-opacity duration-200 sm:top-4 ${
+          !p.isDesktop && p.drawer ? 'opacity-0' : 'opacity-100'
+        }`}
+      >
         <span className="vf-eyebrow hidden sm:block">◂ orbital telemetry console ▸</span>
         <ModeSwitcher
           mode={p.mode}

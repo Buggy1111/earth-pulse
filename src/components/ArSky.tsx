@@ -340,8 +340,10 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         </div>
       )}
 
-      {/* top status bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(#000a, transparent)', color: '#bae6fd', font: '600 13px system-ui' }}>
+      {/* top status bar — pad past the notch / status-bar inset so the ✕ close
+          button and readout never hide under the clock & wifi (standalone PWA
+          runs full-bleed under a translucent status bar on iOS) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: 'calc(12px + env(safe-area-inset-top))', paddingBottom: '12px', paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(#000a, transparent)', color: '#bae6fd', font: '600 13px system-ui' }}>
         <span>
           📡{' '}
           {started
