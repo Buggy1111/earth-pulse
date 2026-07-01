@@ -214,12 +214,16 @@ export function useIss(intervalMs = 3_000): IssState | null {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
     const tick = async () => {
-      try {
-        const resp = await fetch(ISS_URL)
-        const data = await resp.json()
-        if (!cancelled) setIss(parseIss(data))
-      } catch {
-        // keep last position
+      if (!document.hidden) {
+        // hidden tab: skip the fetch (and its setState) but keep the timer
+        // ticking so the feed resumes the moment the tab is visible again
+        try {
+          const resp = await fetch(ISS_URL)
+          const data = await resp.json()
+          if (!cancelled) setIss(parseIss(data))
+        } catch {
+          // keep last position
+        }
       }
       if (!cancelled) timer = setTimeout(tick, intervalMs)
     }
@@ -232,23 +236,59 @@ export function useIss(intervalMs = 3_000): IssState | null {
   return iss
 }
 
-/** Live Wikipedia edits over SSE + a counter of everything seen this visit. */
+/** Live Wikipedia edits over SSE + a counter of everything seen this visit.
+ * The raw stream delivers ~5–20 edits/s and every one used to setState twice —
+ * a re-render storm through the whole App tree that ate straight into the WebGL
+ * frame budget on weak GPUs. Edits are buffered in refs and flushed at most
+ * once a second instead, and the stream disconnects entirely while the tab is
+ * hidden (it's a "live now" feed — there's nothing to catch up on). */
 export function useWikiFeed(max = 7): { edits: WikiEdit[]; totalSeen: number } {
-  const [edits, setEdits] = useState<WikiEdit[]>([])
+  const [state, setState] = useState<{ edits: WikiEdit[]; totalSeen: number }>({
+    edits: [],
+    totalSeen: 0,
+  })
   const totalRef = useRef(0)
-  const [totalSeen, setTotalSeen] = useState(0)
   useEffect(() => {
-    const source = new EventSource(WIKI_STREAM_URL)
-    source.onmessage = (event) => {
-      const edit = parseWikiEvent(event.data as string)
-      if (!edit) return
-      totalRef.current += 1
-      setTotalSeen(totalRef.current)
-      setEdits((list) => pushEdit(list, edit, max))
+    let source: EventSource | null = null
+    let pending: WikiEdit[] = []
+    let flushTimer: ReturnType<typeof setInterval> | undefined
+
+    const flush = () => {
+      if (!pending.length) return
+      const batch = pending
+      pending = []
+      setState((s) => ({
+        edits: batch.reduce((list, e) => pushEdit(list, e, max), s.edits),
+        totalSeen: totalRef.current,
+      }))
     }
-    return () => source.close()
+    const connect = () => {
+      if (source) return
+      source = new EventSource(WIKI_STREAM_URL)
+      source.onmessage = (event) => {
+        const edit = parseWikiEvent(event.data as string)
+        if (!edit) return
+        totalRef.current += 1
+        pending.push(edit)
+      }
+      flushTimer = setInterval(flush, 1_000)
+    }
+    const disconnect = () => {
+      source?.close()
+      source = null
+      if (flushTimer) clearInterval(flushTimer)
+      flushTimer = undefined
+      pending = []
+    }
+    const onVisibility = () => (document.hidden ? disconnect() : connect())
+    document.addEventListener('visibilitychange', onVisibility)
+    if (!document.hidden) connect()
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      disconnect()
+    }
   }, [max])
-  return { edits, totalSeen }
+  return state
 }
 
 /** Current time, ticking every second (for clocks / "ago" labels). */
