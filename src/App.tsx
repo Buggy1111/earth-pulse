@@ -24,7 +24,7 @@ import { useWorldView } from './useWorldView'
 import { useLiveData } from './useLiveData'
 import { moonPhaseLabel, subLunarPoint } from './lib/moon'
 import type { Quake } from './lib/quakes'
-import { isIss, nextPass, satsAbove } from './lib/satellites'
+import { isIss, nextPass, satsAbove, type IssPass } from './lib/satellites'
 import { parseView } from './lib/share'
 
 // shared link? restore camera/orbits/layers from the URL hash
@@ -110,14 +110,33 @@ export default function App() {
     [quakes, timelineActive, simNow],
   )
 
-  // next ISS pass over the user's location, re-checked once a minute
+  // next ISS pass over the user's location, re-checked once a minute — but the
+  // 24 h SGP4 sweep (~2 880 steps) only actually re-runs once the cached pass
+  // has started/expired; a still-upcoming pass is reused (the sweep was a
+  // 10–30 ms main-thread hiccup exactly once a minute on weak CPUs). Uses the
+  // documented "adjust state while rendering" pattern, like the cards below.
   const minuteNow = Math.floor(now / 60_000)
-  const issPass = useMemo(() => {
-    if (!userLoc) return null
+  const [passCache, setPassCache] = useState<{
+    pass: IssPass | null
+    at: number
+    loc: string
+  } | null>(null)
+  const locKey = userLoc ? `${userLoc.lat},${userLoc.lng}` : ''
+  const passCacheValid =
+    passCache !== null &&
+    passCache.loc === locKey &&
+    (passCache.pass !== null
+      ? passCache.pass.startMs > minuteNow * 60_000 + 60_000
+      : passCache.at === minuteNow)
+  if (userLoc && sats.length > 0 && !passCacheValid) {
     const issSat = sats.find((s) => isIss(s.name))
-    if (!issSat) return null
-    return nextPass(issSat, userLoc, new Date(minuteNow * 60_000))
-  }, [userLoc, sats, minuteNow])
+    setPassCache({
+      pass: issSat ? nextPass(issSat, userLoc, new Date(minuteNow * 60_000)) : null,
+      at: minuteNow,
+      loc: locKey,
+    })
+  }
+  const issPass = userLoc && passCache?.loc === locKey ? (passCache?.pass ?? null) : null
 
   // satellites above the user's horizon, refreshed every 5 s
   const tick5 = Math.floor(now / 5_000)
@@ -174,7 +193,15 @@ export default function App() {
   })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      const t = e.target
+      // typing anywhere editable must never trigger view shortcuts
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t instanceof HTMLSelectElement ||
+        (t instanceof HTMLElement && t.isContentEditable)
+      )
+        return
       if (e.key === 'h' || e.key === 'H') setHudHidden((h) => !h)
       else if (e.key === 'Escape') {
         if (hudHidden) setHudHidden(false)

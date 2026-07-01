@@ -64,6 +64,9 @@ export interface OrbitEngineDeps {
   starlinkRef: { current: { setVisible(v: boolean): void; update(now: Date): void } | null }
   onIssClick: () => void
   onSatClick: (id: string, name: string) => void
+  /** True while a fullscreen overlay (Sky AR) hides the globe — the frame loop
+   * idles instead of propagating 148 satellites + the sky for an occluded scene. */
+  isPaused: () => boolean
 }
 
 /** Configure the objects/paths layers and start the per-frame loop.
@@ -104,7 +107,11 @@ export function startOrbitEngine(
   let frameNo = 0
   let disposed = false
   // trails are rebuilt off the warped clock; throttle by real time (≥250 ms)
-  // and rebuild sooner once the simulated clock has jumped (time-warp)
+  // and rebuild sooner once the simulated clock has jumped (time-warp).
+  // Weak/software GPUs get a longer floor: each rebuild under warp disposes and
+  // recreates ~148 line geometries + runs ~9.6k SGP4 steps — 4×/s of that was a
+  // visible stutter on integrated graphics, 25–35 ms per spike.
+  const buildFloorMs = detectWeakGpu() || globeIsSoftware(globe) ? 900 : 250
   let lastBuildReal = Date.now()
   let lastBuildSim = lastBuildReal
   const dir = new THREE.Vector3()
@@ -149,6 +156,12 @@ export function startOrbitEngine(
     globe.controls().addEventListener('end', onInteractEnd)
   }
   const frame = () => {
+    if (deps.isPaused()) {
+      // AR overlay on top: globe.pauseAnimation() already stopped rendering,
+      // but this loop is independent — idle it too, just keep it scheduled
+      raf = requestAnimationFrame(frame)
+      return
+    }
     frameNo++
     // warped clock: everything physical follows it (sats speed up too)
     const t = deps.solarTimeRef.current
@@ -291,7 +304,7 @@ export function startOrbitEngine(
       const realMs = Date.now()
       const simMs = now.getTime()
       if (
-        realMs - lastBuildReal >= 250 &&
+        realMs - lastBuildReal >= buildFloorMs &&
         (Math.abs(simMs - lastBuildSim) >= 30_000 || realMs - lastBuildReal >= 30_000)
       ) {
         if (show.orbits) buildOrbitLines(globe, orbitGroup, objects, now)

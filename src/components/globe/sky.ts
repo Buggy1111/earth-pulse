@@ -176,7 +176,14 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   moonTrail.renderOrder = 1
   globe.scene().add(moonTrail)
   const moonTrailTmp = new THREE.Vector3()
+  // applySky runs per-frame from the orbit engine, but the sublunar point moves
+  // ~0.00015°/s — recomputing 60 ephemerides every frame was pure GC pressure.
+  // 1 Hz is invisible in live time; big warp jumps exceed the window on their
+  // own (|Δ| check, so rewinding the timeline refreshes too).
+  let moonTrailAtMs = Number.NEGATIVE_INFINITY
   const updateMoonTrail = (now: Date) => {
+    if (Math.abs(now.getTime() - moonTrailAtMs) < 1_000) return
+    moonTrailAtMs = now.getTime()
     const pos = moonTrailGeo.attributes.position as THREE.BufferAttribute
     const t0 = now.getTime()
     const dt = MOON_TRAIL_MS / (MOON_TRAIL_PTS - 1)

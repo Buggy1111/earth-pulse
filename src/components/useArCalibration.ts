@@ -19,7 +19,9 @@ export interface Calib {
 function load(): Calib {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? 'null')
-    if (v && typeof v.heading === 'number' && typeof v.pitch === 'number') return v
+    // Number.isFinite, not typeof: a stored NaN/Infinity passes typeof 'number'
+    // and would wreck every AR projection on the device
+    if (v && Number.isFinite(v.heading) && Number.isFinite(v.pitch)) return v
   } catch {
     // bad/absent value — start uncalibrated
   }

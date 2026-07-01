@@ -257,6 +257,7 @@ export function GlobeView(props: GlobeViewProps) {
       starlinkRef,
       onIssClick: () => cb.current.onIssClick(),
       onSatClick: (id, name) => cb.current.onSatClick(id, name),
+      isPaused: () => cb.current.paused === true,
     })
   }, [sats])
 

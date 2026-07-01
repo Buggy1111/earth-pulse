@@ -82,6 +82,7 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
     textureRes: deps.textureResRef.current,
     gibsActiveRef: deps.gibsActiveRef,
     isAlive: () => deps.globeRef.current !== null,
+    isPaused: () => deps.cb.current.paused === true,
     onReady: () => deps.cb.current.onReady(),
     onMaterial: (m) => (deps.globeMaterialRef.current = m),
   })
@@ -153,7 +154,12 @@ export function swapGlobeTextures(
     loader.loadAsync(`earth-night-${wanted}.jpg`),
   ])
     .then(([day, night]) => {
-      if (!isStillWanted()) return
+      if (!isStillWanted()) {
+        // a newer swap superseded this one — free the textures we just decoded
+        day.dispose()
+        night.dispose()
+        return
+      }
       day.colorSpace = THREE.SRGBColorSpace
       night.colorSpace = THREE.SRGBColorSpace
       for (const [key, tex] of [['dayTexture', day], ['nightTexture', night]] as const) {

@@ -26,6 +26,8 @@ export interface SurfaceOptions {
   gibsActiveRef: { current: boolean }
   /** False once the component unmounted — async loaders bail out. */
   isAlive: () => boolean
+  /** True while a fullscreen overlay hides the globe — cloud spin idles. */
+  isPaused: () => boolean
   onReady: () => void
   onMaterial: (m: THREE.ShaderMaterial) => void
 }
@@ -139,7 +141,7 @@ export function setupSurface(globe: GlobeInstance, opts: SurfaceOptions): Surfac
     globe.scene().add(clouds)
     cloudsRef.current = clouds
     const rotate = () => {
-      clouds.rotation.y += (CLOUDS_DEG_PER_FRAME * Math.PI) / 180
+      if (!opts.isPaused()) clouds.rotation.y += (CLOUDS_DEG_PER_FRAME * Math.PI) / 180
       cloudsRaf = requestAnimationFrame(rotate)
     }
     cloudsRaf = requestAnimationFrame(rotate)
