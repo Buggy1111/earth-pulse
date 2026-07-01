@@ -23,8 +23,13 @@ describe('Starlink TLE snapshot', () => {
     const tracked = toTrackedSats(sets).slice(0, 200)
     const pos = propagateSats(tracked, new Date())
     expect(pos.length).toBeGreaterThan(100)
-    // Starlink flies a ~550 km shell; allow drift/raising/lowering sats
-    expect(pos.every((p) => p.altKm > 200 && p.altKm < 1200)).toBe(true)
+    // Starlink flies a ~550 km shell; allow drift/raising/lowering sats.
+    // 98 % quantile, not every(): a handful of the 200 are always deorbiting,
+    // and a snapshot even a week old drifts a few of them past the bounds —
+    // the canary should fire on ROTTEN data (weekly refresh action dead),
+    // not on the odd dying satellite.
+    const plausible = pos.filter((p) => p.altKm > 200 && p.altKm < 1200)
+    expect(plausible.length).toBeGreaterThan(pos.length * 0.98)
     expect(pos.every((p) => Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180)).toBe(true)
   })
 
