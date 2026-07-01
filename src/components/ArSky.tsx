@@ -37,6 +37,10 @@ interface ArSkyProps {
 export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps): React.ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  // closing AR while getUserMedia's permission dialog is still open resolves the
+  // stream AFTER the unmount cleanup ran — the async starters re-check this flag
+  // and tear their resource down immediately instead of parking it in a dead ref
+  const closedRef = useRef(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const arScene = useRef<ArScene | null>(null)
   const [model3D, setModel3D] = useState(false) // real 3D models loaded → drop the dots
@@ -89,6 +93,10 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
+      if (closedRef.current) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -106,6 +114,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
       const tle = await fetch('tle/starlink.txt').then((r) =>
         r.ok ? r.text() : Promise.reject(new Error('no tle')),
       )
+      if (closedRef.current) return // AR closed while the TLE fetch was in flight
       const w = new Worker(new URL('../workers/starlinkWorker.ts', import.meta.url), {
         type: 'module',
       })
@@ -138,14 +147,16 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   // tear the Starlink worker AND the camera down when the AR overlay closes —
   // the back camera must be released (privacy indicator + battery) since closing
   // AR unmounts this component but the MediaStream tracks keep running otherwise
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    closedRef.current = false // StrictMode re-runs the effect on the same instance
+    return () => {
+      closedRef.current = true
       slWorker.current?.terminate()
+      slWorker.current = null
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
-    },
-    [],
-  )
+    }
+  }, [])
 
   // the 3D layer: a transparent WebGL canvas over the camera that draws the real
   // Starlink model where each satellite is. Built once started; kept in sync via
