@@ -1,0 +1,31 @@
+# Every push runs the same gate as local development: lint, typed build, unit
+# tests, then the Playwright e2e suite against the real WebGL globe. Until now
+# NOTHING ran on push — even the data-refresh bot deployed straight to
+# production unchecked. Actions pinned to commit SHAs (supply chain).
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build # tsc -b + vite build
+      - run: npm run test
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: e2e (WebGL globe in headless Chromium)
+        run: npm run e2e

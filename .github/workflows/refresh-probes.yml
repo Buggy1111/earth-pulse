@@ -1,9 +1,13 @@
-# Keeps the deep-space probe positions live: re-bakes their trajectories from
-# NASA JPL HORIZONS every week and commits the result, so the displayed
-# positions never drift out of their published ephemeris window (active
-# missions like Psyche only publish a month or two ahead). Pushing to main
-# triggers a fresh Vercel deploy automatically.
-name: Refresh probe trajectories
+# Keeps the baked live-data snapshots fresh with one weekly run:
+#  - deep-space probe trajectories from NASA JPL HORIZONS (active missions like
+#    Psyche only publish a month or two ahead — without refreshes they freeze)
+#  - the Starlink TLE snapshot + the curated famous-satellite TLEs from
+#    Celestrak (SGP4 propagation of stale elements drifts within days; the
+#    starlink unit test is the canary that fires when this rots)
+# Pushing to main triggers a fresh Vercel deploy automatically.
+# Actions are pinned to commit SHAs — this workflow holds contents:write, so a
+# hijacked mutable tag could commit straight to production.
+name: Refresh live-data snapshots
 
 on:
   schedule:
@@ -17,20 +21,25 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Re-bake probe trajectories from JPL HORIZONS
         run: node scripts/fetch-probes.mjs
-      - name: Commit if the positions changed
+      - name: Refresh Starlink + famous-satellite TLEs from Celestrak
         run: |
-          if git diff --quiet -- public/probes/probes.json; then
-            echo "Probe trajectories unchanged."
+          node scripts/fetch-starlink.mjs
+          node scripts/fetch-famous.mjs
+      - name: Commit if any snapshot changed
+        run: |
+          FILES="public/probes/probes.json public/tle/starlink.txt public/tle/famous.txt"
+          if git diff --quiet -- $FILES; then
+            echo "All snapshots unchanged."
           else
-            git config user.name "probe-refresh bot"
+            git config user.name "data-refresh bot"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add public/probes/probes.json
-            git commit -m "🛰 chore: refresh probe trajectories from JPL HORIZONS"
+            git add $FILES
+            git commit -m "🛰 chore: refresh probe + TLE snapshots (HORIZONS, Celestrak)"
             git push
           fi
