@@ -12,10 +12,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
 import { SUNLIT_LAYER } from './solar'
-import { PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
+import { isValidTraj, PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { makeNameSprite } from '../spaceObjects'
 import { isMobileDevice } from '../perf'
-import { getGlowTexture } from './helpers'
+import { disposeMaterial, getGlowTexture } from './helpers'
 
 const PROBES_URL = 'probes/probes.json'
 const MAX_DISPLAY_AU = 200 // safety cap only; the real probes (Voyager 1 ~170 AU) all fit, shown true
@@ -240,7 +240,7 @@ export function setupProbes(
     .then((r) => (r.ok ? (r.json() as Promise<ProbeTraj[]>) : Promise.reject(new Error('no probes'))))
     .then((trajs) => {
       if (disposed) return
-      for (const traj of trajs) addCraft(traj)
+      for (const traj of trajs.filter(isValidTraj)) addCraft(traj)
     })
     .catch(() => {
       // no snapshot → the rest of the solar view is unaffected
@@ -265,9 +265,7 @@ export function setupProbes(
         o.traverse((c) => {
           const m = c as THREE.Mesh & { material?: THREE.Material | THREE.Material[] }
           m.geometry?.dispose?.()
-          const mat = m.material
-          if (Array.isArray(mat)) mat.forEach((x) => x.dispose())
-          else mat?.dispose?.()
+          disposeMaterial(m.material)
         })
       }
       probeMeshesRef.current.clear()

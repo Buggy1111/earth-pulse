@@ -172,7 +172,17 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
     dispose() {
       disposed = true
       cancelAnimationFrame(raf)
+      // free the model clones' GPU buffers now, not at GC's leisure — repeated
+      // AR open/close on a phone otherwise stacks dead contexts + buffers
+      scene.traverse((o) => {
+        const m = o as THREE.Mesh & { material?: THREE.Material | THREE.Material[] }
+        m.geometry?.dispose?.()
+        const mat = m.material
+        if (Array.isArray(mat)) mat.forEach((x) => x.dispose())
+        else mat?.dispose?.()
+      })
       renderer.dispose()
+      renderer.forceContextLoss()
     },
   }
 }

@@ -127,7 +127,14 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
     deps.starlinkRef.current?.dispose()
     deps.starlinkRef.current = null
     window.removeEventListener('resize', onResize)
+    const renderer = globe.renderer()
     globe._destructor()
+    // renderer.dispose() inside _destructor does NOT release the WebGL context —
+    // it lingers until GC, and the e2e global would pin the whole graph alive.
+    // Phones cap live contexts (~8–16); leftovers from Earth↔Drift/AR cycles get
+    // the OLDEST context evicted, which can be the freshly mounted globe.
+    renderer.forceContextLoss()
+    delete (window as unknown as Record<string, unknown>).__earthPulseGlobe
   }
 }
 

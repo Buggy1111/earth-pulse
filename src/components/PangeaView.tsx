@@ -166,6 +166,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       for (const t of textures) t?.dispose()
       for (const t of futureTex) t?.dispose()
       renderer.dispose()
+      renderer.forceContextLoss()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
   }, [])

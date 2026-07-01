@@ -96,6 +96,19 @@ export function getTriangleTexture(): THREE.CanvasTexture {
   return triangleTexture
 }
 
+/** Dispose a material — and its texture map ONLY when the material owns it
+ * (label sprites tag `userData.ownsMap`; see makeNameSprite). Bare
+ * `material.dispose()` never frees `material.map`, which leaked one GPU
+ * texture per label every time the stars/probes layers were rebuilt, but
+ * disposing maps unconditionally would kill the shared glow texture used by
+ * the Sun, Moon, quakes, events, probes and stars alike. */
+export function disposeMaterial(mat: THREE.Material | THREE.Material[] | undefined): void {
+  for (const m of Array.isArray(mat) ? mat : mat ? [mat] : []) {
+    if (m.userData.ownsMap) (m as THREE.SpriteMaterial).map?.dispose()
+    m.dispose()
+  }
+}
+
 /** Soft radial glow, tinted by each sprite's material color. */
 let glowTexture: THREE.CanvasTexture | null = null
 export function getGlowTexture(): THREE.CanvasTexture {

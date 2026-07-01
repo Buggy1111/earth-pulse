@@ -13,7 +13,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { bvColor, type StarCatalog, type StarPick } from '../../lib/stars'
 import { makeNameSprite } from '../spaceObjects'
-import { getGlowTexture } from './helpers'
+import { disposeMaterial, getGlowTexture } from './helpers'
 import { setupStarFocus } from './starFocus'
 
 const STARS_URL = 'stars/stars.json'
@@ -249,9 +249,7 @@ export function setupStars(
       for (const o of added) {
         const mesh = o as THREE.Points
         mesh.geometry?.dispose?.()
-        const mat = mesh.material
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose())
-        else (mat as THREE.Material | undefined)?.dispose?.()
+        disposeMaterial(mesh.material as THREE.Material | THREE.Material[] | undefined)
       }
       added.length = 0
       pickTargets.length = 0

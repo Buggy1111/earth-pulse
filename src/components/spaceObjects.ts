@@ -285,6 +285,11 @@ export function makeNameSprite(
       depthWrite: false,
     }),
   )
+  // this material OWNS its map (fresh canvas per label) — unlike the shared
+  // getGlowTexture() sprites. Disposers check the flag: material.dispose()
+  // alone leaks the GPU texture, but blindly disposing maps would kill the
+  // shared glow for every other layer.
+  sprite.material.userData.ownsMap = true
   if (screenSpace) {
     // constant on-screen size — readable from any distance (solar mode)
     ;(sprite.material as THREE.SpriteMaterial).sizeAttenuation = false
@@ -316,6 +321,7 @@ function makeIssLabel(): THREE.Sprite {
       depthWrite: false,
     }),
   )
+  sprite.material.userData.ownsMap = true
   sprite.scale.set(4.6, 1.7, 1)
   sprite.position.y = 3.2
   return sprite
