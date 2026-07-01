@@ -52,8 +52,11 @@ export function focusSolarBody(
   const startOffset = cam.position.clone().sub(world)
   // if the camera sits almost on the body, normalize() would be NaN — fall back
   // to a sensible approach direction (this froze the view when focusing Earth,
-  // which sits at the scene origin)
-  if (startOffset.lengthSq() < 1e-4) startOffset.set(0, radius * 3, radius * 6)
+  // which sits at the scene origin). NaN needs its own check: NaN < 1e-4 is
+  // false, so a corrupt body position would sail straight into cam.position
+  // and freeze the renderer.
+  if (!Number.isFinite(startOffset.lengthSq()) || startOffset.lengthSq() < 1e-4)
+    startOffset.set(0, radius * 3, radius * 6)
   const endOffset = focusPlanet
     ? startOffset.clone().normalize().multiplyScalar(radius * 6)
     : // overview above the ecliptic: inner system + Jupiter & Saturn framed

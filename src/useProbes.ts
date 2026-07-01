@@ -3,7 +3,7 @@
  * separately for rendering; the browser caches it, so it's one fetch in effect. */
 
 import { useEffect, useState } from 'react'
-import type { ProbeTraj } from './lib/probes'
+import { isValidTraj, type ProbeTraj } from './lib/probes'
 
 export function useProbes(): ProbeTraj[] {
   const [trajs, setTrajs] = useState<ProbeTraj[]>([])
@@ -12,7 +12,7 @@ export function useProbes(): ProbeTraj[] {
     fetch('probes/probes.json')
       .then((r) => (r.ok ? (r.json() as Promise<ProbeTraj[]>) : Promise.reject(new Error('no probes'))))
       .then((data) => {
-        if (!cancelled) setTrajs(data)
+        if (!cancelled) setTrajs(data.filter(isValidTraj))
       })
       .catch(() => {
         // offline / no snapshot → the nav just won't list probes

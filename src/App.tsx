@@ -76,13 +76,23 @@ export default function App() {
   const [arMode, setArMode] = useState(false)
   const { quality, setQuality, eco, mobile } = useQuality(ready)
   // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
-  const [earthSpin, setEarthSpin] = useState(
-    () => localStorage.getItem('earth-pulse-spin') !== 'off',
-  )
+  // localStorage throws SecurityError with cookies blocked / sandboxed iframes —
+  // and this runs on first render, so an unguarded call took the whole app down.
+  const [earthSpin, setEarthSpin] = useState(() => {
+    try {
+      return localStorage.getItem('earth-pulse-spin') !== 'off'
+    } catch {
+      return true
+    }
+  })
   const onToggleEarthSpin = useCallback(() => {
     setEarthSpin((v) => {
       const next = !v
-      localStorage.setItem('earth-pulse-spin', next ? 'on' : 'off')
+      try {
+        localStorage.setItem('earth-pulse-spin', next ? 'on' : 'off')
+      } catch {
+        // not persistable — the in-memory toggle still works
+      }
       return next
     })
   }, [])

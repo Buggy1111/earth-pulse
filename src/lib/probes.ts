@@ -44,6 +44,21 @@ export const AU_KM = 149_597_870.7
 /** JD at the Unix epoch (1970-01-01 00:00 UTC). */
 const JD_UNIX = 2440587.5
 
+/** A baked trajectory is usable only with a finite time base and ≥2 finite
+ * samples — the weekly HORIZONS refresh could in principle bake an empty or
+ * partial entry, and one NaN position reaching the camera freezes the view.
+ * Both loaders (React nav + 3D layer) filter through this. */
+export function isValidTraj(t: ProbeTraj): boolean {
+  return (
+    Number.isFinite(t.jd0) &&
+    t.stepDays > 0 &&
+    Array.isArray(t.pos) &&
+    t.pos.length >= 6 &&
+    t.pos.length % 3 === 0 &&
+    t.pos.every(Number.isFinite)
+  )
+}
+
 /** Heliocentric ecliptic position (AU) at `date`, linearly interpolated between
  * baked samples; clamps to the trajectory's ends outside its window. */
 export function probePosAu(t: ProbeTraj, date: Date): [number, number, number] {
