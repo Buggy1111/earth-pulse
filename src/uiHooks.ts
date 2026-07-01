@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectWeakGpu, isMobileDevice, sampleFps } from './components/perf'
 import type { LayerState, OrbitEntry } from './components/hud/types'
 import { warpedSimMs } from './lib/clock'
+import { isSameEvent } from './lib/emsc'
 import { playPing } from './lib/ping'
 import type { Quake } from './lib/quakes'
 import { encodeView, parseView } from './lib/share'
@@ -42,9 +43,14 @@ export function useQuality(ready: boolean) {
     if (mobile) return savedQuality === '2k' ? '2k' : '4k' // never 8K on a phone
     return savedQuality ?? (detectWeakGpu() ? '2k' : '8k')
   })
+  // an explicit pick while the watchdog is still sampling must win — the
+  // watchdog used to overwrite it silently a few seconds later (and disagree
+  // with what localStorage said until the next reload)
+  const userChose = useRef(false)
   const setQuality = useCallback(
     (q: Quality) => {
       const next: Quality = mobile && q === '8k' ? '4k' : q // 8K OOM-crashes phones
+      userChose.current = true
       saveQuality(next)
       setQualityState(next)
     },
@@ -56,7 +62,7 @@ export function useQuality(ready: boolean) {
     watchdogRan.current = true
     let cancelled = false
     void sampleFps(4_000).then((fps) => {
-      if (!cancelled && fps < 36) setQualityState('2k')
+      if (!cancelled && !userChose.current && fps < 36) setQualityState('2k')
     })
     return () => {
       cancelled = true
@@ -202,20 +208,26 @@ export function useQuakePing(newQuakes: Quake[], emscFresh: Quake[]) {
     soundOnRef.current = soundOn
   }, [soundOn])
   const audioRef = useRef<AudioContext | null>(null)
+  // one shared "already pinged" record for BOTH feeds — EMSC announces a quake
+  // within a minute and USGS re-announces the same event minutes later under a
+  // different id, which used to ping twice. Cross-checked via isSameEvent and
+  // pruned by event time so the list can't grow unbounded.
+  const recentPinged = useRef<Quake[]>([])
+  const pingOnce = (q: Quake) => {
+    const cutoff = Date.now() - 30 * 60_000
+    recentPinged.current = recentPinged.current.filter((p) => p.time > cutoff)
+    if (recentPinged.current.some((p) => p.id === q.id || isSameEvent(p, q))) return
+    recentPinged.current.push(q)
+    audioRef.current ??= new AudioContext()
+    playPing(audioRef.current, q.mag)
+  }
   useEffect(() => {
     if (newQuakes.length === 0 || !soundOnRef.current) return
-    audioRef.current ??= new AudioContext()
-    for (const q of newQuakes) playPing(audioRef.current, q.mag)
+    for (const q of newQuakes) pingOnce(q)
   }, [newQuakes])
-  const pinged = useRef(new Set<string>())
   useEffect(() => {
     if (emscFresh.length === 0 || !soundOnRef.current) return
-    audioRef.current ??= new AudioContext()
-    for (const q of emscFresh) {
-      if (pinged.current.has(q.id)) continue
-      pinged.current.add(q.id)
-      playPing(audioRef.current, q.mag)
-    }
+    for (const q of emscFresh) pingOnce(q)
   }, [emscFresh])
   const toggleSound = useCallback(() => {
     setSoundOn((on) => {

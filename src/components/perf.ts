@@ -103,16 +103,30 @@ export function globeIsSoftware(globe: {
   }
 }
 
-/** Average FPS over `ms` of wall time (resolves early if the tab hides). */
+/** Average FPS over `ms` of wall time. Resolves Infinity ("couldn't measure,
+ * don't act on it") when the tab hides mid-sample — rAF stops on hidden tabs,
+ * so counting wall time across a background stint reported ~0 fps and made
+ * the quality watchdog downgrade perfectly good GPUs. */
 export function sampleFps(ms = 4_000): Promise<number> {
   return new Promise((resolve) => {
     let frames = 0
+    let done = false
     const start = performance.now()
+    const finish = (fps: number) => {
+      if (done) return
+      done = true
+      document.removeEventListener('visibilitychange', onHide)
+      resolve(fps)
+    }
+    const onHide = () => document.hidden && finish(Infinity)
+    document.addEventListener('visibilitychange', onHide)
+    if (document.hidden) return finish(Infinity)
     const tick = () => {
+      if (done) return
       frames++
       const elapsed = performance.now() - start
-      if (elapsed >= ms || document.hidden) {
-        resolve((frames * 1000) / Math.max(elapsed, 1))
+      if (elapsed >= ms) {
+        finish((frames * 1000) / Math.max(elapsed, 1))
       } else {
         requestAnimationFrame(tick)
       }

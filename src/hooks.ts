@@ -91,15 +91,18 @@ export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[]
     let cancelled = false
     let ws: WebSocket | null = null
     let reconnect: ReturnType<typeof setTimeout> | undefined
+    let lastMsg = Date.now()
     const freshTimers = new Set<ReturnType<typeof setTimeout>>()
     const connect = () => {
       if (cancelled) return
       try {
+        lastMsg = Date.now()
         ws = new WebSocket(EMSC_WS_URL)
       } catch {
         return // no WebSocket support — USGS poll still covers us
       }
       ws.onmessage = (event) => {
+        lastMsg = Date.now()
         const q = parseEmscEvent(String(event.data))
         if (!q || cancelled) return
         const cutoff = Date.now() - maxAgeMs
@@ -116,14 +119,23 @@ export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[]
       }
     }
     connect()
-    const prune = setInterval(
-      () => setQuakes((list) => list.filter((x) => x.time > Date.now() - maxAgeMs)),
-      60_000,
-    )
+    // heartbeat watchdog: the worldwide feed delivers events every few minutes;
+    // total silence means a half-open socket (network switch, laptop sleep) that
+    // will never fire onclose — force the close so the reconnect path kicks in
+    const staleClose = () => {
+      if (ws && Date.now() - lastMsg > 10 * 60_000) ws.close()
+    }
+    const onVisible = () => document.hidden || staleClose()
+    document.addEventListener('visibilitychange', onVisible)
+    const prune = setInterval(() => {
+      setQuakes((list) => list.filter((x) => x.time > Date.now() - maxAgeMs))
+      staleClose()
+    }, 60_000)
     return () => {
       cancelled = true
       clearTimeout(reconnect)
       clearInterval(prune)
+      document.removeEventListener('visibilitychange', onVisible)
       for (const t of freshTimers) clearTimeout(t)
       ws?.close()
     }
