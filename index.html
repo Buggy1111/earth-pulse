@@ -18,7 +18,7 @@
     <title>Earth Pulse — the planet, live in 3D (earthquakes, satellites, ISS, aurora)</title>
     <meta
       name="description"
-      content="Earth Pulse is a free, real-time 3D globe of our planet: live earthquakes, ~150 real satellites with clickable orbits, the ISS, the aurora, real day & night with city lights, plus a full solar-system mode with the Moon and planets. Runs in the browser — no backend, no API keys, open source."
+      content="Earth Pulse is a free, real-time 3D globe of our planet: live earthquakes, 26 famous satellites with clickable orbits, an optional ~10,700-satellite Starlink swarm, the ISS, the aurora and real day & night with city lights — plus the full solar system with 11 deep-space probes, the real night sky, continental drift from Pangaea and a Sky AR mode. Installable PWA, no backend, no API keys, open source."
     />
     <meta
       name="keywords"
@@ -36,7 +36,7 @@
     <meta property="og:title" content="Earth Pulse — the planet, live in 3D" />
     <meta
       property="og:description"
-      content="A free real-time 3D globe: live earthquakes, real satellites with orbits, the ISS, aurora, city lights along the day/night line, plus a full solar-system mode. No backend, no API keys, open source."
+      content="A free real-time 3D globe: live earthquakes, real satellites and the Starlink swarm, the ISS, aurora and city lights along the day/night line — plus the whole solar system with deep-space probes, the real night sky and a Sky AR mode. No backend, no API keys, open source."
     />
     <meta property="og:url" content="https://earth-pulse-rosy.vercel.app/" />
     <meta property="og:image" content="https://earth-pulse-rosy.vercel.app/og-image.png" />
@@ -50,7 +50,7 @@
     <meta name="twitter:title" content="Earth Pulse — the planet, live in 3D" />
     <meta
       name="twitter:description"
-      content="Live earthquakes, real satellites & the ISS, aurora, city lights and a full solar-system mode — a real-time 3D globe in your browser. Free & open source."
+      content="Live earthquakes, real satellites & the ISS, the Starlink swarm, aurora, city lights, deep-space probes and Sky AR — a real-time 3D globe in your browser. Free & open source."
     />
     <meta name="twitter:image" content="https://earth-pulse-rosy.vercel.app/og-image.png" />
     <meta name="twitter:image:alt" content="A live 3D Earth with city lights and glowing satellite orbit trails." />
@@ -63,7 +63,7 @@
         "name": "Earth Pulse",
         "alternateName": "Earth Pulse — the planet, live",
         "url": "https://earth-pulse-rosy.vercel.app/",
-        "description": "A free, real-time interactive 3D globe of Earth showing live earthquakes, around 150 real satellites with clickable orbits, the International Space Station, the aurora, real day and night with city lights, and live Wikipedia edits — plus a full solar-system mode with the Moon, planets and their moons. Runs entirely in the browser with no backend and no API keys.",
+        "description": "A free, real-time interactive 3D globe of Earth showing live earthquakes, 26 famous satellites with clickable orbits, an optional Starlink swarm of around 10,700 real satellites, the International Space Station, the aurora, real day and night with city lights, and live Wikipedia edits — plus a full solar-system mode with the Moon, planets, their moons, 11 deep-space probes on real trajectories and the real night sky, a continental-drift mode from Pangaea to today, and a Sky AR mode that identifies satellites through your phone camera. Installable as a PWA and runs entirely in the browser with no backend and no API keys.",
         "applicationCategory": "EducationalApplication",
         "applicationSubCategory": "Data visualization",
         "operatingSystem": "Any (modern web browser with WebGL)",
@@ -81,13 +81,19 @@
         },
         "featureList": [
           "Live earthquakes from USGS and EMSC with magnitude-scaled glow",
-          "Around 150 real satellites tracked with SGP4, with clickable comet-trail orbits",
+          "26 famous satellites (ISS, Hubble, Tiangong, Landsat…) tracked with SGP4, with clickable comet-trail orbits and mission cards",
+          "Optional Starlink swarm: around 10,700 real satellites as one GPU-instanced layer",
           "Live International Space Station position with follow camera",
           "Real day and night terminator with city lights",
           "Live aurora driven by NOAA space-weather Kp index",
           "Latest natural events from NASA EONET (wildfires, storms, volcanoes, ice)",
           "NASA GIBS vital-signs imagery layers with a date playback slider",
           "Full solar-system mode: the Sun, eight planets, the Moon and major moons on true orbits with time-warp",
+          "11 deep-space probes (Voyager 1 & 2, New Horizons, Parker Solar Probe, Europa Clipper…) on real NASA JPL HORIZONS trajectories",
+          "The real night sky: 8,921 stars with constellation lines and names, clickable star close-ups and real telescope photos",
+          "Continental Drift mode: scrub from Pangaea (340 Ma) to today and on to a projected Pangaea Proxima",
+          "Sky AR: point your phone at the sky to identify satellites, the Moon and planets overhead",
+          "Installable PWA with an offline service worker",
           "Cinematic kiosk/screensaver tour after idle",
           "Shareable view links, geolocation and ISS pass prediction"
         ],

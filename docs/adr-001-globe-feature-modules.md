@@ -45,3 +45,9 @@ lib/*.test.ts         testy rozdělené po doménách (astro/satellites/feeds/ui
   v GlobeView (pin target, trails, solar anim) — jediný vlastník životního cyklu.
 - Cena: o soubor víc na feature; zisk: každý soubor přečteš na jeden zátah
   a vrstvu lze smazat bez strachu.
+
+## Dodatek — stav k 1. 7. 2026
+Limit ~400 řádků se v praxi drží jako **vodítko, ne tvrdé pravidlo**: hrstka
+kompozičních kořenů a soudržných modulů (`GlobeView.tsx`, `App.tsx`,
+`ArSky.tsx`, `orbitEngine.ts`, `solar.ts`) běží vědomě na ~400–460 řádcích —
+dělit je dál by soudržnost zhoršilo. Vše ostatní pod 400 zůstává.

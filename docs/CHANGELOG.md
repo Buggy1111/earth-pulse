@@ -1,8 +1,8 @@
 # 📜 Changelog — cesta vývoje
 
-Historie podle git commitů. Celý projekt vznikl ve dvou intenzivních dnech
-(12.–13. června 2026). Seskupeno podle vývojových oblouků; v závorkách časy
-commitů.
+Historie podle git commitů. Základ projektu vznikl ve dvou intenzivních dnech
+(12.–13. června 2026) a od té doby roste v denních obloucích. Seskupeno podle
+vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
@@ -180,6 +180,103 @@ Velký balík nadstaveb nad volnými NASA/Celestrak API (bez klíčů, CORS-frie
   Wikipedia tickeru.
 
 > Stav: **64/64 testů**, `tsc` + `eslint` čisté, build OK.
+
+---
+
+## 🗺 Kontinentální drift + živé satelity (18. 6.)
+- **Nový režim Drift** — glóbus přehraje kontinentální drift od **Pangey
+  (340 Ma) po dnešek** (paleomapy Scotese/PALEOMAP, snímky po 5 My, plynulé
+  přehrávání) + **projektovaná budoucnost do Pangaea Proxima (+250 My)** přes
+  SDF-morph mezisnímky. Start v pauze, responzivní UI, fix mobilního crashe
+  (dva WebGL kontexty najednou).
+- **Klik na satelit = let s ním** — kamera se zamkne na satelit, obíháš s ním,
+  další klik pustí.
+- **Reálné barvy modelů** — per-satelit barvy těl (zlatá/stříbrná/bílá podle
+  referenčních fotek), obarveny i texturované šedé modely (Hubble, ISS, Suomi
+  NPP).
+- Měsíc dostal kometový ocas jako satelity; přepínač **„Earth spins"**
+  (default zapnuto — Slunce stojí, Země rotuje); `panels.tsx` rozdělen pod
+  400řádkové ADR.
+
+## 🛰 Starlink roj + Sky AR (19. 6.)
+- **Starlink roj** — **10,6k skutečných satelitů** jako jeden InstancedMesh,
+  SGP4 celého roje ve **web workeru**, zoom-aware LOD (přiblížíš se a plachetky
+  se mění v reálný GLB model — Sketchfab „Starlink" od Malacodart).
+- **Nový režim Sky AR** (jen telefon) — namíříš telefon na oblohu přes kameru
+  a overlay ukáže, který satelit právě letí nad tebou: jmenovky nejbližších,
+  vzdálenost (slant range, km), jas modelů podle den/noc, iOS motion permission
+  správně uvnitř gesta, živý senzorový debug strip.
+- **Playwright e2e suite** — glóbus, Starlink roj, Sky AR.
+- Audit + refaktoring: rozděleno 6 přerostlých souborů, security a perf
+  zpřísnění; Měsíc dostal místa přistání i na odvrácené straně (čínská +
+  robotická), solar ukazuje živý počet aktivních sond.
+
+## 🚀 Sondy, hvězdy a PWA (20. 6.)
+- **Sondy hlubokého vesmíru v solar view** — skutečné trajektorie z **NASA JPL
+  HORIZONS** (baked snapshot, týdenní auto-refresh), kometové ocasy, reálný 3D
+  model pro každou sondu, fly-to + orbit jako u planet, karta s živou rychlostí
+  a vzdáleností od Země, navigační seznam; vesmír se zvětšil, sondy jsou na
+  reálné vzdálenosti.
+- **Skutečná noční obloha** — **8 921 hvězd** (HYG) na pravých pozicích, čáry
+  a jména souhvězdí, nejbližší systémy; **klik na hvězdu** = karta + let ke
+  hvězdě (procedurální 3D koule ze skutečné fyziky + reálné fotky z teleskopů
+  u 13 slavných hvězd).
+- **PWA** — instalovatelná appka s luxusní sadou ikon a **offline service
+  workerem**; iOS safe-area insets pod notchem.
+- Texturované modely ISS/Hubble/Terra/Landsat 8, GOES-16/18; jednotný design
+  (HudCard) + jeden sdílený camera-flight engine; interaction-aware rozlišení;
+  MIT licence deklarovaná v `package.json`; ruční kalibrace kompasu pro Sky AR.
+
+## 💎 Luxe redesign + mobilní stabilita (21. 6.)
+- **Luxe sci-fi vizuál** — zlatě rámovaná konzole, zlatý world-switcher, motion,
+  svítící readouty; dotažený customize panel (na mobilu už není uvězněný za
+  šuplíkem).
+- **Selektor kvality 2K/4K/8K** místo binárního fast-mode; **mobil zamčený na
+  eco** (8K textury shazovaly iPhony — crash/reload loop vyřešen), desktop drží
+  8K všude; solar mód ušetřil ~490 MB GPU paměti.
+- **Živé události s vizuálem** — pulzující ringy podle kategorie + detailní
+  karta.
+- **Totální audit** — fix AR kamery, texture/rAF leaky, strict mode, draco
+  komprese 5 GLB; UX fixy (šipka směru letu, kamera v solar módu, HUD pod
+  notchem).
+
+## 🔍 Velký audit + CI (1. 7.)
+Kompletní auditní a opravná dávka — výkon, paměť, síť, bezpečnost i
+infrastruktura:
+
+**Výkon & paměť:**
+- **Quake ringy** — konec bourání a stavění všech ripple efektů 1× za sekundu;
+  ringy se recyklují.
+- **GPU lifecycle** — uvolňování textur jmenovek + tvrdé uvolnění WebGL
+  kontextů (`WEBGL_lose_context`), frame-loop dieta a guardy pro slabý
+  hardware; Pangea drží na telefonech v paměti jen okno ±5 snímků.
+
+**Síť & feedy:**
+- **Wikipedia SSE batchovaná na 1 Hz** + živé polly se pozastaví na skryté
+  kartě; watchdogy respektují ruční volbu kvality a přežijí polootevřené
+  sockety.
+- Guardy: `localStorage` crash, race při scrubování GIBS, NaN trajektorie sond.
+
+**Bezpečnost & infrastruktura:**
+- **Explicitní CSP allowlist**, `sw.js` no-cache, validace TLE při ingestu.
+- **CI pipeline** (`.github/workflows/ci.yml`) — lint + typed build + unit +
+  **Playwright e2e** na každý push (do teď na push neběželo nic).
+- **Týdenní refresh snapshotů** (`refresh-probes.yml`) — každé pondělí re-bake
+  trajektorií sond z HORIZONS + Starlink/famous TLE z Celestraku; akce pinované
+  na commit SHA; unit test jako kanárek na zvětralá TLE (pálí na rot, ne na
+  deorbit — CALIPSO a Envisat z katalogu legálně zmizely).
+
+**Opravy:**
+- **HORIZONS parser** — záporné exponenty ve vědecké notaci se parsovaly jako
+  NaN → 5 sond tiše mizelo a Europa Clipper/Psyche/Lucy měly nulové Z. Po fixu
+  je v solar view **všech 11 sond**.
+- **AR kamera** — kamera se korektně vypne, i když AR zavřeš uprostřed
+  permission dialogu.
+- e2e: nový test klik-na-zemětřesení (kamera letí + otevře se karta) +
+  tolerance výpadků third-party feedů.
+
+> Stav: **108 unit testů (15 souborů) + 5 Playwright e2e**, `tsc` + `eslint`
+> čisté, build OK — a nově to samé hlídá CI na každý push.
 
 ---
 

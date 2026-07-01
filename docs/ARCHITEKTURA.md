@@ -13,6 +13,14 @@ src/
 │   ├── moon.ts         sub-lunární bod, fáze, Apollo místa
 │   ├── planets.ts      Keplerovy elementy → polohy planet + měsíce
 │   ├── satellites.ts   parser TLE + SGP4 wrappery
+│   ├── spacecraft.ts   cenzus aktivních robotických sond (mid-2026)
+│   ├── probes.ts       trajektorie sond z baked HORIZONS snapshotu
+│   ├── stars.ts        HYG katalog hvězd (J2000 unit směry, mag, B–V)
+│   ├── starLook.ts     fyzika hvězdy → vzhled 3D koule (barva, velikost, korona)
+│   ├── lod.ts          LOD výběr pro Starlink roj (model jen u kamery)
+│   ├── clock.ts        jediné warpované simulační hodiny celé scény
+│   ├── arMath.ts       AR matematika (azimut/elevace → obrazovka)
+│   ├── arBodies.ts     Měsíc + planety jako look-angles pro Sky AR
 │   ├── quakes.ts       USGS parser, barevné/velikostní škály, statistiky
 │   ├── emsc.ts         EMSC WebSocket parser + de-duplikace vůči USGS
 │   ├── spaceWeather.ts NOAA Kp + sluneční vítr parser
@@ -24,41 +32,70 @@ src/
 │   ├── gibs.ts         NASA GIBS vrstvy (WMS GetMap URL, legendy, date)
 │   ├── share.ts        kodek pohledu do/z URL hashe
 │   ├── labels.ts, format.ts, ping.ts
-│   └── *.test.ts       testy po doménách (astro/satellites/feeds/ui-utils)
+│   └── *.test.ts       testy po doménách (astro/satellites/feeds/probes/ar/…)
 │
-├── hooks.ts        React hooky pro feedy (useQuakes, useEmsc, useIss, useEvents, …)
-├── uiHooks.ts      useEcoMode/useTimeline/useSolarTime/useGeolocate/useMediaQuery
-│                   /useIdleKiosk/useKioskShow/useQuakePing/useShareHash
-├── App.tsx         kompoziční kořen UI: stav, režimy, drát feedy → glóbus (≤400 ř.)
+├── hooks.ts        React hooky pro jednotlivé feedy (useQuakes, useEmsc, useIss, …)
+├── useLiveData.ts  agregace všech živých feedů do jednoho hooku pro App
+├── useWorldView.ts stavový automat světů (Earth/Moon/solar/drift) + navigace
+├── useProbes.ts    baked trajektorie sond pro React (nav list, živá vzdálenost)
+├── uiHooks.ts      useQuality(2K/4K/8K)/useTimeline/useSolarTime/useGeolocate
+│                   /useMediaQuery/useIdleKiosk/useKioskShow/useQuakePing/useShareHash
+├── workers/
+│   └── starlinkWorker.ts  SGP4 celého Starlink roje (10k+) mimo hlavní vlákno
+├── App.tsx         kompoziční kořen UI: stav, režimy, drát feedy → glóbus
 │
 └── components/
     ├── GlobeView.tsx       kompoziční kořen 3D scény: props → refs → effects
+    ├── PangeaView.tsx      režim Drift (paleomapy, morph, scrub)
+    ├── ArSky.tsx           režim Sky AR (kamera + senzory + overlay)
+    ├── arScene.ts          3D vrstva AR: průhledný canvas nad kamerou
+    ├── useArCalibration.ts perzistovaný ruční offset kompasu/sklonu
+    ├── ArCalibrate / ArMarkers / ArLaunchButton  AR UI kusy
+    ├── StarPanel.tsx       info karta hvězdy
     ├── dayNightMaterial.ts shader Země (terminátor + světla měst + mraky)
     ├── spaceObjects.ts     modely satelitů/ISS
     ├── perf.ts             detekce slabé GPU + FPS sampling
     ├── MoonPanel / PlanetPanel  info panely režimů
     ├── globe/              FEATURE MODULY scény (každý setupX → dispose)
     │   ├── helpers.ts      sdílené textury, konstanty, typy
+    │   ├── sceneSetup.ts   one-time stavba globe.gl scény + resize + cleanup
     │   ├── sky.ts          Slunce (uniform+sprite) + Měsíc + Apollo vlajky
     │   ├── moonMaterial.ts shader Měsíce (fáze dle Slunce + earthshine)
     │   ├── surface.ts      day/night textury, mraky, tile engine, hranice, sopky
-    │   ├── quakesLayer.ts  glow sprity + ringy zemětřesení
+    │   ├── gibsLayer.ts    NASA GIBS obrázek paintnutý na materiál glóbu
+    │   ├── quakesLayer.ts  glow sprity + recyklované ringy zemětřesení
     │   ├── eventsLayer.ts  piny přírodních událostí (NASA EONET)
     │   ├── orbitEngine.ts  objects layer, per-frame smyčka, traily + šipky
-    │   ├── solar.ts        stavba soustavy, updateSolar, focus kamery
+    │   ├── orbitRender.ts  trail/orbit-line rendering (barvy, ground-track)
+    │   ├── satObject.ts    3D node satelitu: NASA glb / ruční primitiv
+    │   ├── spaceModels.ts  lazy-load + cache reálných .glb modelů
+    │   ├── starlinkLayer.ts Starlink roj: InstancedMesh + model LOD
+    │   ├── solar.ts        stavba soustavy, updateSolar
+    │   ├── solarMode.ts    vstup/výstup heliocentrického pohledu
+    │   ├── solarFocus.ts   glide let kamery na těleso v soustavě
+    │   ├── solarTrails.ts  kometové ocasy orbit (per-frame vertex barvy)
+    │   ├── probesLayer.ts  sondy: HORIZONS trajektorie → ocas + model + karta
+    │   ├── starsLayer.ts   noční obloha: 8,9k hvězd HYG + souhvězdí + jmenovky
+    │   ├── starFocus.ts    let ke hvězdě → procedurální close-up
+    │   ├── starMaterial.ts procedurální shader hvězdy (zobecněné Slunce)
     │   ├── sunMaterial.ts  procedurální shader Slunce
+    │   ├── cameraFlight.ts jediný sdílený camera-flight engine (eased rAF)
     │   ├── pointer.ts      raycast kliky, pin target, pov reporting
     │   └── cameraModes.ts  tour playlist, kamera Měsíce
     └── hud/               Hud.tsx (layout: desktop rohy / mobil+tablet šuplíky),
-                           types, panels, controls (switcher, dock, SideDrawer,
-                           loader), SettingsPanel, SolarNavTree, DataLayerPanel
+                           types, panels + panelsLive, controls (switcher, dock,
+                           SideDrawer, loader), SettingsPanel, SolarNavTree,
+                           TimeWarp, HudCard, ViewportFrame
 ```
 
 ### Proč feature moduly (ADR-001)
 `GlobeView.tsx` narostl na 1344 řádků (God komponenta). Rozdělen na moduly podle
 vzoru `setupX(globe, deps) → dispose`, kde každý modul 1:1 odpovídá původnímu
-`useEffect` bloku. Žádný soubor nepřesahuje ~440 řádků. Detaily a zvažované
-varianty viz [ADR-001](adr-001-globe-feature-modules.md).
+`useEffect` bloku. **Limit ~400 řádků je vodítko, ne tvrdé pravidlo** — hrstka
+kompozičních kořenů / soudržných modulů (`GlobeView.tsx`, `App.tsx`,
+`ArSky.tsx`, `orbitEngine.ts`, `solar.ts`) běží vědomě na ~400–460 řádcích;
+dělit je dál by soudržnost zhoršilo. Detaily a zvažované varianty viz
+[ADR-001](adr-001-globe-feature-modules.md).
 
 **Klíčová pravidla:**
 - Sdílený mutable stav mezi moduly jde **výhradně přes refy** vytvořené v
@@ -120,27 +157,43 @@ neznámé klíče — odkaz nejde „rozbít" ručně.
 - Výsledek se **cachuje** a probe WebGL kontext se explicitně uvolní
   (`WEBGL_lose_context`) — každý kontext se počítá do ~16-kontextového rozpočtu
   prohlížeče; jeho překročení zabíjí kontext glóbu (projeví se blikáním).
-- **FPS watchdog**: `sampleFps()` změří průměr za 4 s.
-- Eco zapnuto → 4K textury, `pixelRatio = 1`, propagace 30 Hz. Preference v
-  `localStorage` (`earth-pulse-eco`).
+- **FPS watchdog**: `sampleFps()` změří průměr za 4 s; respektuje ruční volbu
+  kvality uživatele.
+- **Úrovně kvality 2K/4K/8K** (`useQuality`): desktop default 8K, slabá GPU →
+  2K, telefon default 4K a 8K na něm nejde zapnout (VRAM → iOS reload loop).
+  „Eco" větev (pixelRatio 1×, propagace 30 Hz, jednoduché modely) = 2K úroveň
+  nebo mobil. Preference v `localStorage` (`earth-pulse-quality`).
 
 ## Build, test, skripty
 ```bash
 npm install
 npm run dev             # vite dev server (http://localhost:5173)
-npm test                # vitest — 59 testů (ephemeridy, SGP4, feedy, share)
+npm test                # vitest — 108 unit testů v 15 souborech
+npm run e2e             # Playwright — 5 e2e testů (WebGL glóbus v Chromiu)
 npm run lint            # eslint
 npm run build           # tsc -b && vite build
 npm run preview         # náhled produkčního buildu
 
 # data snapshoty (build-time, ne runtime):
-npm run fetch-famous    # 26 slavných satelitů (Celestrak „active" dle NORAD id) → public/tle/famous.txt
-npm run fetch-tle       # obnoví Celestrak TLE → public/tle/visual.txt
-npm run fetch-volcanoes # obnoví Smithsonian GVP → public/geo/volcanoes.json
-npm run fetch-moons     # stáhne textury + portréty měsíců do public/planets/
+npm run fetch-famous      # 26 slavných satelitů (Celestrak „active" dle NORAD id) → public/tle/famous.txt
+npm run fetch-starlink    # Starlink TLE roj (~10,7k) → public/tle/starlink.txt
+npm run fetch-probes      # trajektorie 11 sond z NASA JPL HORIZONS → public/probes/probes.json
+npm run fetch-stars       # HYG katalog hvězd → public/stars/stars.json
+npm run fetch-star-photos # fotky slavných hvězd → public/stars/cards/
+npm run fetch-volcanoes   # Smithsonian GVP → public/geo/volcanoes.json
+npm run fetch-moons       # textury + portréty měsíců → public/planets/
+npm run fetch-paleo       # paleomapy PALEOMAP → public/planets/paleo/
+npm run gen-future        # SDF morph snímky budoucího driftu
 ```
+
+### CI a automatická obnova dat
+- **`.github/workflows/ci.yml`** — na každý push/PR: lint → typed build →
+  unit testy → Playwright e2e. Akce pinované na commit SHA.
+- **`.github/workflows/refresh-probes.yml`** („Refresh live-data snapshots")
+  — každé pondělí 04:00 UTC re-bake `probes.json` (HORIZONS) + Starlink/famous
+  TLE (Celestrak) a commit do `main` → Vercel auto-deploy.
 
 ### Stack
 React 19 · TypeScript · Vite 8 · Tailwind v4 · globe.gl 2 (three.js 0.184) ·
-satellite.js 6 · topojson-client 3. Testy: vitest 4 + Testing Library + jsdom.
-Obrázkové skripty: sharp.
+satellite.js 6 · topojson-client 3. Testy: vitest 4 + Testing Library + jsdom;
+e2e Playwright 1.61 (Chromium). Obrázkové skripty: sharp.

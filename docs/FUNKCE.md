@@ -1,13 +1,16 @@
 # 🌍 Funkce — co Earth Pulse umí
 
-Aplikace má **tři režimy pohledu**, mezi kterými se přepíná za běhu. HUD
-(overlay panely) je _mode-aware_ — na Měsíci a ve sluneční soustavě zmizí
-pozemské dashboardy a objeví se relevantní ovládání.
+Aplikace má **pět režimů pohledu** (+ kiosk tour), mezi kterými se přepíná za
+běhu. HUD (overlay panely) je _mode-aware_ — mimo Zemi zmizí pozemské
+dashboardy a objeví se relevantní ovládání. Celá appka je **PWA** —
+instalovatelná, s offline service workerem.
 
 ```
-Země  ──klik na Měsíc / „explore ▸"──▶  Měsíc
-  │                                        │  ← back to Earth
-  └──tlačítko 🪐 „solar system"──▶  Sluneční soustava ──exit──▶ Země
+Země ──klik na Měsíc / „explore ▸"──▶ Měsíc
+  │                                      │ ← back to Earth
+  ├──tlačítko 🪐──▶ Sluneční soustava (sondy + skutečná noční obloha)
+  ├──tlačítko 🗺──▶ Drift (Pangea → dnešek → Pangaea Proxima)
+  └──tlačítko 📡──▶ Sky AR (kamera telefonu, jen mobil)
 ```
 
 ---
@@ -48,6 +51,15 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
   agentura, rok vypuštění, co měří, zajímavý fakt; barva dle kategorie.
 - **Vyhledávání podle jména.**
 
+### Starlink roj 📡 (opt-in vrstva)
+- Vrstva „Starlink" zapne **~10 700 skutečných družic Starlink** (snapshot
+  `public/tle/starlink.txt`, obnova `npm run fetch-starlink` + týdenní GitHub
+  Action).
+- Celý roj = jeden **InstancedMesh**; SGP4 propagaci všech ~10,7k satelitů
+  počítá **web worker** (`workers/starlinkWorker.ts`) mimo hlavní vlákno.
+- **Zoom-aware LOD** — z dálky levné plachetky, ~400 nejbližších satelitů ke
+  kameře se vymění za reálný GLB model (Sketchfab, CC-BY).
+
 ### ISS 🛰
 - Letí plynule po své SGP4 dráze, **živá telemetrie** z Where The ISS At API
   (poll á 3 s) v HUD.
@@ -83,9 +95,9 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
   světla měst.
 - **24h replay:** terminátor i Měsíc sledují posuvník času (⏪ timeline), ne
   jen filtr otřesů — den/noc se přetáčí spolu se zemětřeseními.
-- **Dvě úrovně textur:** přepínač **„fast mode (2K)"** (rychlé 2K textury
-  `public/earth-day-2k.jpg` / `earth-night-2k.jpg`, ~247 KB místo 4,5 MB) vs
-  plný 8K detail; na slabé GPU se zapne automaticky.
+- **Tři úrovně textur:** selektor kvality **2K / 4K / 8K** (2K textury
+  `public/earth-day-2k.jpg` / `earth-night-2k.jpg` mají ~247 KB místo 4,5 MB);
+  na slabé GPU se automaticky sníží, telefony jsou zastropované na 4K.
 
 ### Mapový zoom 🔎
 - Pod ~1500 km se streamuje **Esri World Imagery** (LOD až do úrovně ulic,
@@ -156,6 +168,30 @@ otevře se celá soustava.
 - **⏩ Time-warp** — až týden za sekundu: planety kloužou po drahách, měsíce
   víří, zrychlí se i terminátor Země a satelity.
 
+### Sondy hlubokého vesmíru 🚀
+- **11 sond živě**: Voyager 1, Voyager 2, New Horizons, Parker Solar Probe,
+  Solar Orbiter, BepiColombo, JUICE, Europa Clipper, Psyche, Lucy, Hayabusa2 —
+  na **skutečných trajektoriích z NASA JPL HORIZONS** (baked snapshot
+  `public/probes/probes.json`, `npm run fetch-probes`, týdenní auto-refresh).
+- Každá sonda má **reálný 3D model**, barevný kometový ocas a jmenovku čitelnou
+  z dálky; sondy sedí na **reálné vzdálenosti** (Voyager 1 je fakt daleko —
+  oddal a najdeš ho).
+- Klik / navigační seznam = **fly-to a orbit** jako u planet; karta ukazuje
+  **živou rychlost a vzdálenost od Země** v km.
+
+### Skutečná noční obloha 🌟
+- **8 921 skutečných hvězd** (HYG katalog, do magnitudy 6,5 — vše, co je vidět
+  pouhým okem) na pravých J2000 pozicích; barva podle spektrálního typu,
+  velikost podle jasnosti. Snapshot `public/stars/stars.json`
+  (`npm run fetch-stars`).
+- **Čáry souhvězdí + jména** (d3-celestial), jmenovky nejjasnějších hvězd a
+  nejbližších systémů (Proxima…).
+- **Klik na hvězdu** → karta s fakty + **let ke hvězdě**: postaví se
+  **procedurální 3D koule** ze skutečné fyziky hvězdy (`starMaterial.ts`
+  shader — barva z teploty, granulace, limb darkening, korona; velikost z
+  reálné svítivosti) a u **13 slavných hvězd** se ukáže skutečná fotka
+  z teleskopu (ESO / NASA / CHARA, `npm run fetch-star-photos`).
+
 ### Planety v datech
 | Planeta | Měsíců (real) | Sklon osy | Rotace | Pozn. |
 | --- | --- | --- | --- | --- |
@@ -173,12 +209,51 @@ otevře se celá soustava.
 
 ---
 
+## 🗺 Režim Drift (kontinentální drift)
+
+Tlačítko 🗺 a glóbus přehraje **340 milionů let kontinentálního driftu** —
+celkem **74 snímků** (`public/planets/paleo/`, `PangeaView.tsx`):
+
+- **Pangea (340 Ma) → dnešek** — paleogeografické mapy Scotese/PALEOMAP
+  (CC-BY-4.0, `npm run fetch-paleo`), snímek po **5 milionech let** → plynulé
+  přehrávání, ne skoky.
+- **Projektovaná budoucnost: dnešek → Pangaea Proxima (+250 My)** — 5 morph
+  fází vygenerovaných **SDF morphem** (`npm run gen-future`); v appce jasně
+  označeno jako „projected".
+- **Play/pauza + scrub posuvník** s letopočtem; start v pauze (uživatel spouští
+  sám). Na telefonech se drží v paměti jen okno ±5 snímků kolem aktuální pozice.
+
+---
+
+## 📡 Režim Sky AR (jen telefon)
+
+Namíříš telefon na oblohu a **přes obraz kamery** se vykreslí, co nad tebou
+právě letí (`ArSky.tsx`, `arScene.ts`, matematika v `lib/arMath.ts`):
+
+- **Satelity nad hlavou** — Starlink roj + slavné satelity na skutečných
+  pozicích tvé oblohy (azimut + elevace z tvé polohy); nejbližší mají
+  **jmenovky** a reálné 3D modely, jas modelů se přizpůsobí dennímu/nočnímu
+  světlu.
+- **Zaměřování** — namiř na satelit a appka řekne, který to je, + **slant
+  range** (vzdálenost v km).
+- **Měsíc a planety** — pozná i jasné body: „ta jasná tečka je Jupiter"
+  (`lib/arBodies.ts`).
+- **Ruční kalibrace kompasu** (`useArCalibration`) — magnetometry telefonů mají
+  bias; offset se uloží. iOS motion permission se žádá správně uvnitř gesta;
+  kamera se korektně vypne i při zavření AR uprostřed permission dialogu.
+
+---
+
 ## ⚡ Výkon a přístupnost
-- **Eco mód** — automatická detekce slabé GPU (Intel UHD/HD, mobilní čipy,
-  software renderer). Pak: 4K textury místo 8K, pixel ratio 1×, propagace 30 Hz
-  + FPS watchdog. Preference se ukládá do `localStorage`.
-- **„fast mode (2K)"** — samostatný přepínač lehkých 2K textur Země
-  (~247 KB místo 4,5 MB), auto-detekce slabé GPU.
+- **Selektor kvality 2K / 4K / 8K** (`useQuality`, klíč `earth-pulse-quality`)
+  — desktop default 8K, **telefon default 4K a 8K na něm nejde zapnout vůbec**
+  (8K textury = ~0,5 GB VRAM → iOS reload loop). Slabá GPU (Intel UHD/HD,
+  software renderer) se detekuje automaticky → 2K + FPS watchdog; watchdog
+  respektuje ruční volbu uživatele.
+- **Eco (lite-perf) větev** — vždy na mobilu a na desktopové 2K úrovni: pixel
+  ratio 1×, propagace 30 Hz, jednodušší modely satelitů.
+- **PWA** — instalovatelná aplikace (manifest + sada ikon) s **offline service
+  workerem**; iOS safe-area (notch) insets.
 - **Plynulost ve sluneční soustavě** — těžká SGP4 propagace satelitů se v solar
   módu přeskočí; pohyb planet/měsíců + terminátor běží **každý frame** (eco
   půlí jen drahou SGP4, ne zbytek scény).
@@ -192,6 +267,10 @@ otevře se celá soustava.
 | Otáčení / zoom | táhnutí myší / kolečko (dotyk: tah / pinch) |
 | Otevřít Měsíc | klik na Měsíc na obloze nebo „🌙 moon … explore ▸" v panelu |
 | Sluneční soustava | tlačítko 🪐 v doku |
+| Kontinentální drift | tlačítko 🗺 v přepínači světů |
+| Sky AR | tlačítko 📡 (jen telefon, chce kameru + senzory) |
+| Starlink roj | vrstva „Starlink" v nastavení |
+| Sonda / hvězda | klik ve scéně nebo navigační seznam (solar view) |
 | Kinematický tour | tlačítko 🎬 (jakýkoliv tah ho zastaví) |
 | Sledovat ISS | tlačítko 🛰 (po načtení ISS) |
 | Orbit satelitu | klik na satelit |

@@ -36,8 +36,8 @@ public data feeds.
   lights along the *actual* terminator, with a warm civil-twilight band; clouds
   share the same Sun and fade out at night. **Day & night replay too**: the
   terminator and the Moon follow the ⏪ 24h time slider, not just the quake
-  filter. Textures come in two tiers — a **"fast mode (2K)"** toggle (~247 KB
-  textures, auto-enabled on weak GPUs) vs full 8K detail
+  filter. Textures come in three tiers — a **2K / 4K / 8K quality selector**
+  (weak GPUs drop to 2K automatically, phones are capped at 4K)
 - 🔎 **Map-grade zoom** — Esri World Imagery streams in below ~1500 km (LOD to
   street level, night-side dimmed); zoom out and the live globe returns.
   🗺 Country borders + names, 🌌 aurora ovals scaled by the live Kp index,
@@ -67,19 +67,48 @@ Click any body to orbit it. Then grab the **⏩ time-warp** (up to a
 week per second) and watch the system dance — planets slide along their
 orbits, moons whirl, and even Earth's terminator and satellites speed up.
 
+The solar view goes deeper than the planets: **11 deep-space probes** —
+Voyager 1 & 2, New Horizons, Parker Solar Probe, Solar Orbiter, BepiColombo,
+JUICE, Europa Clipper, Psyche, Lucy and Hayabusa2 — fly their **real
+trajectories from NASA JPL HORIZONS** (re-baked weekly), each with a 3D model,
+a comet trail and a live speed/distance card. Behind them hangs the **real
+night sky**: 8,921 naked-eye stars from the HYG catalogue at their true
+positions, with constellation lines and names — click a star for its story, a
+physically-derived procedural 3D close-up, and (for 13 famous stars) a real
+telescope photo.
+
 ![Solar system overview — real positions, orbit rings](docs/solar-system.png)
 ![Saturn close-up with rings and Enceladus](docs/saturn.png)
+
+## And more modes
+- 🛰 **Starlink swarm (opt-in)** — the real **~10,700-satellite** constellation
+  as a single GPU-instanced mesh, SGP4-propagated in a web worker, with the
+  nearest few hundred swapping in a real 3D model as you dive in
+- 🗺 **Continental Drift** — scrub the globe through **340 million years**,
+  from Pangaea to today (Scotese/PALEOMAP frames every 5 Myr) and onward to a
+  projected **Pangaea Proxima** (+250 Myr)
+- 📡 **Sky AR** (phones) — point your camera at the sky and the overlay names
+  the satellites passing overhead, with distance, plus the Moon and planets
+- 📲 **Installable PWA** with an offline service worker
 
 ## Run it
 
 ```bash
 npm install
 npm run dev             # http://localhost:5173
-npm test                # 59 tests — ephemerides, SGP4, feeds, share links
+npm test                # 108 unit tests (vitest) — ephemerides, SGP4, feeds, share links
+npm run e2e             # 5 Playwright e2e tests against the real WebGL globe
 npm run lint && npm run build
-npm run fetch-tle       # refresh the bundled Celestrak TLE snapshot
-npm run fetch-volcanoes # refresh the Smithsonian GVP volcano snapshot
+
+# refresh the bundled data snapshots (a weekly GitHub Action does this too):
+npm run fetch-famous    # 26 famous-satellite TLEs (Celestrak) → public/tle/famous.txt
+npm run fetch-starlink  # ~10.7k Starlink TLEs → public/tle/starlink.txt
+npm run fetch-probes    # deep-space probe trajectories (NASA JPL HORIZONS)
+npm run fetch-volcanoes # Smithsonian GVP volcano snapshot
 ```
+
+CI runs lint + build + unit + e2e on every push, and a weekly GitHub Action
+re-bakes the TLE and probe-trajectory snapshots so the orbits never go stale.
 
 The HUD is mode-aware (Earth dashboards disappear on the Moon and in the solar
 system) and adapts to weak GPUs automatically (⚡ eco mode: 4K textures, 1×
@@ -101,7 +130,8 @@ where it is right now — and a glowing intro animation greets first load.
 - Satellites propagate per animation frame outside React; the orbit pivot can
   pin to the Moon, the Sun or any planet (globe.gl resets the controls target
   every frame — we get the last word).
-- Data: USGS + EMSC (quakes), Celestrak (TLE snapshot), Where The ISS At,
+- Data: USGS + EMSC (quakes), Celestrak (TLE snapshots — famous + Starlink),
+  **NASA JPL HORIZONS** (probe trajectories), HYG (stars), Where The ISS At,
   NOAA SWPC (Kp + solar wind), Wikimedia EventStreams, Natural Earth
   (borders/names), Smithsonian GVP (volcano snapshot), **NASA EONET** (natural
   events) and **NASA GIBS** (data layers) — all free, no keys, CORS-friendly.

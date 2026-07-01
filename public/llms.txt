@@ -1,10 +1,12 @@
 # Earth Pulse
 
 > A free, open-source, real-time 3D globe of Earth that runs entirely in the
-> browser — no backend and no API keys. It shows live earthquakes, around 150
-> real satellites with clickable orbits, the International Space Station, the
-> aurora, real day/night with city lights, and a full solar-system mode with
-> the Moon and planets. Live at https://earth-pulse-rosy.vercel.app/
+> browser — no backend and no API keys. It shows live earthquakes, 26 famous
+> satellites with clickable orbits plus an optional ~10,700-satellite Starlink
+> swarm, the International Space Station, the aurora, real day/night with city
+> lights, a full solar-system mode with 11 deep-space probes and the real night
+> sky, a continental-drift mode and a Sky AR phone mode. Live at
+> https://earth-pulse-rosy.vercel.app/
 
 Earth Pulse turns live public data into a single interactive planet you can
 spin, zoom and fly around. It is built with React, TypeScript, Vite and
@@ -15,16 +17,20 @@ feeds, so anyone can run it as a static site.
 
 - Live earthquakes from USGS and EMSC, drawn as magnitude-scaled glowing
   ripples, with a 24-hour timeline you can scrub or replay.
-- Around 150 real satellites, propagated locally every frame with SGP4 from
-  Celestrak TLE data. Click any satellite to draw its orbit as a comet-style
-  trail whose bright head marks the satellite's current position.
+- 26 famous satellites (ISS, Tiangong, Hubble, Landsat, Sentinels, GOES…),
+  propagated locally every frame with SGP4 from Celestrak TLE data. Click any
+  satellite to draw its orbit as a comet-style trail whose bright head marks
+  the satellite's current position, and to open its mission card.
+- An optional Starlink swarm layer: ~10,700 real Starlink satellites rendered
+  as a single GPU-instanced mesh, propagated in a web worker, with real 3D
+  models swapping in near the camera.
 - The International Space Station, with a live position and a follow camera.
 - The real day/night terminator with city lights on the night side.
 - A live aurora oval whose reach and brightness follow the NOAA space-weather
   Kp index.
 - Latest natural events from NASA EONET: wildfires, storms, volcanoes and ice.
-- NASA GIBS "vital signs" imagery layers (true colour, sea-surface temperature,
-  aerosols, snow) with a date playback slider.
+- NASA GIBS "vital signs" imagery layers (true colour, air temperature,
+  surface temperature, water vapour, aerosols) with a date playback slider.
 - Live Wikipedia edits streaming in real time.
 
 ## Modes
@@ -33,17 +39,31 @@ feeds, so anyone can run it as a static site.
 - Moon: orbit the real Moon with its true phase and Apollo landing sites.
 - Solar system: the Sun, eight planets, the Moon and the major moons on true,
   to-scale orbits, with time-warp to speed up the dance. Every orbit is drawn
-  as a comet trail behind its body so you can see where each world is right now.
+  as a comet trail behind its body so you can see where each world is right
+  now. It also carries 11 deep-space probes (Voyager 1 & 2, New Horizons,
+  Parker Solar Probe, Solar Orbiter, BepiColombo, JUICE, Europa Clipper,
+  Psyche, Lucy, Hayabusa2) on their real NASA JPL HORIZONS trajectories, and
+  the real night sky: 8,921 naked-eye stars with constellation lines and
+  names — click a star for a procedural 3D close-up and, for 13 famous stars,
+  a real telescope photo.
+- Continental Drift: scrub the globe through 340 million years, from Pangaea
+  to today and on to a projected Pangaea Proxima (+250 Myr).
+- Sky AR (phones): point the camera at the sky and the overlay identifies the
+  satellites passing overhead, plus the Moon and planets, with distances.
 - Cinematic kiosk/screensaver tour that starts automatically after a while idle.
 
 ## Key facts
 
 - Free and open source (MIT licence).
 - No backend, no sign-up, no API keys — a purely static web app.
+- Installable as a PWA with an offline service worker.
 - Works on desktop, tablet and mobile.
-- Data sources: USGS, EMSC, Celestrak, wheretheiss.at, NOAA SWPC, NASA EONET,
-  NASA GIBS, Wikimedia. Textures by Solar System Scope (CC BY), zoom imagery
-  © Esri and contributors.
+- Bundled data snapshots (satellite TLEs, probe trajectories) are re-baked
+  weekly by a GitHub Action so orbits never go stale.
+- Data sources: USGS, EMSC, Celestrak, NASA JPL HORIZONS, HYG star database,
+  wheretheiss.at, NOAA SWPC, NASA EONET, NASA GIBS, Wikimedia, Scotese/PALEOMAP
+  (drift maps). Textures by Solar System Scope (CC BY), zoom imagery © Esri and
+  contributors.
 
 ## Links
 
