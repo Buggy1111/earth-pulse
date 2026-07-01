@@ -88,11 +88,23 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     starTex.colorSpace = THREE.SRGBColorSpace
     scene.background = starTex
 
-    // lazily-loaded frame textures (null until fetched), with a placeholder
+    // lazily-loaded frame textures (null until fetched), with a placeholder.
+    // Phones keep only a ±5 frame window decoded — a full playback used to pin
+    // all 69 past frames (~200 MB with mips) until unmount, real pressure on
+    // iOS memory budgets; re-entering a frame reloads instantly from SW cache.
+    const KEEP_RADIUS = 5
     const textures: (THREE.Texture | null)[] = FRAMES.map(() => null)
     const blank = new THREE.DataTexture(new Uint8Array([10, 16, 30, 255]), 1, 1)
     blank.needsUpdate = true
     const getTex = (i: number): THREE.Texture => {
+      if (mobile) {
+        for (let j = 0; j < textures.length; j++) {
+          if (textures[j] && Math.abs(j - i) > KEEP_RADIUS) {
+            textures[j]?.dispose()
+            textures[j] = null
+          }
+        }
+      }
       if (textures[i]) return textures[i] as THREE.Texture
       const t = loader.load(`planets/paleo/paleo-${pad(FRAMES[i])}.webp`)
       t.colorSpace = THREE.SRGBColorSpace
