@@ -70,13 +70,24 @@ function parseVectors(text, stepDays) {
   const lines = text.slice(soe + 5, eoe).trim().split('\n')
   let jd0 = null
   const pos = []
+  // HORIZONS numbers are scientific notation with SIGNED exponents. The old
+  // class [\d.E+] had no '-' inside the number, so a near-ecliptic Z like
+  // 3.4E-02 captured as "3.4E" → NaN → null in the JSON — Europa Clipper,
+  // Psyche and Lucy shipped with EVERY Z coordinate null (rendered as 0,
+  // silently coerced, pinned to the ecliptic plane).
+  const NUM = '(-?[\\d.]+(?:E[+-]?\\d+)?)'
+  const XYZ_RE = new RegExp(`X\\s*=\\s*${NUM}\\s+Y\\s*=\\s*${NUM}\\s+Z\\s*=\\s*${NUM}`)
   for (let i = 0; i < lines.length; i++) {
     const jdMatch = lines[i].match(/^\s*([\d.]+)\s*=\s*A\.D\./)
     if (!jdMatch) continue
-    const xyz = lines[i + 1]?.match(/X\s*=\s*(-?[\d.E+]+)\s+Y\s*=\s*(-?[\d.E+]+)\s+Z\s*=\s*(-?[\d.E+]+)/)
+    const xyz = lines[i + 1]?.match(XYZ_RE)
     if (!xyz) continue
+    const [x, y, z] = [round(xyz[1]), round(xyz[2]), round(xyz[3])]
+    // one bad sample would break index-based interpolation (samples must stay
+    // evenly spaced) — reject the whole window and let the retry loop move on
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
     if (jd0 === null) jd0 = Number(jdMatch[1])
-    pos.push(round(xyz[1]), round(xyz[2]), round(xyz[3]))
+    pos.push(x, y, z)
   }
   if (jd0 === null || pos.length < 30) return null
   return { jd0, stepDays, pos }

@@ -36,6 +36,10 @@ export const PROBE_INFO: Record<string, ProbeInfo> = {
   europaclipper: { id: 'europaclipper', name: 'Europa Clipper', operator: 'NASA', launched: 2024, color: '#8fb6ef', blurb: "will probe whether Europa's hidden ocean could host life" },
   psyche: { id: 'psyche', name: 'Psyche', operator: 'NASA', launched: 2023, color: '#e0a96d', blurb: 'en route to a metal-rich asteroid — a possible planetary core' },
   lucy: { id: 'lucy', name: 'Lucy', operator: 'NASA', launched: 2021, color: '#f4a3c0', blurb: "the first tour of Jupiter's Trojan asteroids" },
+  parker: { id: 'parker', name: 'Parker Solar Probe', operator: 'NASA', launched: 2018, color: '#fbbf24', blurb: 'the fastest human-made object — repeatedly skims the Sun’s corona' },
+  solarorbiter: { id: 'solarorbiter', name: 'Solar Orbiter', operator: 'ESA', launched: 2020, color: '#fb923c', blurb: 'images the Sun up close, tilting out to see its poles' },
+  bepicolombo: { id: 'bepicolombo', name: 'BepiColombo', operator: 'ESA/JAXA', launched: 2018, color: '#94a3b8', blurb: 'en route to Mercury via nine planetary flybys' },
+  hayabusa2: { id: 'hayabusa2', name: 'Hayabusa2', operator: 'JAXA', launched: 2014, color: '#34d399', blurb: 'returned samples of asteroid Ryugu; now on an extended mission' },
 }
 
 /** Kilometres in one astronomical unit. */
