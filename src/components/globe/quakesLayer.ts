@@ -6,10 +6,26 @@ import * as THREE from 'three'
 import { glowOpacity, glowScale, magColor, magRadius, type Quake } from '../../lib/quakes'
 import { escapeHtml, getGlowTexture, tooltip, type RingDatum } from './helpers'
 
+/** Ring data must keep object identity between renders — three-globe diffs by
+ * identity and tears down/rebuilds every ring whose object changed, holding the
+ * dead groups for another 30 s (removeDelay). Building this array inside the
+ * per-second opacity tick meant every ring restarted its ripple ~1× a second and
+ * the scene accumulated zombie groups — the caller memoises this on
+ * [quakes, flashes, show] instead. */
+export function buildQuakeRings(quakes: Quake[], flashes: Quake[], show: boolean): RingDatum[] {
+  if (!show) return []
+  return [
+    ...quakes
+      .filter((q) => q.mag >= 4)
+      .map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: false })),
+    ...flashes.map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: true })),
+  ]
+}
+
 export function applyQuakeLayers(
   globe: GlobeInstance,
   quakes: Quake[],
-  flashes: Quake[],
+  rings: RingDatum[],
   show: boolean,
   simNow: number,
   onQuakeClick: (quake: Quake) => void,
@@ -52,21 +68,15 @@ export function applyQuakeLayers(
     })
     .onCustomLayerClick((d) => onQuakeClick(d as Quake))
 
-  const rings: RingDatum[] = show
-    ? [
-        ...quakes
-          .filter((q) => q.mag >= 4)
-          .map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: false })),
-        ...flashes.map((q) => ({ lat: q.lat, lng: q.lng, mag: q.mag, flash: true })),
-      ]
-    : []
   globe
     .ringsData(rings)
     .ringLat((d) => (d as RingDatum).lat)
     .ringLng((d) => (d as RingDatum).lng)
+    // plain string = solid colour; returning a nested function switches three-globe
+    // to its gradient path, which allocates a THREE.Color per ring per frame
     .ringColor((d: object) => {
       const r = d as RingDatum
-      return r.flash ? () => '#f8fafc' : () => magColor(r.mag)
+      return r.flash ? '#f8fafc' : magColor(r.mag)
     })
     .ringMaxRadius((d) => {
       const r = d as RingDatum

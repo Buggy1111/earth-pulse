@@ -3,7 +3,7 @@
  * component only owns React wiring (props → refs → effects). */
 
 import type { GlobeInstance } from 'globe.gl'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { auroraOvals } from '../lib/aurora'
 import { warpedSimMs } from '../lib/clock'
@@ -12,7 +12,7 @@ import { globeAltitude } from '../lib/satellites'
 import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
 import { HOME_VIEW, returnHome, type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
-import { applyQuakeLayers } from './globe/quakesLayer'
+import { applyQuakeLayers, buildQuakeRings } from './globe/quakesLayer'
 import { setupSky } from './globe/sky'
 import { setupSurface } from './globe/surface'
 import { startOrbitEngine, type SolarAnimEntry } from './globe/orbitEngine'
@@ -201,11 +201,19 @@ export function GlobeView(props: GlobeViewProps) {
       )
   }, [kp, layers.aurora])
 
-  // earthquakes layer (glow sprites + rings)
+  // earthquakes layer (glow sprites + rings). The effect re-runs every simNow
+  // tick to refresh the glow opacities, so the rings array must be memoised on
+  // the data alone — fresh ring objects each second made three-globe tear down
+  // and respawn every ripple (identity diff + 30 s removeDelay = zombie groups,
+  // the main GPU-memory churn on phones).
+  const quakeRings = useMemo(
+    () => buildQuakeRings(quakes, flashes, layers.quakes),
+    [quakes, flashes, layers.quakes],
+  )
   useEffect(() => {
     const globe = globeRef.current
-    if (globe) applyQuakeLayers(globe, quakes, flashes, layers.quakes, simNow, onQuakeClick)
-  }, [quakes, flashes, onQuakeClick, layers.quakes, simNow])
+    if (globe) applyQuakeLayers(globe, quakes, quakeRings, layers.quakes, simNow, onQuakeClick)
+  }, [quakes, quakeRings, onQuakeClick, layers.quakes, simNow])
 
   // NASA EONET natural-event pins
   useEffect(() => {
