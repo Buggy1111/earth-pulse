@@ -1,12 +1,22 @@
 import { expect, test, type Page } from '@playwright/test'
 
 /** Wait for the globe handle the app exposes for headless tests, and collect
- * any uncaught errors so a "renders but throws" regression fails loudly. */
+ * any uncaught errors so a "renders but throws" regression fails loudly.
+ * Load failures of THIRD-PARTY feeds are ignored: the app degrades gracefully
+ * when e.g. wheretheiss.at has an outage, and that outage is not our bug —
+ * it used to fail the whole suite. Own-origin errors still count. */
 async function bootGlobe(page: Page): Promise<string[]> {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(String(e.message)))
   page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(m.text())
+    if (m.type() !== 'error') return
+    const url = m.location()?.url ?? ''
+    const text = m.text()
+    const externalResource =
+      /Failed to load resource|net::ERR/.test(text) && url !== '' && !url.includes('localhost')
+    const externalSocket = /WebSocket connection to 'wss:\/\/(?!localhost)/.test(text)
+    if (externalResource || externalSocket) return
+    errors.push(text)
   })
   await page.goto('/')
   await page.waitForFunction(() => Boolean((window as Record<string, unknown>).__earthPulseGlobe), null, {
@@ -106,6 +116,46 @@ test('enabling the Starlink layer builds a ~10k InstancedMesh with positioned in
   expect(result.visible).toBe(true)
   // the worker positioned the swarm from live SGP4 — most instances are placed
   expect(result.positioned).toBeGreaterThan(result.count * 0.9)
+})
+
+// the exact flow Michal reported crashing on his phone: tap the "latest" quake
+// row → the camera must fly to the epicentre and the detail card must open,
+// with no uncaught errors along the way
+test.describe('quake click', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } }) // roomy HUD: corner panels, no drawer
+
+  test('clicking the latest quake flies the camera there and opens the detail card', async ({
+    page,
+  }) => {
+    const errors = await bootGlobe(page)
+    const latest = page.locator('button:has-text("latest:")').first()
+    await latest.waitFor({ timeout: 20_000 }) // USGS feed landed
+    const before = await page.evaluate(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        pointOfView(): { lat: number; lng: number; altitude: number }
+      }
+      return g.pointOfView()
+    })
+    await latest.click()
+    await page.waitForTimeout(2_500) // the 1.4 s camera flight + settle
+    const after = await page.evaluate(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        pointOfView(): { lat: number; lng: number; altitude: number }
+      }
+      return g.pointOfView()
+    })
+    // the flight targets altitude 1.0 over the epicentre — the pose must have
+    // moved and zoomed in from the home view
+    const moved =
+      Math.abs(after.lat - before.lat) > 0.5 ||
+      Math.abs(after.lng - before.lng) > 0.5 ||
+      Math.abs(after.altitude - before.altitude) > 0.2
+    expect(moved).toBe(true)
+    expect(after.altitude).toBeLessThan(1.4)
+    // the detail card is open (its depth/time/coords readout is unique to it)
+    await expect(page.locator('text=/depth \\d+ km/').first()).toBeVisible()
+    expect(errors).toEqual([])
+  })
 })
 
 test('solar mode places the deep-space probes from their baked trajectories', async ({ page }) => {
