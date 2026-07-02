@@ -135,7 +135,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       depthWrite: false,
     }),
   )
-  sunGlow.scale.set(SUN_DISPLAY * 4.4, SUN_DISPLAY * 4.4, 1)
+  // wider multiplier compensates the smaller ball (350→90) so the Sun keeps
+  // its presence from the overview — the glow is additive, probes fly through
+  sunGlow.scale.set(SUN_DISPLAY * 8, SUN_DISPLAY * 8, 1)
   sun.add(sunGlow)
   sun.userData.displayRadius = SUN_DISPLAY
   group.add(sun)

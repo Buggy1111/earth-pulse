@@ -115,7 +115,12 @@ export function PlanetPanel({
           <span className="num">
             🌍 {probeEarthAu.toFixed(2)} AU from Earth · {fmtKm(probeEarthAu * AU_KM)}
           </span>
-          <span className="text-[10px] text-slate-400">drawn at the scene edge — really far out there</span>
+          {/* only when the craft really is clamped to the display cap (probesLayer
+              MAX_DISPLAY_AU = 200) — a leftover unconditional note claimed even
+              Parker at 0.6 AU was "really far out there" */}
+          {probeSunAu > 200 && (
+            <span className="text-[10px] text-slate-400">drawn at the scene edge — really far out there</span>
+          )}
         </div>
       ) : moon ? (
         <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">

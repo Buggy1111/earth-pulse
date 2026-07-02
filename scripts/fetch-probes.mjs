@@ -13,14 +13,14 @@ const PROBES = [
   { id: 'voyager1', name: 'Voyager 1', h: '-31' },
   { id: 'voyager2', name: 'Voyager 2', h: '-32' },
   { id: 'newhorizons', name: 'New Horizons', h: '-98' },
-  { id: 'parker', name: 'Parker Solar Probe', h: '-96' },
-  { id: 'solarorbiter', name: 'Solar Orbiter', h: '-144' },
-  { id: 'bepicolombo', name: 'BepiColombo', h: '-121' },
+  { id: 'parker', name: 'Parker Solar Probe', h: '-96', fine: true },
+  { id: 'solarorbiter', name: 'Solar Orbiter', h: '-144', fine: true },
+  { id: 'bepicolombo', name: 'BepiColombo', h: '-121', fine: true },
   { id: 'juice', name: 'JUICE', h: '-28' },
   { id: 'europaclipper', name: 'Europa Clipper', h: '-159' },
   { id: 'psyche', name: 'Psyche', h: '-255' },
   { id: 'lucy', name: 'Lucy', h: '-49' },
-  { id: 'hayabusa2', name: 'Hayabusa2', h: '-37' },
+  { id: 'hayabusa2', name: 'Hayabusa2', h: '-37', fine: true },
   { id: 'hera', name: 'Hera', h: '-658030' },
 ]
 
@@ -41,6 +41,11 @@ const WINDOWS = [
   { start: isoOffset(-1), stop: isoOffset(3), step: 1 }, // −1 mo … +3 mo (narrow)
 ]
 
+// Inner-system craft move FAST near perihelion (Parker peaks ~190 km/s) — a
+// 3-day linear interpolation there cuts corners by millions of km. Probes
+// flagged `fine` try a 12-hour grid first and only then the coarse windows.
+const FINE_WINDOW = { start: isoOffset(-6), stop: isoOffset(12), step: 0.5 }
+
 function horizonsUrl(h, w) {
   const q = {
     format: 'text',
@@ -54,7 +59,8 @@ function horizonsUrl(h, w) {
     VEC_TABLE: "'1'",
     START_TIME: `'${w.start}'`,
     STOP_TIME: `'${w.stop}'`,
-    STEP_SIZE: `'${w.step} d'`,
+    // HORIZONS wants an integer step — sub-day grids go as hours
+    STEP_SIZE: w.step < 1 ? `'${Math.round(w.step * 24)} h'` : `'${w.step} d'`,
   }
   const qs = Object.entries(q)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -107,7 +113,7 @@ function coversNow(parsed) {
 const out = []
 for (const p of PROBES) {
   let got = null
-  for (const w of WINDOWS) {
+  for (const w of p.fine ? [FINE_WINDOW, ...WINDOWS] : WINDOWS) {
     try {
       const resp = await fetch(horizonsUrl(p.h, w))
       if (!resp.ok) continue

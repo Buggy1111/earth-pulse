@@ -150,7 +150,12 @@ export function planetPositions(date: Date): PlanetPos[] {
 export const AU_SCENE = 2_200
 /** Earth's display radius in solar mode (the globe shrinks to this). */
 export const EARTH_DISPLAY = 8
-export const SUN_DISPLAY = 350
+// 90 units ≈ 0.041 AU — still ~9× the real Sun, but small enough that Parker
+// Solar Probe's perihelion (0.046 AU = 101 units) skims JUST above the surface
+// instead of diving deep inside the ball, matching its famous corona-touching
+// passes. At the old 350 (0.16 AU) the whole inner leg of Parker's trail — and
+// the craft itself around perihelion dates — vanished inside the Sun.
+export const SUN_DISPLAY = 90
 
 /** Heliocentric ecliptic position of Earth in AU. */
 export function earthHelio(date: Date): [number, number, number] {
