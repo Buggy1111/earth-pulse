@@ -108,9 +108,14 @@ ručně stavěný „zlatý" primitiv (žádný volně šiřitelný model neexis
 - **Tiangong** (`tiangong.glb`) — „tianGong" od **w29572227**
   ([Sketchfab](https://sketchfab.com/3d-models/tiangong-aca22b1dd6d242c1ae7b88de2f483b77)) —
   **CC-BY-4.0**; atribuce je vložená i v glTF metadatech souboru.
-- **Sentinel-1A** (`sentinel-1a.glb`) — Sketchfab, **CC-BY** (doplnit autora —
-  stáhnuto ze Sketchfabu 20. 6. 2026; export nemá atribuci vloženou v glTF
-  metadatech).
+- **Sentinel-1A** (`sentinel-1a.glb`) — „Sentinel 1A" od **Absideon**
+  ([sketchfab.com/Ankit8900](https://sketchfab.com/Ankit8900)) — **CC-BY-4.0**
+  ([licence](https://creativecommons.org/licenses/by/4.0/)). Původní stránka
+  modelu ([sketchfab.com/3d-models/sentinel-1a-0b44ab92dc714999a3d0df2f4c572895](https://sketchfab.com/3d-models/sentinel-1a-0b44ab92dc714999a3d0df2f4c572895))
+  byla mezitím smazána — doloženo archivem
+  ([web.archive.org, 25. 12. 2025](https://web.archive.org/web/20251225050411/https://sketchfab.com/3d-models/sentinel-1a-0b44ab92dc714999a3d0df2f4c572895));
+  CC-BY je neodvolatelná, licence pro staženou kopii (20. 6. 2026, archiv
+  47,9 MB — velikost sedí s archivním záznamem) trvá.
 - Draco-komprimované modely dekóduje self-hostovaný dekodér v `public/draco/`.
 
 ### Starlink (`starlink.glb`) — roj 10,6k satelitů
