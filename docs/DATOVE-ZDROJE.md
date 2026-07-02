@@ -133,10 +133,17 @@ Sondy hlubokého vesmíru v solar view (vykresluje `globe/probesLayer.ts`):
 - **NASA 3D Resources** (public domain, draco-komprimované) — `voyager.glb`
   (Voyager 1 i 2), `new-horizons.glb`, `europa-clipper.glb`.
 - **`psyche.glb`** — NASA / ASU (studentský model mise Psyche, volně šiřitelný).
-- **`juno.glb`** — NASA (public domain); použit jako **zástupný model pro
-  JUICE** (volný model JUICE neexistuje).
-- **`generic.glb`** — NASA **Deep Space 1** (public domain); zástupný model pro
-  Parker Solar Probe, Solar Orbiter, BepiColombo a Hayabusu2.
+- **`parker.glb`** — oficiální NASA VTAD model Parker Solar Probe
+  ([science.nasa.gov](https://science.nasa.gov/resource/parker-solar-probe-3d-model/)),
+  public domain.
+- **`juice.glb`, `solar-orbiter.glb`, `bepicolombo.glb`** — oficiální modely
+  **© ESA** z [ESA Science Satellite Fleet](https://scifleet.esa.int/)
+  (sekce Downloads; BepiColombo = kompletní cruise sestava MCS). Konverze
+  FBX→GLB + draco/webp optimalizace. Použito **nekomerčně s kreditem ©ESA**
+  dle [podmínek ESA](https://www.esa.int/ESA_Multimedia/Terms_and_conditions_of_use_of_images_and_videos_available_on_the_esa_website);
+  Earth Pulse je bezplatný open-source showcase.
+- **`generic.glb`** — NASA **Deep Space 1** (public domain); zástupný model už
+  jen pro **Hayabusu2** (JAXA volný model nepublikuje).
 - **`lucy.glb`** — „LUCY | NASA Space Probe | Free Download" od
   **murilo.kleine**
   ([Sketchfab](https://sketchfab.com/3d-models/lucy-nasa-space-probe-free-download-bc3dc59eceb74b43a02cc2d51b5a0be5)) —

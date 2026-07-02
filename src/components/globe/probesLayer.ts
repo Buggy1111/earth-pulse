@@ -21,10 +21,10 @@ const PROBES_URL = 'probes/probes.json'
 const MAX_DISPLAY_AU = 200 // safety cap only; the real probes (Voyager 1 ~170 AU) all fit, shown true
 const MODEL_TARGET = 13 // scene units the real glb model is normalised to
 
-// every probe gets a real spacecraft model. Voyager, New Horizons, Europa
-// Clipper, Psyche and Lucy are their own craft; JUICE (no freely-downloadable
-// model exists) borrows a visually-matched NASA probe — Juno shares its big
-// solar-wing silhouette. NASA/public-domain glb, except Lucy (Sketchfab CC-BY).
+// every probe gets a real spacecraft model: NASA public-domain GLBs, official
+// ESA Scifleet exports (JUICE, Solar Orbiter, BepiColombo cruise stack —
+// converted FBX→GLB, © ESA, non-commercial with credit) and Lucy (Sketchfab
+// CC-BY). Only Hayabusa2 still flies the generic craft (JAXA publishes none).
 const MODEL_FILE: Record<string, string> = {
   voyager1: 'voyager.glb',
   voyager2: 'voyager.glb',
@@ -32,7 +32,10 @@ const MODEL_FILE: Record<string, string> = {
   europaclipper: 'europa-clipper.glb',
   psyche: 'psyche.glb',
   lucy: 'lucy.glb',
-  juice: 'juno.glb',
+  juice: 'juice.glb',
+  parker: 'parker.glb',
+  solarorbiter: 'solar-orbiter.glb',
+  bepicolombo: 'bepicolombo.glb',
 }
 const GENERIC_MODEL = 'generic.glb'
 
