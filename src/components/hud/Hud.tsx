@@ -22,7 +22,7 @@ import type { ProbeTraj } from '../../lib/probes'
 import type { StarPick } from '../../lib/stars'
 import { TimeWarp } from './TimeWarp'
 import { ViewportFrame } from './ViewportFrame'
-import type { LayerState, OrbitEntry } from './types'
+import type { LayerState, OrbitEntry, SolarLayerState } from './types'
 
 interface HudProps {
   mode: 'earth' | 'moon' | 'solar' | 'drift'
@@ -60,6 +60,8 @@ interface HudProps {
   onSolarExit: () => void
   onNavigateBody: (id: string) => void
   probes: ProbeTraj[]
+  solarLayers: SolarLayerState
+  onToggleSolarLayer: (key: keyof SolarLayerState) => void
   // customize
   layers: LayerState
   onToggleLayer: (key: keyof LayerState) => void
@@ -232,7 +234,15 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' ? (
       <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
     ) : p.mode === 'solar' ? (
-      <SolarNavTree focus={p.focusPlanet} now={p.solarSimNow} probes={p.probes} onNavigate={p.onNavigateBody} onOverview={p.onSolarOverview} />
+      <SolarNavTree
+        focus={p.focusPlanet}
+        now={p.solarSimNow}
+        probes={p.probes}
+        onNavigate={p.onNavigateBody}
+        onOverview={p.onSolarOverview}
+        solarLayers={p.solarLayers}
+        onToggleSolarLayer={p.onToggleSolarLayer}
+      />
     ) : null
   const quakeDetailEl =
     p.mode === 'earth' && p.selected ? (

@@ -22,7 +22,7 @@ import {
 } from '../../lib/planets'
 import { makeNameSprite } from '../spaceObjects'
 import { isMobileDevice } from '../perf'
-import { getGlowTexture } from './helpers'
+import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -151,7 +151,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   )
   earthProxy.userData.planetId = 'earth'
   earthProxy.userData.displayRadius = EARTH_DISPLAY
-  earthProxy.add(makeNameSprite('Earth · you are here', EARTH_DISPLAY * 2.2, true))
+  const earthLabel = makeNameSprite('Earth · you are here', EARTH_DISPLAY * 2.2, true)
+  earthLabel.userData.solarLayer = 'labels'
+  earthProxy.add(earthLabel)
   group.add(earthProxy)
   deps.planetMeshesRef.current.set('earth', earthProxy)
 
@@ -162,6 +164,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const earthMoonDef = PLANET_MOONS.earth?.[0]
   const earthMoonGroup = new THREE.Group()
   let earthMoonMesh: THREE.Mesh | null = null
+   
+  let earthMoonArrow: THREE.Mesh | null = null
   let earthMoonRScene = 0
   if (earthMoonDef) {
     const rMoon = Math.max(EARTH_DISPLAY * (earthMoonDef.radiusKm / (12_742 / 2)), 0.7)
@@ -183,7 +187,11 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     })
     const orbitRing = makeTrailOrbit(solarTrails, ringPts, orbitColor('earth'), 0.85, mesh)
     earthMoonGroup.add(orbitRing)
-    const decor = [label, orbitRing]
+    earthMoonArrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
+    earthMoonArrow.scale.setScalar(Math.max(0.8, rMoon * 0.7))
+    earthMoonArrow.frustumCulled = false
+    earthMoonGroup.add(earthMoonArrow)
+    const decor = [label, orbitRing, earthMoonArrow]
     decor.forEach((o) => (o.visible = false))
     earthProxy.userData.decor = decor
     group.add(earthMoonGroup)
@@ -214,7 +222,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     pole.rotation.x = Math.PI / 2
     pole.add(mesh)
     tilt.add(pole)
-    system.add(makeNameSprite(p.name, p.displayRadius, true))
+    const planetLabel = makeNameSprite(p.name, p.displayRadius, true)
+    planetLabel.userData.solarLayer = 'labels'
+    system.add(planetLabel)
 
     // ring systems with proper radial texture mapping
     const addRing = (innerF: number, outerF: number, color: string, opacity: number, tex?: string) => {
@@ -269,6 +279,12 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       tilt.add(orbitRing)
       decor.push(orbitRing)
       tilt.add(moonMesh)
+      // direction cone along the moon's orbit — decor, like its label and ring
+      const moonArrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
+      moonArrow.scale.setScalar(Math.max(0.8, rMoon * 0.7))
+      moonArrow.frustumCulled = false
+      tilt.add(moonArrow)
+      decor.push(moonArrow)
       // transit shadow discs (umbra + soft penumbra), parked invisible on the
       // system group — the frame loop projects them onto the planet sphere
       const shadowDisc = (r: number, opacity: number) => {
@@ -289,6 +305,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         mesh: moonMesh,
         def: m,
         rScene,
+        arrow: moonArrow,
         umbra: shadowDisc(rMoon * 0.9, 0.55),
         penumbra: shadowDisc(rMoon * 1.5, 0.18),
       })
@@ -318,7 +335,22 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const pts = helioEllipse(p.id, buildDate).map(
       ([x, y, z]) => new THREE.Vector3(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE),
     )
-    group.add(makeTrailOrbit(solarTrails, pts, orbitColor(p.id), 0.6, system))
+    const ellipse = makeTrailOrbit(solarTrails, pts, orbitColor(p.id), 0.6, system)
+    ellipse.userData.solarLayer = 'orbits' // moon decor rings stay focus-gated, untagged
+    group.add(ellipse)
+  }
+  // 🡒 direction cones: every planet (and Earth) leads with the same arrow the
+  // Earth-view satellites carry — which way is it travelling along the ellipse?
+  // Tagged 'orbits' so the layer filter hides them together with the ellipses.
+  const planetArrows: { id: string; arrow: THREE.Mesh; lead: number }[] = []
+  for (const id of [...PLANETS.map((p) => p.id), 'earth']) {
+    const r = id === 'earth' ? EARTH_DISPLAY : (PLANETS.find((p) => p.id === id)?.displayRadius ?? 5)
+    const arrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
+    arrow.scale.setScalar(Math.max(2, Math.min(10, r * 0.6)))
+    arrow.frustumCulled = false
+    arrow.userData.solarLayer = 'orbits'
+    group.add(arrow)
+    planetArrows.push({ id, arrow, lead: r * 2 + 12 })
   }
   // Earth's own orbit (1 AU circle-ish ellipse): reuse via a fake entry
   {
@@ -330,7 +362,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       const [x, y, z] = earthHelio(t)
       pts.push(new THREE.Vector3(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE))
     }
-    group.add(makeTrailOrbit(solarTrails, pts, orbitColor('earth'), 0.6, earthProxy))
+    const earthEllipse = makeTrailOrbit(solarTrails, pts, orbitColor('earth'), 0.6, earthProxy)
+    earthEllipse.userData.solarLayer = 'orbits'
+    group.add(earthEllipse)
   }
 
   // ——— per-frame motion in an INERTIAL frame: the scene is Earth-fixed and
@@ -342,6 +376,23 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const mv = new THREE.Vector3()
   const dv = new THREE.Vector3()
   const hv = new THREE.Vector3()
+  // scratch for the direction cones (hoisted — this runs per frame)
+  const av = new THREE.Vector3()
+  const Y_UP = new THREE.Vector3(0, 1, 0)
+  const DAY_MS = 86_400_000
+  /** Aim `arrow` from `fromX/Y/Z` toward `toX/Y/Z`, parked `lead` units ahead. */
+  const aimArrow = (
+    arrow: THREE.Mesh,
+    lead: number,
+    fx: number, fy: number, fz: number,
+    tx: number, ty: number, tz: number,
+  ) => {
+    av.set(tx - fx, ty - fy, tz - fz)
+    if (av.lengthSq() < 1e-10) return
+    av.normalize()
+    arrow.position.set(fx, fy, fz).addScaledVector(av, lead)
+    arrow.quaternion.setFromUnitVectors(Y_UP, av)
+  }
   const Z_AXIS = new THREE.Vector3(0, 0, 1)
   const frame = (now: Date) => {
     const eh = earthHelio(now)
@@ -355,6 +406,15 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       earthMoonGroup.position.copy(earthProxy.position)
       const a = moonAngle(earthMoonDef, ms)
       earthMoonMesh.position.set(Math.cos(a) * earthMoonRScene, Math.sin(a) * earthMoonRScene, 0)
+      if (earthMoonArrow) {
+        const aN = moonAngle(earthMoonDef, ms + 3_600_000) // 1 h ahead — retrograde-safe
+        aimArrow(
+          earthMoonArrow,
+          earthMoonRScene * 0.12 + 3,
+          earthMoonMesh.position.x, earthMoonMesh.position.y, 0,
+          Math.cos(aN) * earthMoonRScene, Math.sin(aN) * earthMoonRScene, 0,
+        )
+      }
     }
     for (const p of PLANETS) {
       const system = deps.planetMeshesRef.current.get(p.id)
@@ -362,11 +422,31 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       const [x, y, z] = planetHelio(p.id, now)
       system.position.set(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE)
     }
+    // 🡒 planet/Earth direction cones — one day ahead along each orbit
+    for (const pa of planetArrows) {
+      const here = pa.id === 'earth' ? earthHelio(now) : planetHelio(pa.id, now)
+      const next = pa.id === 'earth' ? earthHelio(new Date(ms + DAY_MS)) : planetHelio(pa.id, new Date(ms + DAY_MS))
+      aimArrow(
+        pa.arrow,
+        pa.lead,
+        here[0] * AU_SCENE, here[1] * AU_SCENE, here[2] * AU_SCENE,
+        next[0] * AU_SCENE, next[1] * AU_SCENE, next[2] * AU_SCENE,
+      )
+    }
     for (const entry of deps.solarAnimRef.current) {
       entry.mesh.rotation.y = planetSpin(entry.rotationH, ms)
       for (const m of entry.moons) {
         const a = moonAngle(m.def, ms)
         m.mesh.position.set(Math.cos(a) * m.rScene, Math.sin(a) * m.rScene, 0)
+        if (m.arrow.visible) {
+          const aN = moonAngle(m.def, ms + 3_600_000)
+          aimArrow(
+            m.arrow,
+            m.rScene * 0.12 + 2,
+            m.mesh.position.x, m.mesh.position.y, 0,
+            Math.cos(aN) * m.rScene, Math.sin(aN) * m.rScene, 0,
+          )
+        }
         // ☀️→moon ray vs the planet sphere — a hit means the moon's shadow
         // transits the disc (Galilean shadows are real observable events)
         m.mesh.getWorldPosition(mv)

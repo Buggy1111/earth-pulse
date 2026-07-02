@@ -13,7 +13,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { bvColor, type StarCatalog, type StarPick } from '../../lib/stars'
 import { makeNameSprite } from '../spaceObjects'
-import { disposeMaterial, getGlowTexture } from './helpers'
+import { applySolarLayers, disposeMaterial, getGlowTexture } from './helpers'
 import { setupStarFocus } from './starFocus'
 
 const STARS_URL = 'stars/stars.json'
@@ -49,6 +49,7 @@ export function setupStars(
   globe: GlobeInstance,
   onStarPick: (s: StarPick | null) => void,
   pinTargetRef: { current: THREE.Object3D | null },
+  solarLayersRef: { current: Record<string, boolean> },
 ): StarsLayer {
   let disposed = false
   // clicking a labelled star builds a procedural 3D sphere and flies to it
@@ -62,6 +63,10 @@ export function setupStars(
   globe.scene().add(dome)
   const added: THREE.Object3D[] = []
   const pickTargets: THREE.Object3D[] = []
+  // the star Points cloud, once built — its visibility is the "stars layer on?"
+  // signal for picking (the pick spheres are ALWAYS invisible by design, so the
+  // solar-layer applier can't drive them)
+  let pointsObj: THREE.Points | null = null
   const pickGeo = new THREE.SphereGeometry(R * 0.02, 6, 6)
   const pickMat = new THREE.MeshBasicMaterial() // never rendered (hit area only)
   const raycaster = new THREE.Raycaster()
@@ -73,6 +78,7 @@ export function setupStars(
   }
   const onClick = (e: MouseEvent) => {
     if (disposed || pickTargets.length === 0) return
+    if (pointsObj && !pointsObj.visible) return // stars layer filtered off
     if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 6) return
     const rect = globe.renderer().domElement.getBoundingClientRect()
     raycaster.setFromCamera(
@@ -95,6 +101,7 @@ export function setupStars(
   let hovering = false
   const onMove = (e: PointerEvent) => {
     if (disposed || pickTargets.length === 0) return
+    if (pointsObj && !pointsObj.visible) return
     const rect = globe.renderer().domElement.getBoundingClientRect()
     raycaster.setFromCamera(
       new THREE.Vector2(
@@ -151,6 +158,8 @@ export function setupStars(
       )
       points.frustumCulled = false
       points.renderOrder = -2
+      points.userData.solarLayer = 'stars'
+      pointsObj = points
 
       // — constellation stick figures —
       const segPts: number[] = []
@@ -170,6 +179,7 @@ export function setupStars(
       )
       constellations.frustumCulled = false
       constellations.renderOrder = -2
+      constellations.userData.solarLayer = 'constellations'
       dome.add(points, constellations)
       added.push(points, constellations)
 
@@ -178,6 +188,7 @@ export function setupStars(
         const lbl = makeNameSprite(c.n, 1, true, '#6f80ad')
         lbl.position.set(c.x * R, c.y * R, c.z * R)
         lbl.frustumCulled = false
+        lbl.userData.solarLayer = 'constellations'
         dome.add(lbl)
         added.push(lbl)
       }
@@ -195,6 +206,7 @@ export function setupStars(
         const lbl = makeNameSprite(`${s.n} · ${s.d} ly`, 1, true, color)
         lbl.position.copy(at)
         lbl.frustumCulled = false
+        lbl.userData.solarLayer = 'stars'
         dome.add(lbl)
         added.push(lbl)
         if (dot) {
@@ -207,6 +219,7 @@ export function setupStars(
           m.scale.set(0.013, 0.013, 1)
           m.position.copy(at)
           m.frustumCulled = false
+          m.userData.solarLayer = 'stars'
           dome.add(m)
           added.push(m)
         }
@@ -223,6 +236,9 @@ export function setupStars(
       for (const s of [...cat.nearest].sort((a, b) => a.d - b.d).slice(0, NEAREST_LABELS)) {
         addStar(s, '#a6c8ff', true)
       }
+      // the build is async — honour the solar layer filter that was active
+      // when the user entered the mode (toggles afterwards re-apply globally)
+      applySolarLayers(dome, solarLayersRef.current)
     })
     .catch(() => {
       // no catalogue → the existing Milky Way backdrop still shows

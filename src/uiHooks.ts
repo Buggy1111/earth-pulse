@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectWeakGpu, isMobileDevice, sampleFps } from './components/perf'
-import type { LayerState, OrbitEntry } from './components/hud/types'
+import { SOLAR_LAYER_DEFAULTS, type LayerState, type OrbitEntry, type SolarLayerState } from './components/hud/types'
 import { warpedSimMs } from './lib/clock'
 import { isSameEvent } from './lib/emsc'
 import { playPing } from './lib/ping'
@@ -71,6 +71,40 @@ export function useQuality(ready: boolean) {
   // lite-perf path: always on mobile, and on the desktop 2K tier
   const eco = quality === '2k' || mobile
   return { quality, setQuality, eco, mobile }
+}
+
+const SOLAR_LAYERS_KEY = 'earth-pulse-solar-layers'
+function loadSolarLayers(): SolarLayerState {
+  try {
+    const v = JSON.parse(localStorage.getItem(SOLAR_LAYERS_KEY) ?? 'null') as Record<string, unknown> | null
+    if (v && typeof v === 'object') {
+      const clean = Object.fromEntries(
+        Object.entries(v).filter(([k, val]) => k in SOLAR_LAYER_DEFAULTS && typeof val === 'boolean'),
+      )
+      return { ...SOLAR_LAYER_DEFAULTS, ...clean }
+    }
+  } catch {
+    // corrupt/blocked storage — start with everything on
+  }
+  return SOLAR_LAYER_DEFAULTS
+}
+
+/** Solar-view layer filter (orbits / labels / probes / stars / constellations),
+ * persisted per device — the view got crowded enough to want curating. */
+export function useSolarLayers() {
+  const [solarLayers, setSolarLayers] = useState<SolarLayerState>(loadSolarLayers)
+  const toggleSolarLayer = useCallback((key: keyof SolarLayerState) => {
+    setSolarLayers((s) => {
+      const next = { ...s, [key]: !s[key] }
+      try {
+        localStorage.setItem(SOLAR_LAYERS_KEY, JSON.stringify(next))
+      } catch {
+        // private mode — the toggle still works for this visit
+      }
+      return next
+    })
+  }, [])
+  return { solarLayers, toggleSolarLayer }
 }
 
 /** 24h earthquake timeline: offsetH −24…0, 0 = live; play replays the day. */

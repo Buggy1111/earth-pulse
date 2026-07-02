@@ -8,7 +8,7 @@ import type { TrackedSat } from '../../lib/satellites'
 import type { EarthEvent } from '../../lib/events'
 import type { GibsLayer } from '../../lib/gibs'
 import type { StarPick } from '../../lib/stars'
-import type { LayerState } from '../hud/types'
+import type { LayerState, SolarLayerState } from '../hud/types'
 
 export interface GlobeViewProps {
   quakes: Quake[]
@@ -54,6 +54,8 @@ export interface GlobeViewProps {
   onMoonEnter: () => void
   onApolloPick: (site: ApolloSite | null) => void
   solarMode: boolean
+  /** Solar-view layer filter (orbit ellipses / labels / probes / stars / constellations). */
+  solarLayers: SolarLayerState
   /** Which planet the camera orbits in solar mode (null = Sun overview). */
   focusPlanet: string | null
   onPlanetPick: (id: string) => void

@@ -15,6 +15,33 @@ export interface LayerState {
   detail: boolean
 }
 
+/** Solar-mode layers: the view grew crowded (planets, ellipses, 11 probes with
+ * trails, 8.9k stars, constellations) — each family toggles independently.
+ * Scene objects carry `userData.solarLayer = <key>`; see applySolarLayers. */
+export interface SolarLayerState {
+  orbits: boolean
+  labels: boolean
+  probes: boolean
+  stars: boolean
+  constellations: boolean
+}
+
+export const SOLAR_LAYER_DEFAULTS: SolarLayerState = {
+  orbits: true,
+  labels: true,
+  probes: true,
+  stars: true,
+  constellations: true,
+}
+
+export const SOLAR_LAYER_LABELS: { key: keyof SolarLayerState; label: string }[] = [
+  { key: 'orbits', label: '🪐 orbit ellipses' },
+  { key: 'labels', label: '🏷 planet names' },
+  { key: 'probes', label: '🛰 spacecraft & trails' },
+  { key: 'stars', label: '✨ stars' },
+  { key: 'constellations', label: '🌌 constellations' },
+]
+
 export interface OrbitEntry {
   id: string
   name: string

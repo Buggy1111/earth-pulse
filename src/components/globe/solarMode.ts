@@ -39,6 +39,8 @@ export interface SolarModeDeps {
   onStarPick: (s: StarPick | null) => void
   /** Handle GlobeView uses to fly back out when the star card is closed. */
   starFocusRef: { current: { defocus: () => void } | null }
+  /** Solar layer filter — async-built layers read it for their initial state. */
+  solarLayersRef: { current: Record<string, boolean> }
 }
 
 /** Build/show the solar system and reshape the scene for it; returns the
@@ -62,10 +64,10 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
   // 🛰 deep-space probes: real HORIZONS trajectories as colour-coded comet
   // trails + craft, ticked from the (wrapped) solar frame so they share the
   // one warped clock. Their display distance is clamped to fit the envelope.
-  const probes = setupProbes(globe, group, deps.probeMeshesRef, deps.onProbePick)
+  const probes = setupProbes(globe, group, deps.probeMeshesRef, deps.onProbePick, deps.solarLayersRef)
   // 🌟 the real naked-eye sky as a camera-following skydome (never clips);
   // clicking a labelled star flies to a procedural 3D close-up of it
-  const stars = setupStars(globe, deps.onStarPick, deps.pinTargetRef)
+  const stars = setupStars(globe, deps.onStarPick, deps.pinTargetRef, deps.solarLayersRef)
   deps.starFocusRef.current = { defocus: () => stars.defocus() }
   const baseFrame = deps.solarFrameRef.current
   deps.solarFrameRef.current = (now) => {

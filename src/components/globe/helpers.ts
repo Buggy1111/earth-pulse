@@ -96,6 +96,21 @@ export function getTriangleTexture(): THREE.CanvasTexture {
   return triangleTexture
 }
 
+/** Apply the solar-mode layer filter: every scene object tagged with
+ * `userData.solarLayer` (orbit ellipses, planet labels, the probes group, the
+ * star field, constellation lines/names) flips its visibility to match. Tags
+ * survive the resident solar system's pooling, so this is safe to run on any
+ * toggle, mode entry, or after an async layer finishes building. */
+export function applySolarLayers(
+  root: { traverse(cb: (o: THREE.Object3D) => void): void },
+  layers: Record<string, boolean>,
+): void {
+  root.traverse((o) => {
+    const key = (o.userData as { solarLayer?: string }).solarLayer
+    if (key && key in layers) o.visible = layers[key]
+  })
+}
+
 /** Dispose a material — and its texture map ONLY when the material owns it
  * (label sprites tag `userData.ownsMap`; see makeNameSprite). Bare
  * `material.dispose()` never frees `material.map`, which leaked one GPU

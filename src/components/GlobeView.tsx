@@ -10,7 +10,7 @@ import { warpedSimMs } from '../lib/clock'
 import type { IssState } from '../lib/iss'
 import { globeAltitude } from '../lib/satellites'
 import { enterMoonMode, followSatellite, startTour } from './globe/cameraModes'
-import { HOME_VIEW, returnHome, type OrbitObject, type Trail } from './globe/helpers'
+import { applySolarLayers, HOME_VIEW, returnHome, type OrbitObject, type Trail } from './globe/helpers'
 import { applyEventsLayer } from './globe/eventsLayer'
 import { applyQuakeLayers, buildQuakeRings } from './globe/quakesLayer'
 import { setupSky } from './globe/sky'
@@ -49,7 +49,7 @@ function pickTextureRes(
 
 export function GlobeView(props: GlobeViewProps) {
   const { quakes, flashes, iss, sats, kp, layers, selectedOrbitIds, userLoc, locVersion } = props
-  const { eco, quality, focusSat, flyTo, simNow, tour, moonMode, solarMode, focusPlanet, solarTime } = props
+  const { eco, quality, focusSat, flyTo, simNow, tour, moonMode, solarMode, solarLayers, focusPlanet, solarTime } = props
   const { followIss, onQuakeClick } = props
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -63,6 +63,7 @@ export function GlobeView(props: GlobeViewProps) {
   const tourRef = useRef(tour)
   const moonModeRef = useRef(moonMode)
   const solarModeRef = useRef(solarMode)
+  const solarLayersRef = useRef<Record<string, boolean>>({ ...solarLayers })
   const solarTimeRef = useRef(solarTime)
   // timeline-replay offset (ms, ≤0) so the day/night terminator rewinds with
   // the 24 h earthquake replay — not just the quakes
@@ -347,8 +348,19 @@ export function GlobeView(props: GlobeViewProps) {
       onProbePick: (id) => cb.current.onPlanetPick(id),
       onStarPick: (s) => cb.current.onStarPick(s),
       starFocusRef,
+      solarLayersRef,
     })
   }, [solarMode])
+
+  // 🎚 solar layer filter — tagged objects (orbit ellipses, planet labels, the
+  // probes group, stars, constellations) flip visibility to match. Runs on
+  // every toggle and on mode entry (the resident system keeps its tags);
+  // async-built layers apply the ref themselves when they finish.
+  useEffect(() => {
+    solarLayersRef.current = { ...solarLayers }
+    const globe = globeRef.current
+    if (globe && solarMode) applySolarLayers(globe.scene(), { ...solarLayers })
+  }, [solarLayers, solarMode])
 
   // closing the star card (pickedStar → null) flies back out of the close-up
   useEffect(() => void (!props.pickedStar && starFocusRef.current?.defocus()), [props.pickedStar])

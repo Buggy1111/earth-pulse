@@ -15,7 +15,12 @@ import { SUNLIT_LAYER } from './solar'
 import { isValidTraj, PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { makeNameSprite } from '../spaceObjects'
 import { isMobileDevice } from '../perf'
-import { disposeMaterial, getGlowTexture } from './helpers'
+import { ARROW_GEO, ARROW_MAT, disposeMaterial, getGlowTexture } from './helpers'
+
+// hoisted per-frame scratch for the direction cones (no per-frame allocs)
+const arrowDir = new THREE.Vector3()
+const Y_UP = new THREE.Vector3(0, 1, 0)
+const PROBE_ARROW_LEAD = 24 // scene units ahead of the craft (MODEL_TARGET 13 + cone)
 
 const PROBES_URL = 'probes/probes.json'
 const MAX_DISPLAY_AU = 200 // safety cap only; the real probes (Voyager 1 ~170 AU) all fit, shown true
@@ -94,6 +99,9 @@ interface ProbeTrail {
   colors: THREE.BufferAttribute
   base: THREE.Color
   n: number
+  /** Tail length cap in samples — at most ~200° of one revolution, so orbiters
+   * (Parker's 18-month window = ~6 laps) show a comet tail, not a full ring. */
+  maxSpan: number
 }
 
 function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
@@ -111,7 +119,23 @@ function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
     new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
   )
   line.renderOrder = 1
-  return { line, colors, base: new THREE.Color(color), n }
+  // how many samples cover ~200° of heliocentric sweep (ecliptic XY angle):
+  // Voyager-like near-straight paths never get there (cap = whole path), while
+  // multi-lap orbiters get a tail capped to just over half of ONE revolution
+  let sweep = 0
+  let maxSpan = n
+  for (let i = n - 1; i > 0; i--) {
+    const a1 = Math.atan2(traj.pos[i * 3 + 1], traj.pos[i * 3])
+    const a0 = Math.atan2(traj.pos[(i - 1) * 3 + 1], traj.pos[(i - 1) * 3])
+    let d = Math.abs(a1 - a0)
+    if (d > Math.PI) d = 2 * Math.PI - d
+    sweep += d
+    if (sweep > 3.5) {
+      maxSpan = n - i
+      break
+    }
+  }
+  return { line, colors, base: new THREE.Color(color), n, maxSpan }
 }
 
 /** Repaint the trail as a comet tail BEHIND the live head: bright at `headF`
@@ -120,7 +144,7 @@ function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
 function paintTail(t: ProbeTrail, headF: number): void {
   const c = t.colors.array as Float32Array
   const head = Math.max(0, Math.min(t.n - 1, Math.round(headF)))
-  const span = Math.max(2, Math.floor(t.n * 0.55))
+  const span = Math.max(2, Math.min(Math.floor(t.n * 0.55), t.maxSpan))
   for (let i = 0; i < t.n; i++) {
     const k = head - i // how far behind the head (k < 0 = ahead → hidden)
     const a = k >= 0 && k <= span ? (1 - k / span) ** 1.3 : 0
@@ -135,6 +159,8 @@ interface Built {
   traj: ProbeTraj
   body: THREE.Object3D
   trail: ProbeTrail
+  /** Direction cone leading the craft, same look as the Earth-view satellites. */
+  arrow: THREE.Mesh
 }
 
 export function setupProbes(
@@ -142,8 +168,12 @@ export function setupProbes(
   group: THREE.Group,
   probeMeshesRef: { current: Map<string, THREE.Object3D> },
   onPick: (id: string) => void,
+  solarLayersRef: { current: Record<string, boolean> },
 ): ProbesLayer {
   let disposed = false
+  // one tag on the whole group: craft, trails and name sprites toggle together
+  group.userData.solarLayer = 'probes'
+  group.visible = solarLayersRef.current.probes !== false
   const built: Built[] = []
   const bodies: THREE.Object3D[] = [] // raycast set
   const added: THREE.Object3D[] = [] // everything we drop into the group, for cleanup
@@ -158,6 +188,7 @@ export function setupProbes(
   }
   const onClick = (e: MouseEvent) => {
     if (disposed || bodies.length === 0) return
+    if (!group.visible) return // spacecraft layer filtered off
     if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 6) return // drag, not a click
     const rect = globe.renderer().domElement.getBoundingClientRect()
     const ndc = new THREE.Vector2(
@@ -187,11 +218,16 @@ export function setupProbes(
     // bounding spheres make them pop in/out at the view edges otherwise
     trail.line.frustumCulled = false
     body.traverse((o) => (o.frustumCulled = false))
-    group.add(trail.line, body)
-    added.push(trail.line, body)
+    // direction cone ahead of the craft — same cue the Earth-view satellites
+    // (Hubble & co.) carry, scaled up for solar distances
+    const arrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
+    arrow.scale.setScalar(4)
+    arrow.frustumCulled = false
+    group.add(trail.line, body, arrow)
+    added.push(trail.line, body, arrow)
     bodies.push(body)
     probeMeshesRef.current.set(traj.id, body)
-    built.push({ traj, body, trail })
+    built.push({ traj, body, trail, arrow })
 
     // swap the placeholder for the real NASA model once it loads — but NOT on
     // phones: the decoded GLB fleet (~70–100 MB of VRAM) is what tips an iPhone
@@ -256,6 +292,18 @@ export function setupProbes(
         const [x, y, z] = clampAu(...probePosAu(b.traj, now))
         b.body.position.set(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE)
         paintTail(b.trail, (jd - b.traj.jd0) / b.traj.stepDays)
+        // aim the direction cone along the craft's actual heading (6 h lookahead
+        // — fine even for Parker's fastest perihelion sprints)
+        const [nx, ny, nz] = clampAu(...probePosAu(b.traj, new Date(now.getTime() + 21_600_000)))
+        arrowDir.set((nx - x) * AU_SCENE, (ny - y) * AU_SCENE, (nz - z) * AU_SCENE)
+        if (arrowDir.lengthSq() > 1e-8) {
+          arrowDir.normalize()
+          b.arrow.visible = true // the group tag gates the whole layer
+          b.arrow.position.copy(b.body.position).addScaledVector(arrowDir, PROBE_ARROW_LEAD)
+          b.arrow.quaternion.setFromUnitVectors(Y_UP, arrowDir)
+        } else {
+          b.arrow.visible = false // frozen at a window edge — no heading to show
+        }
       }
     },
 

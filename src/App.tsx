@@ -18,6 +18,7 @@ import {
   useKioskShow,
   useMediaQuery,
   useShareHash,
+  useSolarLayers,
   useTimeline,
 } from './uiHooks'
 import { useWorldView } from './useWorldView'
@@ -75,6 +76,9 @@ export default function App() {
   // 📡 sky AR overlay: point the phone at the sky to spot overhead satellites
   const [arMode, setArMode] = useState(false)
   const { quality, setQuality, eco, mobile } = useQuality(ready)
+  // 🎚 solar-view layer filter (persisted) — the view got crowded: planets,
+  // ellipses, 11 probes with trails, 8.9k stars, constellations
+  const { solarLayers, toggleSolarLayer } = useSolarLayers()
   // 🌍 "Earth spins" (default) vs "Sun orbits" (the old behaviour). Persisted.
   // localStorage throws SecurityError with cookies blocked / sandboxed iframes —
   // and this runs on first render, so an unguarded call took the whole app down.
@@ -326,6 +330,7 @@ export default function App() {
         onMoonEnter={onMoonEnter}
         onApolloPick={onApolloPick}
         solarMode={solarMode}
+        solarLayers={solarLayers}
         focusPlanet={focusPlanet}
         onPlanetPick={onPlanetPick}
         onStarPick={onStarPick}
@@ -383,6 +388,8 @@ export default function App() {
           onSolarOverview={onSolarOverview}
           onSolarExit={onSolarExit}
           onNavigateBody={onPlanetPick}
+          solarLayers={solarLayers}
+          onToggleSolarLayer={toggleSolarLayer}
           probes={probes}
           layers={layers}
           onToggleLayer={onToggleLayer}

@@ -34,6 +34,8 @@ export interface SolarAnimEntry {
     mesh: THREE.Mesh
     def: MoonDef
     rScene: number
+    /** Direction cone leading the moon along its orbit (decor: focused system only). */
+    arrow: THREE.Mesh
     /** Shadow discs cast onto the planet during a transit. */
     umbra: THREE.Mesh
     penumbra: THREE.Mesh

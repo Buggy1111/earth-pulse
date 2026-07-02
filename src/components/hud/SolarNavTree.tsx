@@ -9,6 +9,7 @@ import { HudCard } from './HudCard'
 import { PLANET_MOONS, PLANETS, planetPositions } from '../../lib/planets'
 import { ACTIVE_SPACECRAFT_COUNT, SOLAR_SYSTEM_SPACECRAFT } from '../../lib/spacecraft'
 import { PROBE_INFO, type ProbeTraj } from '../../lib/probes'
+import { SOLAR_LAYER_LABELS, type SolarLayerState } from './types'
 
 /** "Sun: 3 · Moon: 11 · Mars: 8 …" for the spacecraft-count tooltip. */
 const SPACECRAFT_BREAKDOWN = Object.entries(
@@ -60,6 +61,8 @@ export function SolarNavTree({
   probes,
   onNavigate,
   onOverview,
+  solarLayers,
+  onToggleSolarLayer,
 }: {
   focus: string | null
   /** Simulated clock — drives the live range read-outs. */
@@ -68,8 +71,12 @@ export function SolarNavTree({
   probes: ProbeTraj[]
   onNavigate: (id: string) => void
   onOverview: () => void
+  /** Layer filter — the solar view got crowded enough to want curating. */
+  solarLayers: SolarLayerState
+  onToggleSolarLayer: (key: keyof SolarLayerState) => void
 }) {
   const [opened, setOpened] = useState<Set<string>>(new Set())
+  const [filterOpen, setFilterOpen] = useState(false)
   // live distance from Earth, AU, for every planet at the current sim time
   const range = new Map(planetPositions(new Date(now)).map((p) => [p.id, p.distEarthAu]))
   const rangeOf = (id: string) =>
@@ -215,6 +222,37 @@ export function SolarNavTree({
           })}
         </div>
       )}
+
+      {/* 🎚 layer filter — curate the crowded view (persisted per device) */}
+      <div className="mt-2 border-t border-white/10 pt-2">
+        <button
+          type="button"
+          onClick={() => setFilterOpen((o) => !o)}
+          aria-expanded={filterOpen}
+          className="flex w-full cursor-pointer items-center justify-between text-[11px] font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
+        >
+          <span>🎚 filter</span>
+          <span>{filterOpen ? '▾' : '▸'}</span>
+        </button>
+        {filterOpen && (
+          <div className="mt-1.5 flex flex-col gap-1.5">
+            {SOLAR_LAYER_LABELS.map(({ key, label }) => (
+              <label
+                key={key}
+                className="flex cursor-pointer items-center gap-2 text-xs text-slate-300 hover:text-slate-100"
+              >
+                <input
+                  type="checkbox"
+                  checked={solarLayers[key]}
+                  onChange={() => onToggleSolarLayer(key)}
+                  className="accent-cyan-400"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 🛰 how many robotic explorers are out there across the system right now */}
       <div
