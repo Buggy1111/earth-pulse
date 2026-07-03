@@ -8,6 +8,7 @@
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
+import { occludeLineMaterial } from './trailOcclusion'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
@@ -116,7 +117,7 @@ function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
   geom.setAttribute('color', colors)
   const line = new THREE.Line(
     geom,
-    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
+    occludeLineMaterial(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })),
   )
   line.renderOrder = 1
   // how many samples cover ~200° of heliocentric sweep (ecliptic XY angle):

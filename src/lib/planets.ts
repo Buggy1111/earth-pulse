@@ -11,6 +11,8 @@ type Elements = [number, number, number, number, number, number]
 export interface PlanetFacts {
   /** Sidereal rotation period in hours (negative = retrograde spin). */
   rotationH: number
+  /** Surface gravity, Earth = 1 ("you'd weigh ×G here"). */
+  gravityG: number
   /** Orbital period, Earth days. */
   yearDays: number
   /** Axial tilt, degrees. */
@@ -37,35 +39,35 @@ interface PlanetDef {
 
 export const PLANETS: PlanetDef[] = [
   { id: 'mercury', name: 'Mercury', diameterKm: 4_879, displayRadius: 3.1, texture: 'planets/mercury.jpg',
-    facts: { rotationH: 1407.6, yearDays: 88, tiltDeg: 0.03, tempC: 167, moonCount: 0, atmosphere: 'practically none (exosphere)', fact: 'a single solar day lasts 176 Earth days — longer than its year' },
+    facts: { rotationH: 1407.6, gravityG: 0.38, yearDays: 88, tiltDeg: 0.03, tempC: 167, moonCount: 0, atmosphere: 'practically none (exosphere)', fact: 'a single solar day lasts 176 Earth days — longer than its year' },
     el: [0.38709927, 0.20563593, 7.00497902, 252.2503235, 77.45779628, 48.33076593],
     rate: [0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081] },
   { id: 'venus', name: 'Venus', diameterKm: 12_104, displayRadius: 7.6, texture: 'planets/venus_atmosphere.jpg',
-    facts: { rotationH: -5832.5, yearDays: 224.7, tiltDeg: 177.4, tempC: 464, moonCount: 0, atmosphere: 'dense CO₂, sulfuric-acid clouds', fact: 'spins backwards, hotter than Mercury — runaway greenhouse' },
+    facts: { rotationH: -5832.5, gravityG: 0.91, yearDays: 224.7, tiltDeg: 177.4, tempC: 464, moonCount: 0, atmosphere: 'dense CO₂, sulfuric-acid clouds', fact: 'spins backwards, hotter than Mercury — runaway greenhouse' },
     el: [0.72333566, 0.00677672, 3.39467605, 181.9790995, 131.60246718, 76.67984255],
     rate: [0.0000039, -0.00004107, -0.0007889, 58517.81538729, 0.00268329, -0.27769418] },
   { id: 'mars', name: 'Mars', diameterKm: 6_779, displayRadius: 4.3, texture: 'planets/mars.jpg',
-    facts: { rotationH: 24.6, yearDays: 687, tiltDeg: 25.2, tempC: -63, moonCount: 2, atmosphere: 'thin CO₂', fact: 'Olympus Mons is the tallest volcano in the solar system (~22 km)' },
+    facts: { rotationH: 24.6, gravityG: 0.38, yearDays: 687, tiltDeg: 25.2, tempC: -63, moonCount: 2, atmosphere: 'thin CO₂', fact: 'Olympus Mons is the tallest volcano in the solar system (~22 km)' },
     el: [1.52371034, 0.0933941, 1.84969142, -4.55343205, -23.94362959, 49.55953891],
     rate: [0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343] },
   { id: 'jupiter', name: 'Jupiter', diameterKm: 139_820, displayRadius: 88, texture: 'planets/jupiter.jpg',
-    facts: { rotationH: 9.9, yearDays: 4333, tiltDeg: 3.1, tempC: -108, moonCount: 95, atmosphere: 'hydrogen + helium', fact: 'the Great Red Spot is a storm wider than Earth, raging for centuries' },
+    facts: { rotationH: 9.9, gravityG: 2.53, yearDays: 4333, tiltDeg: 3.1, tempC: -108, moonCount: 95, atmosphere: 'hydrogen + helium', fact: 'the Great Red Spot is a storm wider than Earth, raging for centuries' },
     el: [5.202887, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909],
     rate: [-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106] },
   { id: 'saturn', name: 'Saturn', diameterKm: 116_460, displayRadius: 75, texture: 'planets/saturn.jpg',
-    facts: { rotationH: 10.7, yearDays: 10759, tiltDeg: 26.7, tempC: -139, moonCount: 146, atmosphere: 'hydrogen + helium', fact: 'less dense than water — it would float in a big enough bathtub' },
+    facts: { rotationH: 10.7, gravityG: 1.06, yearDays: 10759, tiltDeg: 26.7, tempC: -139, moonCount: 146, atmosphere: 'hydrogen + helium', fact: 'less dense than water — it would float in a big enough bathtub' },
     el: [9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448],
     rate: [-0.0012506, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794] },
   { id: 'uranus', name: 'Uranus', diameterKm: 50_724, displayRadius: 32, texture: 'planets/uranus.jpg',
-    facts: { rotationH: -17.2, yearDays: 30687, tiltDeg: 97.8, tempC: -197, moonCount: 28, atmosphere: 'hydrogen, helium, methane (the cyan tint)', fact: 'rolls on its side — seasons last 21 years each' },
+    facts: { rotationH: -17.2, gravityG: 0.89, yearDays: 30687, tiltDeg: 97.8, tempC: -197, moonCount: 28, atmosphere: 'hydrogen, helium, methane (the cyan tint)', fact: 'rolls on its side — seasons last 21 years each' },
     el: [19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.9542763, 74.01692503],
     rate: [-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589] },
   { id: 'neptune', name: 'Neptune', diameterKm: 49_244, displayRadius: 31, texture: 'planets/neptune.jpg',
-    facts: { rotationH: 16.1, yearDays: 60190, tiltDeg: 28.3, tempC: -201, moonCount: 16, atmosphere: 'hydrogen, helium, methane', fact: 'fastest winds in the solar system — up to 2,100 km/h' },
+    facts: { rotationH: 16.1, gravityG: 1.14, yearDays: 60190, tiltDeg: 28.3, tempC: -201, moonCount: 16, atmosphere: 'hydrogen, helium, methane', fact: 'fastest winds in the solar system — up to 2,100 km/h' },
     el: [30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574],
     rate: [0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664] },
   { id: 'pluto', name: 'Pluto', diameterKm: 2_377, displayRadius: 1.6, texture: 'planets/pluto.webp',
-    facts: { rotationH: -153.3, yearDays: 90_560, tiltDeg: 122.5, tempC: -229, moonCount: 5, atmosphere: 'thin nitrogen (when near the Sun)', fact: 'demoted to dwarf planet in 2006 — New Horizons revealed a heart-shaped glacier' },
+    facts: { rotationH: -153.3, gravityG: 0.06, yearDays: 90_560, tiltDeg: 122.5, tempC: -229, moonCount: 5, atmosphere: 'thin nitrogen (when near the Sun)', fact: 'demoted to dwarf planet in 2006 — New Horizons revealed a heart-shaped glacier' },
     el: [39.48211675, 0.2488273, 17.14001206, 238.92903833, 224.06891629, 110.30393684],
     rate: [-0.00031596, 0.0000517, 0.00004818, 145.20780515, -0.04062942, -0.01183482] },
 ]
@@ -203,6 +205,8 @@ export interface MoonDef {
   /** Slug — also the texture filename, planets/moons/<id>.webp. */
   id: string
   name: string
+  /** Surface gravity, Earth = 1 — for the "you'd weigh…" card line. */
+  gravityG?: number
   /** Semi-major axis, thousands of km. */
   aKkm: number
   /** Who found it and when — for the detail card. */
@@ -223,39 +227,39 @@ export interface MoonDef {
 /** The major moons — real orbits, periods, sizes and distances. */
 export const PLANET_MOONS: Record<string, MoonDef[]> = {
   earth: [
-    { id: 'moon', name: 'Moon', aKkm: 384.4, periodD: 27.322, radiusKm: 1737, color: '#b9b4ac', texture: true, fact: 'the only world beyond Earth humans have walked on' },
+    { id: 'moon', name: 'Moon', gravityG: 0.166, aKkm: 384.4, periodD: 27.322, radiusKm: 1737, color: '#b9b4ac', texture: true, fact: 'the only world beyond Earth humans have walked on' },
   ],
   mars: [
-    { id: 'phobos', name: 'Phobos', aKkm: 9.4, discoveredBy: 'Asaph Hall, 1877', periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
-    { id: 'deimos', name: 'Deimos', aKkm: 23.5, discoveredBy: 'Asaph Hall, 1877', periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
+    { id: 'phobos', name: 'Phobos', gravityG: 0.0006, aKkm: 9.4, discoveredBy: 'Asaph Hall, 1877', periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
+    { id: 'deimos', name: 'Deimos', gravityG: 0.0003, aKkm: 23.5, discoveredBy: 'Asaph Hall, 1877', periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
   ],
   jupiter: [
-    { id: 'io', name: 'Io', aKkm: 421.8, discoveredBy: 'Galileo Galilei, 1610', periodD: 1.769, radiusKm: 1822, color: '#d8c45a', texture: true, fact: 'the most volcanic body in the solar system' },
-    { id: 'europa', name: 'Europa', aKkm: 671.1, discoveredBy: 'Galileo Galilei, 1610', periodD: 3.551, radiusKm: 1561, color: '#d9d2c2', texture: true, fact: 'an ocean of liquid water under the ice' },
-    { id: 'ganymede', name: 'Ganymede', aKkm: 1070.4, discoveredBy: 'Galileo Galilei, 1610', periodD: 7.155, radiusKm: 2634, color: '#a89a85', texture: true, fact: 'the largest moon anywhere — bigger than Mercury' },
-    { id: 'callisto', name: 'Callisto', aKkm: 1882.7, discoveredBy: 'Galileo Galilei, 1610', periodD: 16.689, radiusKm: 2410, color: '#7a7164', texture: true, fact: 'the most cratered surface known' },
+    { id: 'io', name: 'Io', gravityG: 0.183, aKkm: 421.8, discoveredBy: 'Galileo Galilei, 1610', periodD: 1.769, radiusKm: 1822, color: '#d8c45a', texture: true, fact: 'the most volcanic body in the solar system' },
+    { id: 'europa', name: 'Europa', gravityG: 0.134, aKkm: 671.1, discoveredBy: 'Galileo Galilei, 1610', periodD: 3.551, radiusKm: 1561, color: '#d9d2c2', texture: true, fact: 'an ocean of liquid water under the ice' },
+    { id: 'ganymede', name: 'Ganymede', gravityG: 0.146, aKkm: 1070.4, discoveredBy: 'Galileo Galilei, 1610', periodD: 7.155, radiusKm: 2634, color: '#a89a85', texture: true, fact: 'the largest moon anywhere — bigger than Mercury' },
+    { id: 'callisto', name: 'Callisto', gravityG: 0.126, aKkm: 1882.7, discoveredBy: 'Galileo Galilei, 1610', periodD: 16.689, radiusKm: 2410, color: '#7a7164', texture: true, fact: 'the most cratered surface known' },
   ],
   saturn: [
-    { id: 'mimas', name: 'Mimas', aKkm: 185.5, discoveredBy: 'William Herschel, 1789', periodD: 0.942, radiusKm: 198, color: '#c6c2bb', texture: true, fact: 'one huge crater — yes, it does look like the Death Star' },
-    { id: 'enceladus', name: 'Enceladus', aKkm: 238, discoveredBy: 'William Herschel, 1789', periodD: 1.37, radiusKm: 252, color: '#eef2f6', texture: true, fact: 'water geysers erupt from its south pole' },
-    { id: 'tethys', name: 'Tethys', aKkm: 294.7, discoveredBy: 'Giovanni Cassini, 1684', periodD: 1.888, radiusKm: 531, color: '#d4d2cc', texture: true, fact: 'almost pure water ice, a canyon 3/4 of the way around it' },
-    { id: 'dione', name: 'Dione', aKkm: 377.4, discoveredBy: 'Giovanni Cassini, 1684', periodD: 2.737, radiusKm: 561, color: '#c9c5bd', texture: true, fact: 'bright ice-cliff streaks across its trailing side' },
-    { id: 'rhea', name: 'Rhea', aKkm: 527.1, discoveredBy: 'Giovanni Cassini, 1672', periodD: 4.518, radiusKm: 764, color: '#beb7ac', texture: true },
-    { id: 'titan', name: 'Titan', aKkm: 1221.9, discoveredBy: 'Christiaan Huygens, 1655', periodD: 15.945, radiusKm: 2575, color: '#cfa14f', texture: true, tint: '#d8a557', fact: 'thick orange atmosphere, methane rain and lakes' },
-    { id: 'iapetus', name: 'Iapetus', aKkm: 3560.8, discoveredBy: 'Giovanni Cassini, 1671', periodD: 79.32, radiusKm: 735, color: '#b3a89a', texture: true, fact: 'two-toned: one side coal-black, the other bright ice' },
+    { id: 'mimas', name: 'Mimas', gravityG: 0.006, aKkm: 185.5, discoveredBy: 'William Herschel, 1789', periodD: 0.942, radiusKm: 198, color: '#c6c2bb', texture: true, fact: 'one huge crater — yes, it does look like the Death Star' },
+    { id: 'enceladus', name: 'Enceladus', gravityG: 0.011, aKkm: 238, discoveredBy: 'William Herschel, 1789', periodD: 1.37, radiusKm: 252, color: '#eef2f6', texture: true, fact: 'water geysers erupt from its south pole' },
+    { id: 'tethys', name: 'Tethys', gravityG: 0.015, aKkm: 294.7, discoveredBy: 'Giovanni Cassini, 1684', periodD: 1.888, radiusKm: 531, color: '#d4d2cc', texture: true, fact: 'almost pure water ice, a canyon 3/4 of the way around it' },
+    { id: 'dione', name: 'Dione', gravityG: 0.024, aKkm: 377.4, discoveredBy: 'Giovanni Cassini, 1684', periodD: 2.737, radiusKm: 561, color: '#c9c5bd', texture: true, fact: 'bright ice-cliff streaks across its trailing side' },
+    { id: 'rhea', name: 'Rhea', gravityG: 0.027, aKkm: 527.1, discoveredBy: 'Giovanni Cassini, 1672', periodD: 4.518, radiusKm: 764, color: '#beb7ac', texture: true },
+    { id: 'titan', name: 'Titan', gravityG: 0.138, aKkm: 1221.9, discoveredBy: 'Christiaan Huygens, 1655', periodD: 15.945, radiusKm: 2575, color: '#cfa14f', texture: true, tint: '#d8a557', fact: 'thick orange atmosphere, methane rain and lakes' },
+    { id: 'iapetus', name: 'Iapetus', gravityG: 0.023, aKkm: 3560.8, discoveredBy: 'Giovanni Cassini, 1671', periodD: 79.32, radiusKm: 735, color: '#b3a89a', texture: true, fact: 'two-toned: one side coal-black, the other bright ice' },
   ],
   uranus: [
-    { id: 'miranda', name: 'Miranda', aKkm: 129.9, discoveredBy: 'Gerard Kuiper, 1948', periodD: 1.413, radiusKm: 236, color: '#aab4bd', texture: true, fact: 'a patchwork world with 20 km ice cliffs' },
-    { id: 'ariel', name: 'Ariel', aKkm: 190.9, discoveredBy: 'William Lassell, 1851', periodD: 2.52, radiusKm: 579, color: '#b6bdc4', texture: true, fact: 'the brightest Uranian moon — young icy plains' },
-    { id: 'umbriel', name: 'Umbriel', aKkm: 266, discoveredBy: 'William Lassell, 1851', periodD: 4.144, radiusKm: 585, color: '#7e848c', texture: true, fact: 'the darkest one, with a single bright crater ring' },
-    { id: 'titania', name: 'Titania', aKkm: 435.9, discoveredBy: 'William Herschel, 1787', periodD: 8.706, radiusKm: 788, color: '#9aa3ad', texture: true },
-    { id: 'oberon', name: 'Oberon', aKkm: 583.5, discoveredBy: 'William Herschel, 1787', periodD: 13.46, radiusKm: 761, color: '#8f8a84', texture: true },
+    { id: 'miranda', name: 'Miranda', gravityG: 0.008, aKkm: 129.9, discoveredBy: 'Gerard Kuiper, 1948', periodD: 1.413, radiusKm: 236, color: '#aab4bd', texture: true, fact: 'a patchwork world with 20 km ice cliffs' },
+    { id: 'ariel', name: 'Ariel', gravityG: 0.025, aKkm: 190.9, discoveredBy: 'William Lassell, 1851', periodD: 2.52, radiusKm: 579, color: '#b6bdc4', texture: true, fact: 'the brightest Uranian moon — young icy plains' },
+    { id: 'umbriel', name: 'Umbriel', gravityG: 0.02, aKkm: 266, discoveredBy: 'William Lassell, 1851', periodD: 4.144, radiusKm: 585, color: '#7e848c', texture: true, fact: 'the darkest one, with a single bright crater ring' },
+    { id: 'titania', name: 'Titania', gravityG: 0.037, aKkm: 435.9, discoveredBy: 'William Herschel, 1787', periodD: 8.706, radiusKm: 788, color: '#9aa3ad', texture: true },
+    { id: 'oberon', name: 'Oberon', gravityG: 0.035, aKkm: 583.5, discoveredBy: 'William Herschel, 1787', periodD: 13.46, radiusKm: 761, color: '#8f8a84', texture: true },
   ],
   neptune: [
-    { id: 'triton', name: 'Triton', aKkm: 354.8, discoveredBy: 'William Lassell, 1846', periodD: 5.877, radiusKm: 1353, retrograde: true, color: '#d9cfc6', texture: true, fact: 'orbits BACKWARDS — a captured Kuiper-belt world with nitrogen geysers' },
+    { id: 'triton', name: 'Triton', gravityG: 0.08, aKkm: 354.8, discoveredBy: 'William Lassell, 1846', periodD: 5.877, radiusKm: 1353, retrograde: true, color: '#d9cfc6', texture: true, fact: 'orbits BACKWARDS — a captured Kuiper-belt world with nitrogen geysers' },
   ],
   pluto: [
-    { id: 'charon', name: 'Charon', aKkm: 19.6, discoveredBy: 'James Christy, 1978', periodD: 6.387, radiusKm: 606, color: '#a9a29c', texture: true, fact: 'half Pluto\'s size — they orbit a point between them, a true double world' },
+    { id: 'charon', name: 'Charon', gravityG: 0.029, aKkm: 19.6, discoveredBy: 'James Christy, 1978', periodD: 6.387, radiusKm: 606, color: '#a9a29c', texture: true, fact: 'half Pluto\'s size — they orbit a point between them, a true double world' },
   ],
 }
 

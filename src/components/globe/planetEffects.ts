@@ -12,6 +12,7 @@
  */
 
 import * as THREE from 'three'
+import { NOISE_GLSL } from './sunMaterial'
 
 const RING_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -126,6 +127,74 @@ export function makeAtmosphereMaterial(
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   })
+}
+
+const BANDS_VERT = /* glsl */ `
+varying vec3 vObj;
+varying vec3 vNormalW;
+varying vec3 vWorld;
+void main() {
+  vObj = normalize(position);
+  vNormalW = normalize(mat3(modelMatrix) * normal);
+  vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+
+const BANDS_FRAG = /* glsl */ `
+uniform float uTime;
+uniform vec3 uSunPos;
+uniform vec3 uTint;
+uniform float uFreq;
+uniform float uStrength;
+varying vec3 vObj;
+varying vec3 vNormalW;
+varying vec3 vWorld;
+` + NOISE_GLSL + /* glsl */ `
+void main() {
+  // pásy podle šířky (vObj.y = osa pólů) + turbulence tekoucí podél rovnoběžek
+  float turb = fbm(vObj * 3.0 + vec3(uTime * 0.03, 0.0, uTime * 0.018));
+  float flow = fbm(vec3(vObj.y * uFreq * 0.35, atan(vObj.z, vObj.x) * 2.0 - uTime * 0.05, uTime * 0.01));
+  float band = sin(vObj.y * uFreq + turb * 2.6) * 0.5 + 0.5;
+  float a = smoothstep(0.55, 0.95, band) * (0.5 + 0.5 * flow) * uStrength;
+
+  // jen na denní straně — pásy jsou odražené světlo, ne vlastní záře
+  float day = clamp(dot(normalize(vNormalW), normalize(uSunPos - vWorld)), 0.0, 1.0);
+  a *= 0.15 + 0.85 * day;
+
+  gl_FragColor = vec4(uTint, a);
+}
+`
+
+/** Living cloud-band flow for the gas giants — a whisper-thin overlay riding
+ * the spinning planet mesh; the noise inside the bands drifts in real time. */
+export function makeBandsMaterial(
+  sunPos: THREE.Vector3,
+  color: string,
+  freq: number,
+  strength: number,
+): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uSunPos: { value: sunPos },
+      uTint: { value: new THREE.Color(color) },
+      uFreq: { value: freq },
+      uStrength: { value: strength },
+    },
+    vertexShader: BANDS_VERT,
+    fragmentShader: BANDS_FRAG,
+    transparent: true,
+    depthWrite: false,
+  })
+}
+
+/** Which giants get flowing bands and how strong (Jupiter loudest). */
+export const BANDS: Record<string, { color: string; freq: number; strength: number }> = {
+  jupiter: { color: '#e8d0a8', freq: 22, strength: 0.2 },
+  saturn: { color: '#eadcb8', freq: 16, strength: 0.14 },
+  uranus: { color: '#c8ecf2', freq: 8, strength: 0.09 },
+  neptune: { color: '#a8c8ff', freq: 10, strength: 0.12 },
 }
 
 /** Per-planet atmosphere looks — thickness/colour roughly matches reality

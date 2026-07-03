@@ -16,6 +16,18 @@ function fmtYear(d: number): string {
   return d >= 700 ? `${(d / 365.25).toFixed(1)} years` : `${Math.round(d)} days`
 }
 
+/** Light travel time from the Sun (1 AU ≈ 499 light-seconds). */
+function fmtLightTime(au: number): string {
+  const s = au * 499.005
+  return s < 3600 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`
+}
+
+/** "You'd weigh…" — a 70 kg person as the relatable anchor. */
+function fmtWeight(gravityG: number): string {
+  const kg = gravityG * 70
+  return kg < 1 ? `${kg.toFixed(2)} kg` : `${Math.round(kg)} kg`
+}
+
 function fmtKm(km: number): string {
   if (km >= 1e9) return `${(km / 1e9).toFixed(1)} bil. km`
   if (km >= 1e6) return `${Math.round(km / 1e6).toLocaleString('en-US')} mil. km`
@@ -139,6 +151,11 @@ export function PlanetPanel({
             {moon.periodD < 2 ? `${(moon.periodD * 24).toFixed(0)} h` : `${moon.periodD.toFixed(1)} days`}
             {moon.retrograde ? ' ↺ retrograde' : ''}
           </span>
+          {moon.gravityG !== undefined && (
+            <span className="num">
+              🧍 gravity ×{moon.gravityG} — a 70 kg person weighs {fmtWeight(moon.gravityG)} here
+            </span>
+          )}
           {moon.discoveredBy && <span>🔭 discovered by {moon.discoveredBy}</span>}
           {moon.fact && <span className="text-slate-300">✨ {moon.fact}</span>}
           <span className="text-[10px] text-slate-400">photo: NASA (public domain)</span>
@@ -155,6 +172,10 @@ export function PlanetPanel({
           </span>
           <span className="num">
             🔄 day: {fmtRotation(def.facts.rotationH)} · 🗓 year: {fmtYear(def.facts.yearDays)}
+          </span>
+          <span className="num">
+            🧍 gravity ×{def.facts.gravityG} — a 70 kg person weighs {fmtWeight(def.facts.gravityG)}{' '}
+            here · ☀️ sunlight takes {fmtLightTime(p.distSunAu)}
           </span>
           <span>☁️ {def.facts.atmosphere}</span>
           <span className="text-slate-300">✨ {def.facts.fact}</span>
@@ -177,9 +198,18 @@ export function PlanetPanel({
           )}
         </div>
       ) : focus === 'sun' ? (
-        <p className="mt-1 text-xs text-slate-400">
-          ⌀ 1,392,700 km · 99.86 % of the system's mass · light takes ~8 min to reach Earth
-        </p>
+        <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-400">
+          <span className="num">⌀ 1,392,700 km — 109× Earth · 99.86 % of the system's mass</span>
+          <span className="num">🔥 5,505 °C surface · ~15,000,000 °C core</span>
+          <span className="num">
+            🧍 gravity ×28 — a 70 kg person would weigh nearly 2 tonnes (nowhere to stand, though)
+          </span>
+          <span className="num">💡 light to Earth: 8 min 20 s · 🔄 spins once in ~25 days</span>
+          <span className="text-slate-300">
+            ✨ about 1.3 million Earths would fit inside — and it fuses 600 million tonnes of
+            hydrogen every second
+          </span>
+        </div>
       ) : focus === 'earth' ? (
         <p className="mt-1 text-xs text-slate-400">
           🏠 your home, still fully live — satellites, quakes and clouds keep running on the

@@ -51,20 +51,25 @@ varying vec3 vViewNormal;
 ` + NOISE_GLSL + /* glsl */ `
 
 void main() {
-  // slow large convection cells + fine drifting granulation
-  float cells = fbm(vObj * 4.0 + vec3(0.0, uTime * 0.02, 0.0));
-  float grains = fbm(vObj * 16.0 - vec3(uTime * 0.035, 0.0, uTime * 0.02));
-  float b = 0.62 + 0.42 * cells + 0.22 * grains;
+  // slow large convection cells + fine drifting granulation — vyšší kontrast,
+  // ať povrch VIDITELNĚ vře (tmavé mezigranulární pruhy vs. žhavé vrcholy)
+  float cells = fbm(vObj * 4.0 + vec3(0.0, uTime * 0.025, 0.0));
+  float grains = fbm(vObj * 16.0 - vec3(uTime * 0.045, 0.0, uTime * 0.025));
+  float b = 0.52 + 0.55 * cells + 0.3 * grains;
 
   // warm ramp: deep orange valleys -> pale yellow granule tops
-  vec3 col = mix(vec3(0.98, 0.45, 0.12), vec3(1.0, 0.93, 0.66), clamp(b - 0.35, 0.0, 1.0));
+  vec3 col = mix(vec3(0.92, 0.36, 0.07), vec3(1.0, 0.94, 0.68), clamp(b - 0.3, 0.0, 1.0));
+
+  // bílo-žhavé jádro nejžhavějších buněk — to "roztavené" navrch
+  float hot = pow(clamp((cells - 0.52) * 2.6, 0.0, 1.0), 2.0);
+  col += vec3(1.0, 0.92, 0.75) * hot * 0.7;
 
   // limb darkening + a hot thin rim right at the edge
   float mu = clamp(vViewNormal.z, 0.0, 1.0);
   col *= 0.5 + 0.5 * pow(mu, 0.55);
-  col += vec3(1.0, 0.55, 0.2) * pow(1.0 - mu, 6.0) * 0.6;
+  col += vec3(1.0, 0.55, 0.2) * pow(1.0 - mu, 6.0) * 0.8;
 
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col * 1.08, 1.0);
 }
 `
 

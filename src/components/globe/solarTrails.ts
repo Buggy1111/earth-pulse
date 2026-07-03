@@ -5,6 +5,7 @@
  * hot path. */
 
 import * as THREE from 'three'
+import { occludeLineMaterial } from './trailOcclusion'
 
 export interface SolarTrail {
   line: THREE.Line
@@ -31,13 +32,15 @@ export function makeTrailOrbit(
   geom.setAttribute('color', colors)
   const line = new THREE.Line(
     geom,
-    new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
+    occludeLineMaterial(
+      new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    ),
   )
   line.renderOrder = 1
   trails.push({

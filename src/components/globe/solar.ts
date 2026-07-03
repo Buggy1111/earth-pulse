@@ -25,7 +25,8 @@ import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
-import { ATMOSPHERES, makeAtmosphereMaterial, makeRingShadowMaterial } from './planetEffects'
+import { ATMOSPHERES, BANDS, makeAtmosphereMaterial, makeBandsMaterial, makeRingShadowMaterial } from './planetEffects'
+import { setOccluder } from './trailOcclusion'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
 
@@ -122,7 +123,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
 
   // ☀️ the Sun at the heliocentric origin — by far the biggest body.
   // Procedural granulation shader + a point light that does ALL the lighting.
-  const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_DISPLAY, 48, 48), makeSunMaterial())
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_DISPLAY, 64, 64), makeSunMaterial())
   sun.userData.planetId = 'sun'
   const sunLight = new THREE.PointLight('#fff3da', 2.6, 0, 0)
   sunLight.layers.set(SUNLIT_LAYER)
@@ -156,7 +157,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   // 🔥 prominences: thin additive shell, flames only at the limb
   const prominenceMat = makeProminenceMaterial()
   const prominence = new THREE.Mesh(
-    new THREE.SphereGeometry(SUN_DISPLAY * 1.03, 48, 48),
+    new THREE.SphereGeometry(SUN_DISPLAY * 1.03, 64, 64),
     prominenceMat,
   )
   sun.add(prominence)
@@ -192,7 +193,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   if (earthMoonDef) {
     const rMoon = Math.max(EARTH_DISPLAY * (earthMoonDef.radiusKm / (12_742 / 2)), 0.7)
     earthMoonRScene = EARTH_DISPLAY * ((earthMoonDef.aKkm * 1_000) / (12_742 / 2))
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 24, 24), litMaterial(earthMoonDef.color))
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 32, 32), litMaterial(earthMoonDef.color))
     mesh.rotation.x = Math.PI / 2
     mesh.layers.set(SUNLIT_LAYER)
     mesh.userData.moonId = earthMoonDef.id
@@ -225,6 +226,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   // world-space Sun position shared by every ring-shadow material — the frame
   // loop copies group.position in once, all rings see it (same Vector3)
   const sunWorldPos = new THREE.Vector3()
+  // živé proudění oblačných pásů plynných obrů — uTime plní frame loop
+  const bandMats: THREE.ShaderMaterial[] = []
   // Group space is heliocentric-ECLIPTIC: orbits in XY, north = +Z. A
   // planet's equator/rings/moons therefore live in the tilt group's XY plane
   // and its pole is tilt-local +Z (the node direction is approximated).
@@ -236,7 +239,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     system.add(tilt)
 
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(p.displayRadius, 32, 32),
+      new THREE.SphereGeometry(p.displayRadius, 48, 48),
       litMaterial(p.id === 'pluto' ? '#c9b29b' : '#9aa3ae'),
     )
     mesh.layers.set(SUNLIT_LAYER)
@@ -255,7 +258,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const addRing = (innerF: number, outerF: number, color: string, opacity: number, tex?: string) => {
       const inner = p.displayRadius * innerF
       const outer = p.displayRadius * outerF
-      const geo = new THREE.RingGeometry(inner, outer, 96)
+      const geo = new THREE.RingGeometry(inner, outer, 128)
       radialRingUVs(geo, inner, outer)
       // shader se stínem planety: prstenec za planetou (vůči Slunci) tmavne
       const mat = makeRingShadowMaterial(sunWorldPos, p.displayRadius, color, opacity)
@@ -272,6 +275,19 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     if (p.id === 'saturn') addRing(1.24, 2.27, '#d8c9a3', 1, 'planets/saturn_ring.png')
     if (p.id === 'uranus') addRing(1.6, 1.95, '#9fb6c0', 0.25)
     if (p.id === 'neptune') addRing(1.45, 1.62, '#8898a8', 0.15)
+
+    // živé pásy plynných obrů: turbulentní proudění jako tenký overlay —
+    // dítě rotujícího meshe, takže spinuje s texturou a šum uvnitř pásů teče
+    const bands = BANDS[p.id]
+    if (bands) {
+      const bandMat = makeBandsMaterial(sunWorldPos, bands.color, bands.freq, bands.strength)
+      const bandShell = new THREE.Mesh(
+        new THREE.SphereGeometry(p.displayRadius * 1.004, 48, 48),
+        bandMat,
+      )
+      mesh.add(bandShell)
+      bandMats.push(bandMat)
+    }
 
     // atmosférický fresnel: barevný srpek objímající limb (BackSide slupka)
     const atmo = ATMOSPHERES[p.id]
@@ -292,7 +308,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const decor: THREE.Object3D[] = []
     for (const m of moons) {
       const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.7)
-      const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 24, 24), litMaterial(m.color))
+      const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 32, 32), litMaterial(m.color))
       moonMesh.rotation.x = Math.PI / 2 // pole to tilt +Z, like the planet
       moonMesh.layers.set(SUNLIT_LAYER)
       moonMesh.userData.moonId = m.id
@@ -410,6 +426,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const hv = new THREE.Vector3()
   // scratch for the direction cones (hoisted — this runs per frame)
   const av = new THREE.Vector3()
+  // scratch pro occluder world pozice
+  const ov = new THREE.Vector3()
   const Y_UP = new THREE.Vector3(0, 1, 0)
   const DAY_MS = 86_400_000
   /** Aim `arrow` from `fromX/Y/Z` toward `toX/Y/Z`, parked `lead` units ahead. */
@@ -505,12 +523,27 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     }
     // repaint the comet trails so each one fades back behind its moving body
     updateSolarTrails(solarTrails)
-    // granulation, corona and prominences crawl in real time — surface
-    // phenomena, they must not speed up with the warped clock
+    // granulation, corona, prominences and gas-giant bands crawl in real
+    // time — surface phenomena, they must not speed up with the warped clock
     const sunSeconds = performance.now() / 1000
     ;(sun.material as THREE.ShaderMaterial).uniforms.uTime.value = sunSeconds
     coronaMat.uniforms.uTime.value = sunSeconds
     prominenceMat.uniforms.uTime.value = sunSeconds
+    for (const bm of bandMats) bm.uniforms.uTime.value = sunSeconds
+
+    // occluder koule pro trail shadery (ocásky nesmí procházet tělesy):
+    // Slunce + Země + planety ve world souřadnicích
+    setOccluder(0, group.position.x, group.position.y, group.position.z, SUN_DISPLAY)
+    earthProxy.getWorldPosition(ov)
+    setOccluder(1, ov.x, ov.y, ov.z, EARTH_DISPLAY * 2)
+    let oi = 2
+    for (const p of PLANETS) {
+      const sys = deps.planetMeshesRef.current.get(p.id)
+      if (!sys) continue
+      sys.getWorldPosition(ov)
+      setOccluder(oi, ov.x, ov.y, ov.z, p.displayRadius)
+      oi += 1
+    }
     deps.applySkyRef.current(now) // terminator/Moon follow the warped clock
     // mini-Earth + clouds: light from where the big Sun actually is, so the
     // lit side faces it (the earth-frame subsolar direction differs — frames)

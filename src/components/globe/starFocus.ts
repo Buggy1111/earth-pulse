@@ -12,6 +12,7 @@ import type { StarPick } from '../../lib/stars'
 import { flyCamera } from './cameraFlight'
 import { getGlowTexture } from './helpers'
 import { applyStarLook, makeStarMaterial } from './starMaterial'
+import { makeCoronaMaterial } from './coronaMaterial'
 
 export interface StarFocus {
   /** Build/skin the star along sky direction `dir` and glide in to orbit it. */
@@ -44,7 +45,13 @@ export function setupStarFocus(
     depthWrite: false,
   })
   const glow = new THREE.Sprite(glowMat)
+  glowMat.opacity = 0.45 // živá koróna přebírá hlavní roli
   mesh.add(glow)
+  // živá koróna hvězdy — stejný shader jako Slunce, tónovaný spektrální
+  // barvou (uScale kompenzuje mesh.scale, billboard vertex ho nevidí)
+  const coronaMat = makeCoronaMaterial(1)
+  const corona = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), coronaMat)
+  mesh.add(corona)
   globe.scene().add(mesh)
 
   let focused: string | null = null
@@ -82,6 +89,7 @@ export function setupStarFocus(
       applyStarLook(mat, look)
       glowMat.color.fromArray(look.coronaColor)
       glow.scale.set(look.coronaScale, look.coronaScale, 1)
+      coronaMat.uniforms.uTint.value.fromArray(look.coronaColor)
       mesh.scale.setScalar(radius)
       mesh.userData.displayRadius = radius
 
@@ -116,8 +124,14 @@ export function setupStarFocus(
     update(seconds) {
       if (!mesh.visible) return
       mat.uniforms.uTime.value = seconds
+      coronaMat.uniforms.uTime.value = seconds
       mesh.rotation.y = seconds * spin
-      if (pulse) mesh.scale.setScalar(radius * (1 + pulse * Math.sin(seconds * 0.6)))
+      const liveR = pulse ? radius * (1 + pulse * Math.sin(seconds * 0.6)) : radius
+      if (pulse) mesh.scale.setScalar(liveR)
+      // billboard shader nevidí mesh.scale — geometrie je ±8 jednotek, takže
+      // uScale = poloměr dá koróně ±8 poloměrů světa a uRadius drží r=1 na limbu
+      coronaMat.uniforms.uScale.value = liveR
+      coronaMat.uniforms.uRadius.value = liveR
     },
     dispose() {
       cancelFly?.()
