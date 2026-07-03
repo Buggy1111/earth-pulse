@@ -204,6 +204,170 @@ export const BANDS: Record<string, { color: string; freq: number; strength: numb
   neptune: { color: '#b4d2ff', freq: 10, strength: 0.2 },
 }
 
+const STORMS_VERT = /* glsl */ `
+varying vec3 vObj;
+varying vec3 vNormalW;
+varying vec3 vWorld;
+void main() {
+  vObj = normalize(position);
+  vNormalW = normalize(mat3(modelMatrix) * normal);
+  vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+
+const STORMS_FRAG = /* glsl */ `
+uniform float uTime;
+uniform vec3 uSunPos;
+uniform vec4 uSpot;        // xyz = směr středu bouře (object space), w = úhlový poloměr
+uniform vec4 uSpotColor;   // rgb + strength (0 = vypnuto)
+uniform float uSpotSwirl;  // rychlost rotace víru
+uniform vec4 uHex;         // x = strength, y = úhlová velikost od pólu, z/w = nevyužito
+uniform vec3 uHexColor;
+uniform vec4 uStreaks;     // x = strength, y = rychlost, z = šířková frekvence
+uniform vec3 uStreakColor;
+uniform vec4 uDust;        // x = strength, y = rychlost cyklu bouří
+uniform vec3 uDustColor;
+varying vec3 vObj;
+varying vec3 vNormalW;
+varying vec3 vWorld;
+` + NOISE_GLSL + /* glsl */ `
+void main() {
+  vec3 col = vec3(0.0);
+  float a = 0.0;
+
+  // 🌀 VELKÁ SKVRNA (Jupiter GRS / Neptunova tmavá) — rotující vír kolem
+  // pevného bodu na povrchu; sedí na skvrně v textuře (změřeno z bitmapy)
+  if (uSpotColor.a > 0.0) {
+    float d = acos(clamp(dot(vObj, normalize(uSpot.xyz)), -1.0, 1.0));
+    if (d < uSpot.w) {
+      // lokální souřadnice kolem středu skvrny + rotace úměrná blízkosti středu
+      vec3 e1 = normalize(cross(uSpot.xyz, vec3(0.0, 1.0, 0.0)));
+      vec3 e2 = normalize(cross(normalize(uSpot.xyz), e1));
+      vec2 p = vec2(dot(vObj, e1), dot(vObj, e2)) / uSpot.w;
+      float r = length(p);
+      float ang = atan(p.y, p.x) + (1.0 - r) * uTime * uSpotSwirl;
+      vec2 q = vec2(cos(ang), sin(ang)) * r;
+      float swirl = fbm(vec3(q * 3.0, uTime * 0.05));
+      float core = smoothstep(1.0, 0.25, r);
+      a += core * (0.45 + 0.5 * swirl) * uSpotColor.a;
+      col = mix(col, uSpotColor.rgb, 1.0);
+    }
+  }
+
+  // ⬡ ŠESTIÚHELNÍK (Saturnův polární hurikán) — hranice v polárních
+  // souřadnicích kolem severního pólu (+Y objektu) + vír uvnitř
+  if (uHex.x > 0.0) {
+    float colat = acos(clamp(vObj.y, -1.0, 1.0));   // úhel od severního pólu
+    if (colat < uHex.y * 1.6) {
+      float phi = atan(vObj.z, vObj.x);
+      // poloměr hranice šestiúhelníku pro daný azimut (rotuje zvolna jako reálný)
+      float sector = mod(phi + uTime * 0.01, 1.0471975512) - 0.5235987756; // 60° výseče
+      float hexR = uHex.y / cos(sector);
+      float edge = smoothstep(0.055, 0.0, abs(colat - hexR));
+      float inner = smoothstep(uHex.y, uHex.y * 0.2, colat)
+                  * (0.35 + 0.65 * fbm(vec3(vObj.x, vObj.z, 0.3) * 9.0
+                        + vec3(uTime * 0.04, -uTime * 0.03, 0.0)));
+      float h = (edge * 0.9 + inner * 0.45) * uHex.x;
+      a += h;
+      col = mix(col, uHexColor, clamp(h * 2.0, 0.0, 1.0));
+    }
+  }
+
+  // 💨 RYCHLÉ PRUHY (Neptunovy cirry, 2100 km/h) — jasné tenké šmouhy
+  // sprintující podél rovnoběžek znatelně rychleji než pásy
+  if (uStreaks.x > 0.0) {
+    float lat = vObj.y;
+    float lon = atan(vObj.z, vObj.x);
+    float s = fbm(vec3(lat * uStreaks.z, lon * 2.5 - uTime * uStreaks.y, uTime * 0.07));
+    float streak = smoothstep(0.62, 0.85, s) * uStreaks.x;
+    a += streak;
+    col = mix(col, uStreakColor, clamp(streak * 2.5, 0.0, 1.0));
+  }
+
+  // 🌪 PRACHOVÉ BOUŘE (Mars) — velkoplošný závoj, který se rodí a umírá
+  // v pomalém cyklu (jako reálné regionální/globální bouře)
+  if (uDust.x > 0.0) {
+    float activity = smoothstep(0.45, 0.75, fbm(vec3(uTime * uDust.y, 3.7, 1.3)));
+    float veil = fbm(vObj * 2.2 + vec3(uTime * 0.015, 0.0, uTime * 0.01));
+    float dust = activity * smoothstep(0.35, 0.8, veil) * uDust.x;
+    a += dust;
+    col = mix(col, uDustColor, clamp(dust * 2.0, 0.0, 1.0));
+  }
+
+  // jevy jsou odražené světlo — na noční straně skoro zhasnou
+  float day = clamp(dot(normalize(vNormalW), normalize(uSunPos - vWorld)), 0.0, 1.0);
+  a *= 0.12 + 0.88 * day;
+
+  gl_FragColor = vec4(col, clamp(a, 0.0, 0.85));
+}
+`
+
+export interface StormConfig {
+  spot?: { latDeg: number; lonDeg: number; radiusRad: number; color: string; strength: number; swirl: number }
+  hex?: { sizeRad: number; color: string; strength: number }
+  streaks?: { color: string; strength: number; speed: number; latFreq: number }
+  dust?: { color: string; strength: number; cycleSpeed: number }
+}
+
+/** Object-space direction of a texture lat/lon on a THREE SphereGeometry
+ * (u wraps around +Y; matches the equirectangular planet maps). */
+export function sphereDir(latDeg: number, lonDeg: number): THREE.Vector3 {
+  const theta = ((90 - latDeg) * Math.PI) / 180
+  const phi = (((lonDeg + 180) / 360) * Math.PI * 2)
+  return new THREE.Vector3(
+    -Math.cos(phi) * Math.sin(theta),
+    Math.cos(theta),
+    Math.sin(phi) * Math.sin(theta),
+  ).normalize()
+}
+
+export function makeStormsMaterial(sunPos: THREE.Vector3, cfg: StormConfig): THREE.ShaderMaterial {
+  const spotDir = cfg.spot ? sphereDir(cfg.spot.latDeg, cfg.spot.lonDeg) : new THREE.Vector3(0, 1, 0)
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uSunPos: { value: sunPos },
+      uSpot: { value: new THREE.Vector4(spotDir.x, spotDir.y, spotDir.z, cfg.spot?.radiusRad ?? 0) },
+      uSpotColor: { value: new THREE.Vector4(...new THREE.Color(cfg.spot?.color ?? '#ffffff').toArray(), cfg.spot?.strength ?? 0) },
+      uSpotSwirl: { value: cfg.spot?.swirl ?? 0 },
+      uHex: { value: new THREE.Vector4(cfg.hex?.strength ?? 0, cfg.hex?.sizeRad ?? 0.2, 0, 0) },
+      uHexColor: { value: new THREE.Color(cfg.hex?.color ?? '#ffffff') },
+      uStreaks: { value: new THREE.Vector4(cfg.streaks?.strength ?? 0, cfg.streaks?.speed ?? 0, cfg.streaks?.latFreq ?? 8, 0) },
+      uStreakColor: { value: new THREE.Color(cfg.streaks?.color ?? '#ffffff') },
+      uDust: { value: new THREE.Vector4(cfg.dust?.strength ?? 0, cfg.dust?.cycleSpeed ?? 0.004, 0, 0) },
+      uDustColor: { value: new THREE.Color(cfg.dust?.color ?? '#ffffff') },
+    },
+    vertexShader: STORMS_VERT,
+    fragmentShader: STORMS_FRAG,
+    transparent: true,
+    depthWrite: false,
+  })
+}
+
+/** Signature weather per planet — real phenomena, NASA-documented:
+ * Jupiter's Great Red Spot (texture-aligned at lat −20°, lon −46°, measured
+ * from the bitmap), Saturn's north-polar hexagon, Neptune's supersonic
+ * cirrus + dark vortex, Mars' come-and-go dust storms. */
+export const STORMS: Record<string, StormConfig> = {
+  jupiter: {
+    spot: { latDeg: -20, lonDeg: -46, radiusRad: 0.15, color: '#b8442e', strength: 0.6, swirl: 0.4 },
+  },
+  saturn: {
+    hex: { sizeRad: 0.24, color: '#caa96e', strength: 0.55 },
+  },
+  neptune: {
+    streaks: { color: '#e6f0ff', strength: 0.4, speed: 0.6, latFreq: 9 },
+    spot: { latDeg: -28, lonDeg: 40, radiusRad: 0.17, color: '#16255e', strength: 0.5, swirl: 0.25 },
+  },
+  mars: {
+    dust: { color: '#d8a878', strength: 0.5, cycleSpeed: 0.004 },
+  },
+  uranus: {
+    streaks: { color: '#e8fbff', strength: 0.14, speed: 0.25, latFreq: 6 },
+  },
+}
+
 /** Per-planet atmosphere looks — thickness/colour roughly matches reality
  * (dense sulfuric Venus, whisper-thin dusty Mars, hazy giants). */
 export const ATMOSPHERES: Record<string, { color: string; power: number; intensity: number }> = {

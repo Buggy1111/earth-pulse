@@ -25,7 +25,7 @@ import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
-import { ATMOSPHERES, BANDS, makeAtmosphereMaterial, makeBandsMaterial, makeRingShadowMaterial } from './planetEffects'
+import { ATMOSPHERES, BANDS, STORMS, makeAtmosphereMaterial, makeBandsMaterial, makeRingShadowMaterial, makeStormsMaterial } from './planetEffects'
 import { setOccluder } from './trailOcclusion'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -287,6 +287,19 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       )
       mesh.add(bandShell)
       bandMats.push(bandMat)
+    }
+
+    // 🌀 podpisové počasí planety (GRS, šestiúhelník, cirry, prachové bouře) —
+    // dítě rotujícího meshe, takže Rudá skvrna drží na své pozici v textuře
+    const storms = STORMS[p.id]
+    if (storms) {
+      const stormMat = makeStormsMaterial(sunWorldPos, storms)
+      const stormShell = new THREE.Mesh(
+        new THREE.SphereGeometry(p.displayRadius * 1.006, 48, 48),
+        stormMat,
+      )
+      mesh.add(stormShell)
+      bandMats.push(stormMat) // stejný uTime driver jako pásy
     }
 
     // atmosférický fresnel: barevný srpek objímající limb (BackSide slupka)
