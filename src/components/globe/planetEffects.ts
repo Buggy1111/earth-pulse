@@ -517,6 +517,46 @@ export const AURORAS: Record<string, { color: string; sizeRad: number }> = {
   saturn: { color: '#5ce0cc', sizeRad: 0.19 },
 }
 
+const SODIUM_TAIL_FRAG = /* glsl */ `
+uniform float uTime;
+varying vec3 vLocalPos;
+varying vec2 vUvTail;
+` + NOISE_GLSL + /* glsl */ `
+void main() {
+  // vUvTail.y: 0 = u planety, 1 = konec ohonu; jemné vlání šumem
+  float along = vUvTail.y;
+  float across = abs(vUvTail.x - 0.5) * 2.0;
+  float waver = fbm(vec3(along * 3.0 - uTime * 0.08, vUvTail.x * 4.0, uTime * 0.03));
+  float a = (1.0 - along) * (1.0 - smoothstep(0.35, 1.0, across)) * (0.5 + 0.5 * waver) * 0.35;
+  gl_FragColor = vec4(1.0, 0.9, 0.45, 1.0) * a; // sodíková žluť
+}
+`
+
+const SODIUM_TAIL_VERT = /* glsl */ `
+varying vec3 vLocalPos;
+varying vec2 vUvTail;
+void main() {
+  vLocalPos = position;
+  vUvTail = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+
+/** Mercury's comet-like sodium tail — always points away from the Sun
+ * (real, photographed phenomenon; solar radiation pressure blows sodium
+ * atoms off the surface). Additive, faint, wavering. */
+export function makeSodiumTailMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: SODIUM_TAIL_VERT,
+    fragmentShader: SODIUM_TAIL_FRAG,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  })
+}
+
 /** Deterministic 3D value noise for the potato moons (no deps, seedable). */
 function potatoNoise(x: number, y: number, z: number, seed: number): number {
   const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + seed * 53.3) * 43758.5453

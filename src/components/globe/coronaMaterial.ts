@@ -83,7 +83,13 @@ void main() {
   float licks = fbm(vObj * 14.0 - vec3(uTime * 0.22, 0.0, uTime * 0.13));
   float flame = clamp(tongues * 0.9 + licks * 0.5 - 0.25, 0.0, 1.0);
 
-  float a = limb * flame * 2.0;
+  // 💥 ERUPCE: jednou za čas celé okolí limbu vzplane (solar flare burst) —
+  // vzácný, krátký a lokalizovaný výšleh
+  float burstGate = pow(clamp((fbm(vec3(uTime * 0.05, 2.2, 8.8)) - 0.58) * 3.2, 0.0, 1.0), 2.0);
+  float burstSpot = smoothstep(0.5, 0.9, fbm(vObj * 2.4 + vec3(uTime * 0.002, 0.0, 0.0)));
+  float burst = burstGate * burstSpot;
+
+  float a = limb * flame * (2.0 + burst * 5.0);
   vec3 col = mix(vec3(1.0, 0.25, 0.08), vec3(1.0, 0.78, 0.38), flame);
   gl_FragColor = vec4(col * a, a);
 }

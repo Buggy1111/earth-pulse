@@ -51,10 +51,17 @@ varying vec3 vViewNormal;
 ` + NOISE_GLSL + /* glsl */ `
 
 void main() {
+  // ☀️ diferenciální rotace: rovník obíhá rychleji než póly (25 vs 34 dní) —
+  // šum se vzorkuje z otočeného směru, granulace u rovníku viditelně "ujíždí"
+  float diffRate = uTime * (0.004 + 0.009 * (1.0 - vObj.y * vObj.y));
+  float cd = cos(diffRate);
+  float sd = sin(diffRate);
+  vec3 pRot = vec3(vObj.x * cd + vObj.z * sd, vObj.y, -vObj.x * sd + vObj.z * cd);
+
   // slow large convection cells + fine drifting granulation — vyšší kontrast,
   // ať povrch VIDITELNĚ vře (tmavé mezigranulární pruhy vs. žhavé vrcholy)
-  float cells = fbm(vObj * 4.0 + vec3(0.0, uTime * 0.025, 0.0));
-  float grains = fbm(vObj * 16.0 - vec3(uTime * 0.045, 0.0, uTime * 0.025));
+  float cells = fbm(pRot * 4.0 + vec3(0.0, uTime * 0.025, 0.0));
+  float grains = fbm(pRot * 16.0 - vec3(uTime * 0.045, 0.0, uTime * 0.025));
   float b = 0.52 + 0.55 * cells + 0.3 * grains;
 
   // warm ramp: deep orange valleys -> pale yellow granule tops
@@ -63,6 +70,28 @@ void main() {
   // bílo-žhavé jádro nejžhavějších buněk — to "roztavené" navrch
   float hot = pow(clamp((cells - 0.52) * 2.6, 0.0, 1.0), 2.0);
   col += vec3(1.0, 0.92, 0.75) * hot * 0.7;
+
+  // 🌑 sluneční skvrny: 3 aktivní oblasti u rovníku, každá se rodí a zaniká
+  // ve vlastním pomalém cyklu; tmavá umbra + mírně tmavá penumbra
+  vec3 spotDirs[3];
+  spotDirs[0] = normalize(vec3(0.85, 0.22, 0.48));
+  spotDirs[1] = normalize(vec3(-0.55, -0.3, 0.78));
+  spotDirs[2] = normalize(vec3(-0.2, 0.12, -0.97));
+  for (int i = 0; i < 3; i++) {
+    float life = smoothstep(0.42, 0.62, fbm(vec3(uTime * 0.006 + float(i) * 7.31, 3.3, float(i))));
+    if (life <= 0.0) continue;
+    // skvrna driftuje s diferenciální rotací své šířky
+    float sRate = uTime * (0.004 + 0.009 * (1.0 - spotDirs[i].y * spotDirs[i].y));
+    float sc = cos(-sRate);
+    float ss = sin(-sRate);
+    vec3 sDir = vec3(spotDirs[i].x * sc + spotDirs[i].z * ss, spotDirs[i].y,
+                     -spotDirs[i].x * ss + spotDirs[i].z * sc);
+    float ang = acos(clamp(dot(vObj, sDir), -1.0, 1.0));
+    float size = 0.07 + 0.03 * float(i);
+    float umbra = smoothstep(size, size * 0.35, ang);
+    float penumbra = smoothstep(size * 1.9, size, ang) - umbra;
+    col *= 1.0 - life * (umbra * 0.72 + penumbra * 0.28);
+  }
 
   // limb darkening + a hot thin rim right at the edge
   float mu = clamp(vViewNormal.z, 0.0, 1.0);

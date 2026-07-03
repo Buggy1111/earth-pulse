@@ -25,7 +25,7 @@ import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
-import { ATMOSPHERES, AURORAS, BANDS, STORMS, makeAtmosphereMaterial, makeAuroraMaterial, makeBandsMaterial, makeIrregularMoonGeometry, makeRingShadowMaterial, makeSpokesMaterial, makeStormsMaterial } from './planetEffects'
+import { ATMOSPHERES, AURORAS, BANDS, STORMS, makeAtmosphereMaterial, makeAuroraMaterial, makeBandsMaterial, makeIrregularMoonGeometry, makeRingShadowMaterial, makeSodiumTailMaterial, makeSpokesMaterial, makeStormsMaterial } from './planetEffects'
 import { setOccluder } from './trailOcclusion'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -110,16 +110,20 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       raw.colorSpace = THREE.SRGBColorSpace
       const tex = capTexture(raw)
       tex.colorSpace = THREE.SRGBColorSpace
-      const m = mesh.material as THREE.MeshLambertMaterial
+      const m = mesh.material as THREE.MeshPhongMaterial
       m.map = tex
       m.emissiveMap = tex
+      m.bumpMap = tex // jas mapy ~ reliéf: krátery/pásy dostanou mikro-stíny
+      m.bumpScale = 0.35
       m.color.set(tint) // tint ≠ white casts grayscale maps (Titan's haze)
       m.emissive.set(tint)
       m.needsUpdate = true
     })
   }
+  // Phong místo Lamberta: bumpMap z textury = krátery a pásy vrhají
+  // mikro-stíny podle skutečné pozice Slunce; nízká shininess ať není plast
   const litMaterial = (color: string) =>
-    new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.07 })
+    new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.07, shininess: 4 })
 
   // ☀️ the Sun at the heliocentric origin — by far the biggest body.
   // Procedural granulation shader + a point light that does ALL the lighting.
@@ -230,6 +234,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const bandMats: THREE.ShaderMaterial[] = []
   // marsovský storms materiál zvlášť: frame loop mu krmí sezónní čepičky
   let marsStormMat: THREE.ShaderMaterial | null = null
+  // Merkurův sodíkový ohon — frame loop ho míří od Slunce
+  let mercuryTail: THREE.Group | null = null
   // Group space is heliocentric-ECLIPTIC: orbits in XY, north = +Z. A
   // planet's equator/rings/moons therefore live in the tilt group's XY plane
   // and its pole is tilt-local +Z (the node direction is approximated).
@@ -313,6 +319,22 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       mesh.add(stormShell)
       bandMats.push(stormMat) // stejný uTime driver jako pásy
       if (p.id === 'mars') marsStormMat = stormMat
+    }
+
+    // ☄️ Merkurův sodíkový ohon — vždy od Slunce (radiační tlak)
+    if (p.id === 'mercury') {
+      const tailLen = p.displayRadius * 14
+      const tailGeo = new THREE.PlaneGeometry(p.displayRadius * 3.2, tailLen, 1, 24)
+      tailGeo.translate(0, -tailLen / 2 - p.displayRadius, 0) // od těla planety ven
+      const tailMat = makeSodiumTailMaterial()
+      const tail = new THREE.Group()
+      const plane1 = new THREE.Mesh(tailGeo, tailMat)
+      const plane2 = new THREE.Mesh(tailGeo, tailMat)
+      plane2.rotation.y = Math.PI / 2 // zkřížené roviny - viditelné z každého úhlu
+      tail.add(plane1, plane2)
+      system.add(tail)
+      bandMats.push(tailMat)
+      mercuryTail = tail
     }
 
     // 🌌 polární záře obřích planet (Hubble UV ovály) — na nerotující ose
@@ -517,6 +539,13 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       const [x, y, z] = planetHelio(p.id, now)
       system.position.set(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE)
     }
+    // ☄️ sodíkový ohon: mířit VŽDY od Slunce (sun = počátek group prostoru)
+    if (mercuryTail) {
+      const sys = mercuryTail.parent as THREE.Object3D
+      av.copy(sys.position).normalize() // anti-sun směr v group prostoru
+      mercuryTail.quaternion.setFromUnitVectors(Y_UP, av.multiplyScalar(-1))
+    }
+
     // 🡒 planet/Earth direction cones — one day ahead along each orbit
     for (const pa of planetArrows) {
       const here = pa.id === 'earth' ? earthHelio(now) : planetHelio(pa.id, now)
