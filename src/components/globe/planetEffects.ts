@@ -228,6 +228,11 @@ uniform vec4 uStreaks;     // x = strength, y = rychlost, z = šířková frekve
 uniform vec3 uStreakColor;
 uniform vec4 uDust;        // x = strength, y = rychlost cyklu bouří
 uniform vec3 uDustColor;
+uniform vec4 uLightning;   // x = síla, y = hustota buněk, z = tempo záblesků
+uniform vec4 uScooter;     // x = síla, y = lat (obj.y), z = rychlost oběhu
+uniform vec4 uRare;        // x = max síla, y = rychlost cyklu (vzácné bouře)
+uniform vec4 uCaps;        // x = velikost N čepičky (colat rad), y = S, z = síla
+uniform float uSpotLife;   // 1 = vír vzniká/zaniká v cyklech (Neptun), 0 = trvalý (GRS)
 varying vec3 vObj;
 varying vec3 vNormalW;
 varying vec3 vWorld;
@@ -237,8 +242,12 @@ void main() {
   float a = 0.0;
 
   // 🌀 VELKÁ SKVRNA (Jupiter GRS / Neptunova tmavá) — rotující vír kolem
-  // pevného bodu na povrchu; sedí na skvrně v textuře (změřeno z bitmapy)
-  if (uSpotColor.a > 0.0) {
+  // pevného bodu na povrchu; sedí na skvrně v textuře (změřeno z bitmapy).
+  // uSpotLife: Neptunovy tmavé víry reálně vznikají a zanikají (roky) —
+  // v našem čase pomalý cyklus; GRS je trvalá.
+  float spotLife = mix(1.0, 0.25 + 0.75 * smoothstep(0.38, 0.6,
+      fbm(vec3(uTime * 0.008, 5.0, 9.0))), uSpotLife);
+  if (uSpotColor.a * spotLife > 0.0) {
     float d = acos(clamp(dot(vObj, normalize(uSpot.xyz)), -1.0, 1.0));
     if (d < uSpot.w) {
       // lokální souřadnice kolem středu skvrny + rotace úměrná blízkosti středu
@@ -250,7 +259,7 @@ void main() {
       vec2 q = vec2(cos(ang), sin(ang)) * r;
       float swirl = fbm(vec3(q * 3.0, uTime * 0.05));
       float core = smoothstep(1.0, 0.25, r);
-      a += core * (0.45 + 0.5 * swirl) * uSpotColor.a;
+      a += core * (0.45 + 0.5 * swirl) * uSpotColor.a * spotLife;
       col = mix(col, uSpotColor.rgb, 1.0);
     }
   }
@@ -295,19 +304,71 @@ void main() {
     col = mix(col, uDustColor, clamp(dust * 2.0, 0.0, 1.0));
   }
 
-  // jevy jsou odražené světlo — na noční straně skoro zhasnou
+  // 🛴 SCOOTER (Neptun) — jasný oblak obíhající rychleji než okolní pásy
+  if (uScooter.x > 0.0) {
+    float lon = atan(vObj.z, vObj.x);
+    float target = mod(uTime * uScooter.z, 6.2831853) - 3.14159265;
+    float dl = atan(sin(lon - target), cos(lon - target));
+    float dlat = vObj.y - uScooter.y;
+    float blob = exp(-(dl * dl * 16.0 + dlat * dlat * 160.0));
+    a += blob * uScooter.x;
+    col = mix(col, vec3(0.95, 0.98, 1.0), clamp(blob * 2.0, 0.0, 1.0));
+  }
+
+  // 🌩 VZÁCNÁ JASNÁ BOUŘE (Uran) — jednou za čas se vynoří a zase zmizí
+  if (uRare.x > 0.0) {
+    float act = smoothstep(0.6, 0.78, fbm(vec3(uTime * uRare.y, 7.3, 2.1)));
+    if (act > 0.0) {
+      float blat = (fbm(vec3(uTime * 0.004, 1.0, 0.0)) - 0.5) * 1.1;
+      float blon = fbm(vec3(0.0, uTime * 0.003, 2.0)) * 6.2831853;
+      float lon2 = atan(vObj.z, vObj.x);
+      float dl2 = atan(sin(lon2 - blon), cos(lon2 - blon));
+      float blob2 = exp(-(dl2 * dl2 * 9.0 + (vObj.y - blat) * (vObj.y - blat) * 50.0));
+      a += act * blob2 * uRare.x;
+      col = mix(col, vec3(0.92, 0.97, 1.0), clamp(blob2 * act * 2.0, 0.0, 1.0));
+    }
+  }
+
+  // ❄️ SEZÓNNÍ POLÁRNÍ ČEPIČKY (Mars) — velikosti dodává frame loop ze
+  // SIM času (687denní marsovský rok), okraj mírně roztřepený
+  if (uCaps.z > 0.0) {
+    float colatN = acos(clamp(vObj.y, -1.0, 1.0));
+    float colatS = 3.14159265 - colatN;
+    float ragged = 0.9 + 0.2 * fbm(vObj * 7.0);
+    float cap = smoothstep(uCaps.x * ragged, uCaps.x * 0.5, colatN)
+              + smoothstep(uCaps.y * ragged, uCaps.y * 0.5, colatS);
+    a += cap * uCaps.z;
+    col = mix(col, vec3(0.96, 0.98, 1.0), clamp(cap, 0.0, 1.0));
+  }
+
+  // jevy výše jsou odražené světlo — na noční straně skoro zhasnou
   float day = clamp(dot(normalize(vNormalW), normalize(uSunPos - vWorld)), 0.0, 1.0);
   a *= 0.12 + 0.88 * day;
+
+  // ⚡ BLESKY (Venuše, Jupiter) — mikro-záblesky, nejlépe viditelné v NOCI
+  if (uLightning.x > 0.0) {
+    float t = uTime * uLightning.z;
+    vec3 cell = floor(vObj * uLightning.y);
+    float h = fract(sin(dot(cell + floor(t), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    float flash = step(0.994, h) * (1.0 - fract(t)) * (1.0 - fract(t));
+    float night = 1.0 - day;
+    a += flash * uLightning.x * (0.3 + 0.7 * night);
+    col = mix(col, vec3(0.92, 0.95, 1.0), clamp(flash * 2.0, 0.0, 1.0));
+  }
 
   gl_FragColor = vec4(col, clamp(a, 0.0, 0.85));
 }
 `
 
 export interface StormConfig {
-  spot?: { latDeg: number; lonDeg: number; radiusRad: number; color: string; strength: number; swirl: number }
+  spot?: { latDeg: number; lonDeg: number; radiusRad: number; color: string; strength: number; swirl: number; lifecycle?: boolean }
   hex?: { sizeRad: number; color: string; strength: number }
   streaks?: { color: string; strength: number; speed: number; latFreq: number }
   dust?: { color: string; strength: number; cycleSpeed: number }
+  lightning?: { strength: number; cells: number; tempo: number }
+  scooter?: { strength: number; latDeg: number; speed: number }
+  rare?: { strength: number; cycleSpeed: number }
+  caps?: { strength: number }
 }
 
 /** Object-space direction of a texture lat/lon on a THREE SphereGeometry
@@ -337,6 +398,11 @@ export function makeStormsMaterial(sunPos: THREE.Vector3, cfg: StormConfig): THR
       uStreakColor: { value: new THREE.Color(cfg.streaks?.color ?? '#ffffff') },
       uDust: { value: new THREE.Vector4(cfg.dust?.strength ?? 0, cfg.dust?.cycleSpeed ?? 0.004, 0, 0) },
       uDustColor: { value: new THREE.Color(cfg.dust?.color ?? '#ffffff') },
+      uLightning: { value: new THREE.Vector4(cfg.lightning?.strength ?? 0, cfg.lightning?.cells ?? 14, cfg.lightning?.tempo ?? 3, 0) },
+      uScooter: { value: new THREE.Vector4(cfg.scooter?.strength ?? 0, Math.sin(((cfg.scooter?.latDeg ?? 0) * Math.PI) / 180), cfg.scooter?.speed ?? 0.1, 0) },
+      uRare: { value: new THREE.Vector4(cfg.rare?.strength ?? 0, cfg.rare?.cycleSpeed ?? 0.006, 0, 0) },
+      uCaps: { value: new THREE.Vector4(0.3, 0.3, cfg.caps?.strength ?? 0, 0) },
+      uSpotLife: { value: cfg.spot?.lifecycle ? 1 : 0 },
     },
     vertexShader: STORMS_VERT,
     fragmentShader: STORMS_FRAG,
@@ -350,22 +416,105 @@ export function makeStormsMaterial(sunPos: THREE.Vector3, cfg: StormConfig): THR
  * from the bitmap), Saturn's north-polar hexagon, Neptune's supersonic
  * cirrus + dark vortex, Mars' come-and-go dust storms. */
 export const STORMS: Record<string, StormConfig> = {
+  venus: {
+    lightning: { strength: 0.55, cells: 14, tempo: 2.6 },
+  },
   jupiter: {
     spot: { latDeg: -20, lonDeg: -46, radiusRad: 0.15, color: '#b8442e', strength: 0.6, swirl: 0.4 },
+    lightning: { strength: 0.4, cells: 22, tempo: 3.4 },
   },
   saturn: {
     hex: { sizeRad: 0.24, color: '#caa96e', strength: 0.55 },
   },
   neptune: {
     streaks: { color: '#e6f0ff', strength: 0.4, speed: 0.6, latFreq: 9 },
-    spot: { latDeg: -28, lonDeg: 40, radiusRad: 0.17, color: '#16255e', strength: 0.5, swirl: 0.25 },
+    spot: { latDeg: -28, lonDeg: 40, radiusRad: 0.17, color: '#16255e', strength: 0.5, swirl: 0.25, lifecycle: true },
+    scooter: { strength: 0.5, latDeg: -42, speed: 0.13 },
   },
   mars: {
     dust: { color: '#d8a878', strength: 0.5, cycleSpeed: 0.004 },
+    caps: { strength: 0.6 },
   },
   uranus: {
     streaks: { color: '#e8fbff', strength: 0.14, speed: 0.25, latFreq: 6 },
+    rare: { strength: 0.5, cycleSpeed: 0.006 },
   },
+}
+
+const SPOKES_FRAG = /* glsl */ `
+uniform float uTime;
+varying vec2 vUv;      // radiální mapování prstence (0 = vnitřek, 1 = vnějšek)
+varying vec3 vLocal;   // pozice v rovině prstence
+` + NOISE_GLSL + /* glsl */ `
+void main() {
+  float ang = atan(vLocal.y, vLocal.x);
+  float r = vUv.x;
+  // duchovité radiální klíny (Voyager "spokes") - rotují s prstencem,
+  // rodí se a rozpadají během desítek sekund
+  float w = fbm(vec3(ang * 5.0 - uTime * 0.045, r * 2.5 + uTime * 0.01, uTime * 0.015));
+  float spoke = smoothstep(0.62, 0.86, w);
+  // jen ve střední části prstence (B-ring), kde se reálně vyskytují
+  float band = smoothstep(0.15, 0.3, r) * smoothstep(0.85, 0.6, r);
+  float a = spoke * band * 0.32;
+  gl_FragColor = vec4(vec3(0.05, 0.06, 0.1), a);
+}
+`
+
+const SPOKES_VERT = /* glsl */ `
+varying vec2 vUv;
+varying vec3 vLocal;
+void main() {
+  vUv = uv;
+  vLocal = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+
+/** Ghostly rotating ring spokes (Saturn's B-ring, Voyager's famous find). */
+export function makeSpokesMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: SPOKES_VERT,
+    fragmentShader: SPOKES_FRAG,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthWrite: false,
+  })
+}
+
+const AURORA_FRAG = /* glsl */ `
+uniform float uTime;
+uniform vec3 uColor;
+uniform float uSize;   // úhlová vzdálenost oválu od pólu (rad)
+varying vec3 vObj;
+` + NOISE_GLSL + /* glsl */ `
+void main() {
+  // ovály kolem OBOU pólů (osa = objektové Y), závěsy plápolají v šumu
+  float colat = acos(clamp(abs(vObj.y), 0.0, 1.0));
+  float band = exp(-pow((colat - uSize) / 0.055, 2.0));
+  float lon = atan(vObj.z, vObj.x);
+  float curtain = 0.4 + 0.6 * fbm(vec3(lon * 2.2, uTime * 0.12, vObj.y * 4.0));
+  float a = band * curtain * 0.55;
+  gl_FragColor = vec4(uColor, 1.0) * a;
+}
+`
+
+/** Permanent polar aurora ovals (Jupiter/Saturn, Hubble UV imagery). */
+export function makeAuroraMaterial(color: string, sizeRad: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uSize: { value: sizeRad } },
+    vertexShader: STORMS_VERT,
+    fragmentShader: AURORA_FRAG,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+}
+
+/** Which giants glow at the poles and in which colour. */
+export const AURORAS: Record<string, { color: string; sizeRad: number }> = {
+  jupiter: { color: '#8a68ff', sizeRad: 0.22 },
+  saturn: { color: '#5ce0cc', sizeRad: 0.19 },
 }
 
 /** Deterministic 3D value noise for the potato moons (no deps, seedable). */
@@ -423,4 +572,6 @@ export const ATMOSPHERES: Record<string, { color: string; power: number; intensi
   saturn: { color: '#e6d8b0', power: 3.4, intensity: 0.5 },
   uranus: { color: '#9fd8e0', power: 3.2, intensity: 0.6 },
   neptune: { color: '#7aa8ea', power: 3.2, intensity: 0.65 },
+  // New Horizons: modré vrstvy dusíkové mlhy na limbu Pluta
+  pluto: { color: '#8ab8f0', power: 3.8, intensity: 0.5 },
 }

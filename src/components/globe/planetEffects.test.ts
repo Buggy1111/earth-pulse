@@ -33,7 +33,7 @@ describe('planet effects (ring shadows + atmospheres)', () => {
 
   it('atmospheres exist for the bodies that really have one', () => {
     expect(Object.keys(ATMOSPHERES).sort()).toEqual(
-      ['jupiter', 'mars', 'neptune', 'saturn', 'uranus', 'venus'])
+      ['jupiter', 'mars', 'neptune', 'pluto', 'saturn', 'uranus', 'venus'])
     // Venuše nejhustší, Mars nejtenčí — poměry odpovídají realitě
     expect(ATMOSPHERES.venus.intensity).toBeGreaterThan(ATMOSPHERES.mars.intensity)
   })

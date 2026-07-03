@@ -25,7 +25,7 @@ import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
-import { ATMOSPHERES, BANDS, STORMS, makeAtmosphereMaterial, makeBandsMaterial, makeIrregularMoonGeometry, makeRingShadowMaterial, makeStormsMaterial } from './planetEffects'
+import { ATMOSPHERES, AURORAS, BANDS, STORMS, makeAtmosphereMaterial, makeAuroraMaterial, makeBandsMaterial, makeIrregularMoonGeometry, makeRingShadowMaterial, makeSpokesMaterial, makeStormsMaterial } from './planetEffects'
 import { setOccluder } from './trailOcclusion'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -228,6 +228,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   const sunWorldPos = new THREE.Vector3()
   // živé proudění oblačných pásů plynných obrů — uTime plní frame loop
   const bandMats: THREE.ShaderMaterial[] = []
+  // marsovský storms materiál zvlášť: frame loop mu krmí sezónní čepičky
+  let marsStormMat: THREE.ShaderMaterial | null = null
   // Group space is heliocentric-ECLIPTIC: orbits in XY, north = +Z. A
   // planet's equator/rings/moons therefore live in the tilt group's XY plane
   // and its pole is tilt-local +Z (the node direction is approximated).
@@ -272,7 +274,17 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         })
       tilt.add(ring) // RingGeometry is XY-native = equatorial in tilt space
     }
-    if (p.id === 'saturn') addRing(1.24, 2.27, '#d8c9a3', 1, 'planets/saturn_ring.png')
+    if (p.id === 'saturn') {
+      addRing(1.24, 2.27, '#d8c9a3', 1, 'planets/saturn_ring.png')
+      // duchovité rotující "spokes" (Voyager) — overlay nad prstencem
+      const spokesMat = makeSpokesMaterial()
+      const spokesGeo = new THREE.RingGeometry(p.displayRadius * 1.24, p.displayRadius * 2.27, 128)
+      radialRingUVs(spokesGeo, p.displayRadius * 1.24, p.displayRadius * 2.27)
+      const spokes = new THREE.Mesh(spokesGeo, spokesMat)
+      spokes.position.z = 0.3 // těsně nad prstencem, žádný z-fighting
+      tilt.add(spokes)
+      bandMats.push(spokesMat)
+    }
     if (p.id === 'uranus') addRing(1.6, 1.95, '#9fb6c0', 0.25)
     if (p.id === 'neptune') addRing(1.45, 1.62, '#8898a8', 0.15)
 
@@ -300,6 +312,19 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       )
       mesh.add(stormShell)
       bandMats.push(stormMat) // stejný uTime driver jako pásy
+      if (p.id === 'mars') marsStormMat = stormMat
+    }
+
+    // 🌌 polární záře obřích planet (Hubble UV ovály) — na nerotující ose
+    const aur = AURORAS[p.id]
+    if (aur) {
+      const auroraMat = makeAuroraMaterial(aur.color, aur.sizeRad)
+      const auroraShell = new THREE.Mesh(
+        new THREE.SphereGeometry(p.displayRadius * 1.02, 48, 48),
+        auroraMat,
+      )
+      pole.add(auroraShell)
+      bandMats.push(auroraMat)
     }
 
     // atmosférický fresnel: barevný srpek objímající limb (BackSide slupka)
@@ -547,6 +572,16 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     coronaMat.uniforms.uTime.value = sunSeconds
     prominenceMat.uniforms.uTime.value = sunSeconds
     for (const bm of bandMats) bm.uniforms.uTime.value = sunSeconds
+
+    // ❄️ Mars: sezónní čepičky ze SIM času — Ls ~ lineární fáze 687denního
+    // roku (kotva: severní jarní rovnodennost 12. 1. 2024); severní čepička
+    // největší v severní zimě (Ls 270°), jižní v protifázi
+    if (marsStormMat) {
+      const marsDays = (ms / 86_400_000 - 19_734) / 686.98
+      const ls = (marsDays - Math.floor(marsDays)) * 2 * Math.PI
+      marsStormMat.uniforms.uCaps.value.x = 0.16 + 0.2 * (0.5 + 0.5 * Math.cos(ls - 4.712))
+      marsStormMat.uniforms.uCaps.value.y = 0.16 + 0.2 * (0.5 + 0.5 * Math.cos(ls - 1.571))
+    }
 
     // occluder koule pro trail shadery (ocásky nesmí procházet tělesy):
     // Slunce + Země + planety ve world souřadnicích
