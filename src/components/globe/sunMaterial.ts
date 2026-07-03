@@ -15,11 +15,9 @@ void main() {
 }
 `
 
-const FRAG = /* glsl */ `
-uniform float uTime;
-varying vec3 vObj;
-varying vec3 vViewNormal;
-
+/** 3D value-noise + 3-octave fbm — shared by the Sun family of shaders
+ * (photosphere, corona, prominences). */
+export const NOISE_GLSL = /* glsl */ `
 float hash(vec3 p) {
   return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
 }
@@ -44,6 +42,13 @@ float fbm(vec3 p) {
   }
   return v;
 }
+`
+
+const FRAG = /* glsl */ `
+uniform float uTime;
+varying vec3 vObj;
+varying vec3 vViewNormal;
+` + NOISE_GLSL + /* glsl */ `
 
 void main() {
   // slow large convection cells + fine drifting granulation

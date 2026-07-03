@@ -24,6 +24,7 @@ import { makeNameSprite } from '../spaceObjects'
 import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
+import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
 
@@ -138,7 +139,27 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   // wider multiplier compensates the smaller ball (350→90) so the Sun keeps
   // its presence from the overview — the glow is additive, probes fly through
   sunGlow.scale.set(SUN_DISPLAY * 8, SUN_DISPLAY * 8, 1)
+  ;(sunGlow.material as THREE.SpriteMaterial).opacity = 0.5 // živá koróna přebírá hlavní roli
   sun.add(sunGlow)
+
+  // 🌞 living corona: billboarded ray/pulse shader (no textures); the plane
+  // must cover the shader's discard boundary (8 photosphere radii)
+  const coronaMat = makeCoronaMaterial(SUN_DISPLAY)
+  const corona = new THREE.Mesh(
+    new THREE.PlaneGeometry(SUN_DISPLAY * 16, SUN_DISPLAY * 16),
+    coronaMat,
+  )
+  corona.renderOrder = 1
+  sun.add(corona)
+
+  // 🔥 prominences: thin additive shell, flames only at the limb
+  const prominenceMat = makeProminenceMaterial()
+  const prominence = new THREE.Mesh(
+    new THREE.SphereGeometry(SUN_DISPLAY * 1.03, 48, 48),
+    prominenceMat,
+  )
+  sun.add(prominence)
+
   sun.userData.displayRadius = SUN_DISPLAY
   group.add(sun)
   deps.sunMeshRef.current = sun
@@ -469,8 +490,12 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     }
     // repaint the comet trails so each one fades back behind its moving body
     updateSolarTrails(solarTrails)
-    // granulation crawls in real time — a surface boil, not orbital motion
-    ;(sun.material as THREE.ShaderMaterial).uniforms.uTime.value = performance.now() / 1000
+    // granulation, corona and prominences crawl in real time — surface
+    // phenomena, they must not speed up with the warped clock
+    const sunSeconds = performance.now() / 1000
+    ;(sun.material as THREE.ShaderMaterial).uniforms.uTime.value = sunSeconds
+    coronaMat.uniforms.uTime.value = sunSeconds
+    prominenceMat.uniforms.uTime.value = sunSeconds
     deps.applySkyRef.current(now) // terminator/Moon follow the warped clock
     // mini-Earth + clouds: light from where the big Sun actually is, so the
     // lit side faces it (the earth-frame subsolar direction differs — frames)
