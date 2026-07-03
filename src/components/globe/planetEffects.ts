@@ -345,12 +345,15 @@ void main() {
   float day = clamp(dot(normalize(vNormalW), normalize(uSunPos - vWorld)), 0.0, 1.0);
   a *= 0.12 + 0.88 * day;
 
-  // ⚡ BLESKY (Venuše, Jupiter) — mikro-záblesky, nejlépe viditelné v NOCI
+  // ⚡ BLESKY (Venuše, Jupiter) — mikro-záblesky, nejlépe viditelné v NOCI.
+  // Kulatý úbytek od středu buňky (bez něj by se rozsvěcely celé čtverce mřížky)
   if (uLightning.x > 0.0) {
     float t = uTime * uLightning.z;
     vec3 cell = floor(vObj * uLightning.y);
     float h = fract(sin(dot(cell + floor(t), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-    float flash = step(0.994, h) * (1.0 - fract(t)) * (1.0 - fract(t));
+    vec3 inCell = fract(vObj * uLightning.y) - 0.5;
+    float roundGlow = exp(-dot(inCell, inCell) * 22.0);
+    float flash = step(0.994, h) * (1.0 - fract(t)) * (1.0 - fract(t)) * roundGlow;
     float night = 1.0 - day;
     a += flash * uLightning.x * (0.3 + 0.7 * night);
     col = mix(col, vec3(0.92, 0.95, 1.0), clamp(flash * 2.0, 0.0, 1.0));
