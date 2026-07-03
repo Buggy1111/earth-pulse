@@ -381,32 +381,33 @@ export function makeIrregularMoonGeometry(radius: number, seed: number): THREE.B
   const geo = new THREE.SphereGeometry(radius, 28, 28)
   const pos = geo.attributes.position
 
-  // pár velkých kráterů na náhodných (seedovaných) směrech — Stickney na Phobosu
+  // pár kráterů na seedovaných směrech: jeden dominantní (Stickney!) + dva menší;
+  // hloubky mírné, ať těleso vypadá jako NASA fotka, ne jako rozkousané
   const craters: { dir: THREE.Vector3; size: number; depth: number }[] = []
-  for (let c = 0; c < 4; c++) {
+  for (let c = 0; c < 3; c++) {
     const u = potatoNoise(c + 1, seed, 0.7, seed) * 2 - 1
     const t = potatoNoise(0.3, c + 2, seed, seed) * Math.PI * 2
     const r = Math.sqrt(Math.max(0, 1 - u * u))
     craters.push({
       dir: new THREE.Vector3(r * Math.cos(t), u, r * Math.sin(t)).normalize(),
-      size: 0.35 + 0.3 * potatoNoise(c, 0.5, seed, seed), // úhlová velikost (rad-ish)
-      depth: 0.1 + 0.1 * potatoNoise(seed, c, 1.1, seed),
+      size: c === 0 ? 0.55 : 0.3 + 0.15 * potatoNoise(c, 0.5, seed, seed),
+      depth: c === 0 ? 0.09 : 0.05 + 0.03 * potatoNoise(seed, c, 1.1, seed),
     })
   }
 
   const v = new THREE.Vector3()
   for (let i = 0; i < pos.count; i++) {
     v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize()
-    // elipsoid (brambora, ne koule) + dvě oktávy hrud
+    // elipsoid (brambora, ne koule) + jemné hrudy — mírně, ať tvar čte hladce
     let f = 1
-    f *= 1 + 0.14 * (potatoNoise(v.x * 2.1, v.y * 2.1, v.z * 2.1, seed) - 0.5) * 2
-    f *= 1 + 0.07 * (potatoNoise(v.x * 5.3, v.y * 5.3, v.z * 5.3, seed + 9) - 0.5) * 2
+    f *= 1 + 0.09 * (potatoNoise(v.x * 2.1, v.y * 2.1, v.z * 2.1, seed) - 0.5) * 2
+    f *= 1 + 0.035 * (potatoNoise(v.x * 5.3, v.y * 5.3, v.z * 5.3, seed + 9) - 0.5) * 2
     for (const c of craters) {
       const ang = v.angleTo(c.dir)
       if (ang < c.size) f -= c.depth * (Math.cos((ang / c.size) * Math.PI) * 0.5 + 0.5)
     }
     const rr = radius * f
-    pos.setXYZ(i, v.x * rr * 1.25, v.y * rr * 0.92, v.z * rr * 0.82)
+    pos.setXYZ(i, v.x * rr * 1.22, v.y * rr * 0.94, v.z * rr * 0.84)
   }
   pos.needsUpdate = true
   geo.computeVertexNormals()

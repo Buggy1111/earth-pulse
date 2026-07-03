@@ -320,7 +320,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const animMoons: SolarAnimEntry['moons'] = []
     const decor: THREE.Object3D[] = []
     for (const m of moons) {
-      const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.7)
+      // nepravidelné brambory dostávají větší minimum - tvar musí být čitelný
+      const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), m.irregular ? 1.1 : 0.7)
       const moonGeo = m.irregular
         ? makeIrregularMoonGeometry(rMoon, m.id.length * 7 + m.id.charCodeAt(0))
         : new THREE.SphereGeometry(rMoon, 32, 32)
