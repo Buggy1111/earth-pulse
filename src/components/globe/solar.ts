@@ -25,6 +25,7 @@ import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
+import { ATMOSPHERES, makeAtmosphereMaterial, makeRingShadowMaterial } from './planetEffects'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
 
@@ -221,6 +222,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
 
   // planets: real relative sizes, real tilts, rings, moons, fixed-size labels
   deps.solarAnimRef.current = []
+  // world-space Sun position shared by every ring-shadow material — the frame
+  // loop copies group.position in once, all rings see it (same Vector3)
+  const sunWorldPos = new THREE.Vector3()
   // Group space is heliocentric-ECLIPTIC: orbits in XY, north = +Z. A
   // planet's equator/rings/moons therefore live in the tilt group's XY plane
   // and its pole is tilt-local +Z (the node direction is approximated).
@@ -253,24 +257,31 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       const outer = p.displayRadius * outerF
       const geo = new THREE.RingGeometry(inner, outer, 96)
       radialRingUVs(geo, inner, outer)
-      const ring = new THREE.Mesh(
-        geo,
-        new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity }),
-      )
+      // shader se stínem planety: prstenec za planetou (vůči Slunci) tmavne
+      const mat = makeRingShadowMaterial(sunWorldPos, p.displayRadius, color, opacity)
+      const ring = new THREE.Mesh(geo, mat)
       if (tex)
         loader.load(tex, (raw) => {
           const t = capTexture(raw)
           t.colorSpace = THREE.SRGBColorSpace
-          const m = ring.material as THREE.MeshBasicMaterial
-          m.map = t
-          m.color.set('#ffffff')
-          m.needsUpdate = true
+          mat.uniforms.uMap.value = t
+          mat.uniforms.uHasMap.value = 1
         })
       tilt.add(ring) // RingGeometry is XY-native = equatorial in tilt space
     }
     if (p.id === 'saturn') addRing(1.24, 2.27, '#d8c9a3', 1, 'planets/saturn_ring.png')
     if (p.id === 'uranus') addRing(1.6, 1.95, '#9fb6c0', 0.25)
     if (p.id === 'neptune') addRing(1.45, 1.62, '#8898a8', 0.15)
+
+    // atmosférický fresnel: barevný srpek objímající limb (BackSide slupka)
+    const atmo = ATMOSPHERES[p.id]
+    if (atmo) {
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(p.displayRadius * 1.05, 32, 32),
+        makeAtmosphereMaterial(atmo.color, atmo.power, atmo.intensity),
+      )
+      tilt.add(shell)
+    }
 
     // major moons: REAL distances (planet radii) and real relative sizes —
     // only a minimum radius keeps the small ones visible and clickable.
@@ -422,11 +433,14 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     earthProxy.position.set(eh[0] * AU_SCENE, eh[1] * AU_SCENE, eh[2] * AU_SCENE)
 
     const ms = now.getTime()
+    // slunce ve world space pro stínové shadery prstenců (sdílený Vector3)
+    sunWorldPos.copy(group.position)
     // 🌙 Moon rides along with Earth and walks its orbit
     if (earthMoonMesh && earthMoonDef) {
       earthMoonGroup.position.copy(earthProxy.position)
       const a = moonAngle(earthMoonDef, ms)
       earthMoonMesh.position.set(Math.cos(a) * earthMoonRScene, Math.sin(a) * earthMoonRScene, 0)
+      earthMoonMesh.rotation.y = a // vázaná rotace: k Zemi pořád stejnou tváří
       if (earthMoonArrow) {
         const aN = moonAngle(earthMoonDef, ms + 3_600_000) // 1 h ahead — retrograde-safe
         aimArrow(
@@ -459,6 +473,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       for (const m of entry.moons) {
         const a = moonAngle(m.def, ms)
         m.mesh.position.set(Math.cos(a) * m.rScene, Math.sin(a) * m.rScene, 0)
+        m.mesh.rotation.y = a // vázaná rotace (jako reálné velké měsíce)
         if (m.arrow.visible) {
           const aN = moonAngle(m.def, ms + 3_600_000)
           aimArrow(
