@@ -4,6 +4,7 @@
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
+import { occludeLineMaterial } from './trailOcclusion'
 import { globeAltitude, isIss, orbitTrail, type TrackedSat } from '../../lib/satellites'
 import {
   ARROW_GEO,
@@ -92,13 +93,15 @@ export function buildOrbitLines(
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     const line = new THREE.Line(
       geom,
-      new THREE.LineBasicMaterial({
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.85,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
+      occludeLineMaterial(
+        new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
     )
     line.renderOrder = 1
     orbitGroup.add(line)

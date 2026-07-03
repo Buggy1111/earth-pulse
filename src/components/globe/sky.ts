@@ -4,6 +4,7 @@
 
 import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
+import { occludeLineMaterial } from './trailOcclusion'
 import { LUNAR_SITES } from '../../lib/moon'
 import { subLunarPoint } from '../../lib/moon'
 import { subsolarPoint } from '../../lib/sun'
@@ -165,13 +166,15 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   moonTrailGeo.setAttribute('color', new THREE.BufferAttribute(moonTrailCol, 3))
   const moonTrail = new THREE.Line(
     moonTrailGeo,
-    new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
+    occludeLineMaterial(
+      new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    ),
   )
   moonTrail.renderOrder = 1
   globe.scene().add(moonTrail)
