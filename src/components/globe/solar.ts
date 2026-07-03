@@ -25,7 +25,7 @@ import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, getGlowTexture } from './helpers'
 import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
-import { ATMOSPHERES, BANDS, STORMS, makeAtmosphereMaterial, makeBandsMaterial, makeRingShadowMaterial, makeStormsMaterial } from './planetEffects'
+import { ATMOSPHERES, BANDS, STORMS, makeAtmosphereMaterial, makeBandsMaterial, makeIrregularMoonGeometry, makeRingShadowMaterial, makeStormsMaterial } from './planetEffects'
 import { setOccluder } from './trailOcclusion'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
@@ -321,7 +321,10 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const decor: THREE.Object3D[] = []
     for (const m of moons) {
       const rMoon = Math.max(p.displayRadius * (m.radiusKm / (p.diameterKm / 2)), 0.7)
-      const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(rMoon, 32, 32), litMaterial(m.color))
+      const moonGeo = m.irregular
+        ? makeIrregularMoonGeometry(rMoon, m.id.length * 7 + m.id.charCodeAt(0))
+        : new THREE.SphereGeometry(rMoon, 32, 32)
+      const moonMesh = new THREE.Mesh(moonGeo, litMaterial(m.color))
       moonMesh.rotation.x = Math.PI / 2 // pole to tilt +Z, like the planet
       moonMesh.layers.set(SUNLIT_LAYER)
       moonMesh.userData.moonId = m.id

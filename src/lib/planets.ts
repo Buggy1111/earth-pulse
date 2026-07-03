@@ -219,6 +219,9 @@ export interface MoonDef {
   color: string
   /** A global map snapshot exists (NASA/USGS, see scripts/fetch-moons.mjs). */
   texture?: boolean
+  /** Too small for hydrostatic equilibrium — render as a cratered potato
+   * (Phobos 27×22×18 km, Deimos 15×12×11 km), like the NASA imagery. */
+  irregular?: boolean
   /** Color cast for grayscale maps (e.g. Titan's orange haze). */
   tint?: string
   fact?: string
@@ -230,8 +233,8 @@ export const PLANET_MOONS: Record<string, MoonDef[]> = {
     { id: 'moon', name: 'Moon', gravityG: 0.166, aKkm: 384.4, periodD: 27.322, radiusKm: 1737, color: '#b9b4ac', texture: true, fact: 'the only world beyond Earth humans have walked on' },
   ],
   mars: [
-    { id: 'phobos', name: 'Phobos', gravityG: 0.0006, aKkm: 9.4, discoveredBy: 'Asaph Hall, 1877', periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
-    { id: 'deimos', name: 'Deimos', gravityG: 0.0003, aKkm: 23.5, discoveredBy: 'Asaph Hall, 1877', periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
+    { id: 'phobos', name: 'Phobos', gravityG: 0.0006, irregular: true, aKkm: 9.4, discoveredBy: 'Asaph Hall, 1877', periodD: 0.319, radiusKm: 11, color: '#8a8378', fact: 'orbits Mars 3× a day, slowly spiraling in' },
+    { id: 'deimos', name: 'Deimos', gravityG: 0.0003, irregular: true, aKkm: 23.5, discoveredBy: 'Asaph Hall, 1877', periodD: 1.263, radiusKm: 6, color: '#9a938a', fact: 'so small its gravity could not hold a running human' },
   ],
   jupiter: [
     { id: 'io', name: 'Io', gravityG: 0.183, aKkm: 421.8, discoveredBy: 'Galileo Galilei, 1610', periodD: 1.769, radiusKm: 1822, color: '#d8c45a', texture: true, fact: 'the most volcanic body in the solar system' },

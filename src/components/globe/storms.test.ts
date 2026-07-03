@@ -35,3 +35,26 @@ describe('signature planet weather (storms)', () => {
     expect(m.uniforms.uSunPos.value).toBe(sun)
   })
 })
+
+describe('irregular potato moons (Phobos, Deimos)', () => {
+  it('vertices deviate from a sphere by ellipsoid + lumps + craters', async () => {
+    const { makeIrregularMoonGeometry } = await import('./planetEffects')
+    const geo = makeIrregularMoonGeometry(1, 42)
+    const pos = geo.attributes.position
+    let min = Infinity, max = 0
+    for (let i = 0; i < pos.count; i++) {
+      const r = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i))
+      min = Math.min(min, r)
+      max = Math.max(max, r)
+    }
+    expect(max / min).toBeGreaterThan(1.3)  // výrazně nekulaté
+    expect(max).toBeLessThan(1.8)           // ale pořád v rozumném obalu
+  })
+
+  it('is deterministic per seed (no per-reload shape change)', async () => {
+    const { makeIrregularMoonGeometry } = await import('./planetEffects')
+    const a = makeIrregularMoonGeometry(1, 7)
+    const b = makeIrregularMoonGeometry(1, 7)
+    expect(a.attributes.position.getX(50)).toBeCloseTo(b.attributes.position.getX(50))
+  })
+})

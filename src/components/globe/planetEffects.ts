@@ -368,6 +368,51 @@ export const STORMS: Record<string, StormConfig> = {
   },
 }
 
+/** Deterministic 3D value noise for the potato moons (no deps, seedable). */
+function potatoNoise(x: number, y: number, z: number, seed: number): number {
+  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + seed * 53.3) * 43758.5453
+  return s - Math.floor(s)
+}
+
+/** Cratered potato geometry for moons too small to be round (Phobos, Deimos):
+ * an ellipsoid with layered noise lumps and a few scooped craters — matches
+ * the NASA imagery far better than a smooth sphere. Deterministic per seed. */
+export function makeIrregularMoonGeometry(radius: number, seed: number): THREE.BufferGeometry {
+  const geo = new THREE.SphereGeometry(radius, 28, 28)
+  const pos = geo.attributes.position
+
+  // pár velkých kráterů na náhodných (seedovaných) směrech — Stickney na Phobosu
+  const craters: { dir: THREE.Vector3; size: number; depth: number }[] = []
+  for (let c = 0; c < 4; c++) {
+    const u = potatoNoise(c + 1, seed, 0.7, seed) * 2 - 1
+    const t = potatoNoise(0.3, c + 2, seed, seed) * Math.PI * 2
+    const r = Math.sqrt(Math.max(0, 1 - u * u))
+    craters.push({
+      dir: new THREE.Vector3(r * Math.cos(t), u, r * Math.sin(t)).normalize(),
+      size: 0.35 + 0.3 * potatoNoise(c, 0.5, seed, seed), // úhlová velikost (rad-ish)
+      depth: 0.1 + 0.1 * potatoNoise(seed, c, 1.1, seed),
+    })
+  }
+
+  const v = new THREE.Vector3()
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize()
+    // elipsoid (brambora, ne koule) + dvě oktávy hrud
+    let f = 1
+    f *= 1 + 0.14 * (potatoNoise(v.x * 2.1, v.y * 2.1, v.z * 2.1, seed) - 0.5) * 2
+    f *= 1 + 0.07 * (potatoNoise(v.x * 5.3, v.y * 5.3, v.z * 5.3, seed + 9) - 0.5) * 2
+    for (const c of craters) {
+      const ang = v.angleTo(c.dir)
+      if (ang < c.size) f -= c.depth * (Math.cos((ang / c.size) * Math.PI) * 0.5 + 0.5)
+    }
+    const rr = radius * f
+    pos.setXYZ(i, v.x * rr * 1.25, v.y * rr * 0.92, v.z * rr * 0.82)
+  }
+  pos.needsUpdate = true
+  geo.computeVertexNormals()
+  return geo
+}
+
 /** Per-planet atmosphere looks — thickness/colour roughly matches reality
  * (dense sulfuric Venus, whisper-thin dusty Mars, hazy giants). */
 export const ATMOSPHERES: Record<string, { color: string; power: number; intensity: number }> = {
