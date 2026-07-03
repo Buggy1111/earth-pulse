@@ -152,11 +152,16 @@ varying vec3 vNormalW;
 varying vec3 vWorld;
 ` + NOISE_GLSL + /* glsl */ `
 void main() {
-  // pásy podle šířky (vObj.y = osa pólů) + turbulence tekoucí podél rovnoběžek
-  float turb = fbm(vObj * 3.0 + vec3(uTime * 0.03, 0.0, uTime * 0.018));
-  float flow = fbm(vec3(vObj.y * uFreq * 0.35, atan(vObj.z, vObj.x) * 2.0 - uTime * 0.05, uTime * 0.01));
-  float band = sin(vObj.y * uFreq + turb * 2.6) * 0.5 + 0.5;
-  float a = smoothstep(0.55, 0.95, band) * (0.5 + 0.5 * flow) * uStrength;
+  // pásy podle šířky (vObj.y = osa pólů) + turbulence tekoucí podél rovnoběžek —
+  // rychlosti zvolené tak, aby proudění bylo VIDĚT během pár vteřin dívání
+  float turb = fbm(vObj * 3.0 + vec3(uTime * 0.07, 0.0, uTime * 0.045));
+  float flow = fbm(vec3(vObj.y * uFreq * 0.35, atan(vObj.z, vObj.x) * 2.0 - uTime * 0.14, uTime * 0.03));
+  float band = sin(vObj.y * uFreq + turb * 2.8 + uTime * 0.02) * 0.5 + 0.5;
+  float a = smoothstep(0.5, 0.95, band) * (0.35 + 0.65 * flow) * uStrength;
+
+  // víry mezi pásy: druhá vrstva šumu proti směru, zjasňuje okraje pásů
+  float eddy = fbm(vObj * 7.0 + vec3(-uTime * 0.05, uTime * 0.02, 0.0));
+  a += smoothstep(0.45, 0.55, band) * smoothstep(0.55, 0.45, band) * eddy * uStrength * 0.8;
 
   // jen na denní straně — pásy jsou odražené světlo, ne vlastní záře
   float day = clamp(dot(normalize(vNormalW), normalize(uSunPos - vWorld)), 0.0, 1.0);
@@ -189,12 +194,14 @@ export function makeBandsMaterial(
   })
 }
 
-/** Which giants get flowing bands and how strong (Jupiter loudest). */
+/** Which worlds get flowing cloud bands and how strong (Jupiter loudest;
+ * Venus = slow zonal haze over its cloud deck — super-rotating atmosphere). */
 export const BANDS: Record<string, { color: string; freq: number; strength: number }> = {
-  jupiter: { color: '#e8d0a8', freq: 22, strength: 0.2 },
-  saturn: { color: '#eadcb8', freq: 16, strength: 0.14 },
-  uranus: { color: '#c8ecf2', freq: 8, strength: 0.09 },
-  neptune: { color: '#a8c8ff', freq: 10, strength: 0.12 },
+  venus: { color: '#f0e2b8', freq: 5, strength: 0.22 },
+  jupiter: { color: '#eed8b0', freq: 22, strength: 0.32 },
+  saturn: { color: '#eee0bc', freq: 16, strength: 0.22 },
+  uranus: { color: '#d0f0f5', freq: 8, strength: 0.15 },
+  neptune: { color: '#b4d2ff', freq: 10, strength: 0.2 },
 }
 
 /** Per-planet atmosphere looks — thickness/colour roughly matches reality
