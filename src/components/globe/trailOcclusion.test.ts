@@ -3,17 +3,17 @@ import * as THREE from 'three'
 import { MAX_OCCLUDERS, occludeLineMaterial, occluderUniform, setOccluder } from './trailOcclusion'
 
 describe('setOccluder', () => {
-  it('balí radius² do w správného slotu', () => {
+  it('balí display radius do w správného slotu', () => {
     setOccluder(3, 1, 2, 3, 5)
     const v = occluderUniform.value[3]
-    expect([v.x, v.y, v.z, v.w]).toEqual([1, 2, 3, 25])
+    expect([v.x, v.y, v.z, v.w]).toEqual([1, 2, 3, 5])
     setOccluder(3, 0, 0, 0, 0) // úklid pro ostatní testy
   })
 
   it('index mimo rozsah tiše ignoruje (žádný crash, žádný zápis)', () => {
     expect(() => setOccluder(-1, 9, 9, 9, 9)).not.toThrow()
     expect(() => setOccluder(MAX_OCCLUDERS, 9, 9, 9, 9)).not.toThrow()
-    expect(occluderUniform.value.every((v) => v.w !== 81)).toBe(true)
+    expect(occluderUniform.value.every((v) => v.w !== 9)).toBe(true)
   })
 })
 
@@ -32,6 +32,9 @@ describe('occludeLineMaterial', () => {
     expect(shader.vertexShader).toContain('vWorldTrail = (modelMatrix * vec4(position, 1.0)).xyz')
     expect(shader.fragmentShader).toContain(`uniform vec4 uBodies[${MAX_OCCLUDERS}];`)
     expect(shader.fragmentShader).toContain(`for (int i = 0; i < ${MAX_OCCLUDERS}; i++)`)
+    // screen-space disc test: |v×b| < r·|v| + same-side gate přes dot
+    expect(shader.fragmentShader).toContain('cross(vTrail, bDir)')
+    expect(shader.fragmentShader).toContain('dot(vTrail, bDir)')
     expect(shader.fragmentShader).toContain('discard')
     expect(mat.vertexColors).toBe(true) // původní nastavení materiálu zůstává
   })

@@ -8,8 +8,9 @@ import { occludeLineMaterial } from './trailOcclusion'
 import { LUNAR_SITES } from '../../lib/moon'
 import { subLunarPoint } from '../../lib/moon'
 import { subsolarPoint } from '../../lib/sun'
-import { getGlowTexture, SUN_REFRESH_MS } from './helpers'
+import { getGlowTexture, SUN_REFRESH_MS, disposeMaterial } from './helpers'
 import { makeMoonMaterial } from './moonMaterial'
+import { makeNameSprite } from '../spaceObjects'
 import { detectWeakGpu } from '../perf'
 
 export interface Sky {
@@ -143,6 +144,9 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   )
   moonGlow.scale.set(22, 22, 1)
   moonMesh.add(moonGlow)
+  // jmenovka jako mají tělesa v solar view — bez ní je Měsíc anonymní koule
+  const moonLabel = makeNameSprite('Moon', 5 * 1.4, true)
+  moonMesh.add(moonLabel)
   globe.scene().add(moonMesh)
 
   // a comet-style trail behind the Moon — exactly like the satellites' orbit
@@ -240,6 +244,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
       globe.scene().remove(moonMesh)
       moonMesh.geometry.dispose()
       ;(moonMesh.material as THREE.ShaderMaterial).dispose()
+      disposeMaterial(moonLabel.material)
       globe.scene().remove(moonTrail)
       moonTrailGeo.dispose()
       ;(moonTrail.material as THREE.Material).dispose()

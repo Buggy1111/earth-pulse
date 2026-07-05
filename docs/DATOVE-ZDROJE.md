@@ -137,7 +137,9 @@ ručně stavěný „zlatý" primitiv (žádný volně šiřitelný model neexis
 Sondy hlubokého vesmíru v solar view (vykresluje `globe/probesLayer.ts`):
 - **NASA 3D Resources** (public domain, draco-komprimované) — `voyager.glb`
   (Voyager 1 i 2), `new-horizons.glb`, `europa-clipper.glb`.
-- **`psyche.glb`** — NASA / ASU (studentský model mise Psyche, volně šiřitelný).
+- **`psyche.glb`** — oficiální letový model z **NASA Eyes on the Solar System**
+  (`eyes.nasa.gov/assets/static/models/sc_psyche/`), public domain; nahradil
+  5. 7. 2026 rozbitý ASU studentský model (složená konfigurace panelů).
 - **`parker.glb`** — oficiální NASA VTAD model Parker Solar Probe
   ([science.nasa.gov](https://science.nasa.gov/resource/parker-solar-probe-3d-model/)),
   public domain.
