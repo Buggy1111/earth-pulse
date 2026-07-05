@@ -20,6 +20,7 @@ import { ARROW_GEO, ARROW_MAT, disposeMaterial, getGlowTexture } from './helpers
 
 // hoisted per-frame scratch for the direction cones (no per-frame allocs)
 const arrowDir = new THREE.Vector3()
+const camLocal = new THREE.Vector3()
 const Y_UP = new THREE.Vector3(0, 1, 0)
 const PROBE_ARROW_LEAD = 24 // scene units ahead of the craft (MODEL_TARGET 13 + cone)
 
@@ -30,13 +31,14 @@ const MODEL_TARGET = 13 // scene units the real glb model is normalised to
 // every probe gets a real spacecraft model: NASA public-domain GLBs, official
 // ESA Scifleet exports (JUICE, Solar Orbiter, BepiColombo cruise stack —
 // converted FBX→GLB, © ESA, non-commercial with credit) and Lucy (Sketchfab
-// CC-BY). Only Hayabusa2 still flies the generic craft (JAXA publishes none).
+// CC-BY). Hayabusa2 and Psyche fly the generic craft (JAXA publishes none;
+// the old Psyche student model was a broken stowed-panel stack and NASA's
+// original download portal is gone).
 const MODEL_FILE: Record<string, string> = {
   voyager1: 'voyager.glb',
   voyager2: 'voyager.glb',
   newhorizons: 'new-horizons.glb',
   europaclipper: 'europa-clipper.glb',
-  psyche: 'psyche.glb',
   lucy: 'lucy.glb',
   juice: 'juice.glb',
   parker: 'parker.glb',
@@ -103,6 +105,8 @@ interface ProbeTrail {
   /** Tail length cap in samples — at most ~200° of one revolution, so orbiters
    * (Parker's 18-month window = ~6 laps) show a comet tail, not a full ring. */
   maxSpan: number
+  /** Average sample spacing (scene units) near the live end of the path. */
+  step: number
 }
 
 function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
@@ -136,7 +140,13 @@ function makeTrail(traj: ProbeTraj, color: string): ProbeTrail {
       break
     }
   }
-  return { line, colors, base: new THREE.Color(color), n, maxSpan }
+  // average spacing of the last few samples — paintTail uses it to stop the
+  // bright head just short of the craft model instead of piercing it
+  let stepSum = 0
+  const stepCount = Math.min(8, n - 1)
+  for (let i = n - stepCount; i < n; i++) stepSum += pts[i].distanceTo(pts[i - 1])
+  const step = stepCount > 0 ? stepSum / stepCount : 1
+  return { line, colors, base: new THREE.Color(color), n, maxSpan, step }
 }
 
 /** Repaint the trail as a comet tail BEHIND the live head: bright at `headF`
@@ -146,9 +156,12 @@ function paintTail(t: ProbeTrail, headF: number): void {
   const c = t.colors.array as Float32Array
   const head = Math.max(0, Math.min(t.n - 1, Math.round(headF)))
   const span = Math.max(2, Math.min(Math.floor(t.n * 0.55), t.maxSpan))
+  // the trail ends AT the craft's hull, not inside it — hide samples closer
+  // than roughly one model radius behind the head
+  const gap = Math.min(Math.floor(span * 0.2), Math.max(1, Math.round(9 / t.step)))
   for (let i = 0; i < t.n; i++) {
     const k = head - i // how far behind the head (k < 0 = ahead → hidden)
-    const a = k >= 0 && k <= span ? (1 - k / span) ** 1.3 : 0
+    const a = k >= gap && k <= span ? (1 - k / span) ** 1.3 : 0
     c[i * 3] = t.base.r * a
     c[i * 3 + 1] = t.base.g * a
     c[i * 3 + 2] = t.base.b * a
@@ -289,6 +302,8 @@ export function setupProbes(
   return {
     update(now: Date) {
       const jd = now.getTime() / 86_400_000 + 2_440_587.5
+      camLocal.copy(globe.camera().position)
+      group.worldToLocal(camLocal)
       for (const b of built) {
         const [x, y, z] = clampAu(...probePosAu(b.traj, now))
         b.body.position.set(x * AU_SCENE, y * AU_SCENE, z * AU_SCENE)
@@ -302,6 +317,12 @@ export function setupProbes(
           b.arrow.visible = true // the group tag gates the whole layer
           b.arrow.position.copy(b.body.position).addScaledVector(arrowDir, PROBE_ARROW_LEAD)
           b.arrow.quaternion.setFromUnitVectors(Y_UP, arrowDir)
+          // fade out on approach — a cone twice the craft's size up close
+          // reads as debris; scale (not .visible) so the layer gating wins.
+          // The angular cap keeps it under ~3.5 % of the view at any range.
+          const d = camLocal.distanceTo(b.body.position)
+          const cap = (camLocal.distanceTo(b.arrow.position) * 0.035) / 2.6
+          b.arrow.scale.setScalar(Math.min(4 * Math.min(1, Math.max(0, (d - 110) / 130)), cap))
         } else {
           b.arrow.visible = false // frozen at a window edge — no heading to show
         }

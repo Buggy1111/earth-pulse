@@ -103,7 +103,12 @@ Reálné modely 21 z 26 satelitů; zbytek (Sentinel-2A/2B/3A, TanDEM-X, GCOM-W1)
 ručně stavěný „zlatý" primitiv (žádný volně šiřitelný model neexistuje).
 - **NASA 3D Resources** (public domain) — ISS, Hubble, Terra, Fermi, Aqua, Aura,
   Suomi NPP (i pro NOAA-20/21 = stejný JPSS bus), Landsat 8 (i 9), Sentinel-6,
-  Jason-3, ICESat-2, GRACE-FO, OCO-2, GOES-16/18.
+  Jason-3, ICESat-2, OCO-2, GOES-16/18. (Aqua/Landsat 8/Suomi NPP obnoveny
+  5. 7. 2026 z [GitHub mirroru](https://github.com/nasa/NASA-3D-Resources) —
+  původní stažené verze byly rozbité/hrubé.)
+- **GRACE-FO** (`grace.glb`) © NASA/JPL-Caltech (public domain) —
+  [gracefo.jpl.nasa.gov](https://gracefo.jpl.nasa.gov/resources/86/grace-fo-3d-model/);
+  nahradil rozbitý GRACE (A) model (plochá deska bez geometrie).
 - **SWOT** © NASA/JPL-Caltech (public domain) — [swot.jpl.nasa.gov](https://swot.jpl.nasa.gov/resources/86/swot-3d-model/)
 - **Tiangong** (`tiangong.glb`) — „tianGong" od **w29572227**
   ([Sketchfab](https://sketchfab.com/3d-models/tiangong-aca22b1dd6d242c1ae7b88de2f483b77)) —
@@ -142,8 +147,10 @@ Sondy hlubokého vesmíru v solar view (vykresluje `globe/probesLayer.ts`):
   FBX→GLB + draco/webp optimalizace. Použito **nekomerčně s kreditem ©ESA**
   dle [podmínek ESA](https://www.esa.int/ESA_Multimedia/Terms_and_conditions_of_use_of_images_and_videos_available_on_the_esa_website);
   Earth Pulse je bezplatný open-source showcase.
-- **`generic.glb`** — NASA **Deep Space 1** (public domain); zástupný model už
-  jen pro **Hayabusu2** (JAXA volný model nepublikuje).
+- **`generic.glb`** — NASA **Deep Space 1** (public domain); zástupný model pro
+  **Hayabusu2** (JAXA volný model nepublikuje) a od 5. 7. 2026 i pro **Psyche**
+  (původní studentský model byla rozbitá složená konfigurace; NASA portál
+  s oficiálním modelem už neexistuje).
 - **`lucy.glb`** — „LUCY | NASA Space Probe | Free Download" od
   **murilo.kleine**
   ([Sketchfab](https://sketchfab.com/3d-models/lucy-nasa-space-probe-free-download-bc3dc59eceb74b43a02cc2d51b5a0be5)) —
