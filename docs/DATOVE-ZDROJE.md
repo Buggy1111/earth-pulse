@@ -149,5 +149,12 @@ Sondy hlubokého vesmíru v solar view (vykresluje `globe/probesLayer.ts`):
   ([Sketchfab](https://sketchfab.com/3d-models/lucy-nasa-space-probe-free-download-bc3dc59eceb74b43a02cc2d51b5a0be5)) —
   **CC-BY-4.0**; atribuce je vložená i v glTF metadatech souboru.
 
+## 3D modely měsíců (`public/models/moons/*.glb`, atribuce)
+Nepravidelné měsíce v solar view (vyměňuje `globe/moonModels.ts`):
+- **`phobos.glb`, `deimos.glb`** — oficiální NASA VTAD shape modely
+  ([Phobos](https://solarsystem.nasa.gov/gltf_embed/2358/),
+  [Deimos](https://solarsystem.nasa.gov/gltf_embed/2434/)), public domain;
+  draco/webp optimalizace (3,9 MB → 132 kB, resp. 1,6 MB → 131 kB).
+
 Žádný feed nevyžaduje klíč ani autentizaci; vše je veřejné a CORS-friendly nebo
 přibalené jako statický snapshot.

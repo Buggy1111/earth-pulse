@@ -27,6 +27,7 @@ import { makeSunMaterial } from './sunMaterial'
 import { makeCoronaMaterial, makeProminenceMaterial } from './coronaMaterial'
 import { ATMOSPHERES, AURORAS, BANDS, STORMS, makeAtmosphereMaterial, makeAuroraMaterial, makeBandsMaterial, makeIrregularMoonGeometry, makeRingShadowMaterial, makeSodiumTailMaterial, makeSpokesMaterial, makeStormsMaterial } from './planetEffects'
 import { setOccluder } from './trailOcclusion'
+import { upgradeMoonMesh } from './moonModels'
 import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
 
@@ -378,6 +379,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       moonMesh.userData.moonId = m.id
       moonMesh.userData.displayRadius = rMoon
       if (m.texture) loadTex(moonMesh, `planets/moons/${m.id}.webp`, m.tint)
+      if (m.irregular) upgradeMoonMesh(moonMesh, m.id, rMoon)
       const label = makeNameSprite(m.name, rMoon * 1.4, true)
       moonMesh.add(label)
       decor.push(label)
