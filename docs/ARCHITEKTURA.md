@@ -70,10 +70,17 @@ src/
     │   ├── satObject.ts    3D node satelitu: NASA glb / ruční primitiv
     │   ├── spaceModels.ts  lazy-load + cache reálných .glb modelů
     │   ├── starlinkLayer.ts Starlink roj: InstancedMesh + model LOD
-    │   ├── solar.ts        stavba soustavy, updateSolar
+    │   ├── solar.ts        stavba soustavy (Slunce, Země+Měsíc), frame loop
+    │   ├── solarPlanets.ts planety: prstence, pásy, bouře, aurory, měsíce, elipsy
+    │   ├── solarTextures.ts texture kit (mobile cap, lit Phong, ring UVs)
+    │   ├── planetEffects.ts ring-shadow, atmosféry, pásy, spokes, sodíkový ohon
+    │   ├── planetStorms.ts podpisové počasí (GRS, hexagon, čepičky) + aurory
+    │   ├── moonModels.ts   reálné NASA shape modely (Phobos/Deimos GLB swap)
     │   ├── solarMode.ts    vstup/výstup heliocentrického pohledu
     │   ├── solarFocus.ts   glide let kamery na těleso v soustavě
     │   ├── solarTrails.ts  kometové ocasy orbit (per-frame vertex barvy)
+    │   ├── trailOcclusion.ts ocásky/orbity neprochází tělesy (occluder koule)
+    │   ├── coronaMaterial.ts živá koróna + protuberance Slunce (fbm billboard)
     │   ├── probesLayer.ts  sondy: HORIZONS trajektorie → ocas + model + karta
     │   ├── starsLayer.ts   noční obloha: 8,9k hvězd HYG + souhvězdí + jmenovky
     │   ├── starFocus.ts    let ke hvězdě → procedurální close-up
@@ -93,7 +100,7 @@ src/
 vzoru `setupX(globe, deps) → dispose`, kde každý modul 1:1 odpovídá původnímu
 `useEffect` bloku. **Limit ~400 řádků je vodítko, ne tvrdé pravidlo** — hrstka
 kompozičních kořenů / soudržných modulů (`GlobeView.tsx`, `App.tsx`,
-`ArSky.tsx`, `orbitEngine.ts`, `solar.ts`) běží vědomě na ~400–460 řádcích;
+`ArSky.tsx`, `orbitEngine.ts`) běží vědomě na ~400–470 řádcích;
 dělit je dál by soudržnost zhoršilo. Detaily a zvažované varianty viz
 [ADR-001](adr-001-globe-feature-modules.md).
 

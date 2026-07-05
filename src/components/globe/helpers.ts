@@ -5,6 +5,11 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { SatPos, TrackedSat } from '../../lib/satellites'
 
+/** Bodies lit ONLY by the Sun live on this layer — globe.gl's own ambient +
+ * directional lights (layer 0) must not wash out their terminators. The
+ * camera and the pointer raycaster have to enable it too. */
+export const SUNLIT_LAYER = 1
+
 export const SUN_REFRESH_MS = 60_000
 export const CLOUDS_ALTITUDE = 0.006
 export const CLOUDS_DEG_PER_FRAME = -0.002

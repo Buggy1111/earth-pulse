@@ -12,7 +12,7 @@ import { stopEventsAnim } from './eventsLayer'
 import { setupPointer } from './pointer'
 import { setupSky } from './sky'
 import { setupSurface } from './surface'
-import { SUNLIT_LAYER } from './solar'
+import { SUNLIT_LAYER } from './helpers'
 import type { StarlinkLayer } from './starlinkLayer'
 import type { GlobeViewProps } from './globeView.types'
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { STORMS, makeStormsMaterial, sphereDir } from './planetEffects'
+import { STORMS, makeStormsMaterial, sphereDir } from './planetStorms'
 
 describe('signature planet weather (storms)', () => {
   it('sphereDir maps texture lat/lon to object space (poles + equator sanity)', () => {
