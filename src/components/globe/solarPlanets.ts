@@ -229,7 +229,8 @@ export function buildPlanets(
       tilt.add(moonMesh)
       // direction cone along the moon's orbit — decor, like its label and ring
       const moonArrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
-      moonArrow.scale.setScalar(Math.max(0.8, rMoon * 0.7))
+      moonArrow.userData.baseScale = Math.max(0.8, rMoon * 0.7)
+      moonArrow.scale.setScalar(moonArrow.userData.baseScale as number)
       moonArrow.frustumCulled = false
       tilt.add(moonArrow)
       decor.push(moonArrow)
@@ -294,7 +295,8 @@ export function buildPlanets(
   for (const id of [...PLANETS.map((p) => p.id), 'earth']) {
     const r = id === 'earth' ? EARTH_DISPLAY : (PLANETS.find((p) => p.id === id)?.displayRadius ?? 5)
     const arrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
-    arrow.scale.setScalar(Math.max(2, Math.min(10, r * 0.6)))
+    arrow.userData.baseScale = Math.max(2, Math.min(10, r * 0.6))
+    arrow.scale.setScalar(arrow.userData.baseScale as number)
     arrow.frustumCulled = false
     arrow.userData.solarLayer = 'orbits'
     group.add(arrow)

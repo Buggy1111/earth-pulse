@@ -145,7 +145,8 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const orbitRing = makeTrailOrbit(solarTrails, ringPts, orbitColor('earth'), 0.85, mesh)
     earthMoonGroup.add(orbitRing)
     earthMoonArrow = new THREE.Mesh(ARROW_GEO, ARROW_MAT)
-    earthMoonArrow.scale.setScalar(Math.max(0.8, rMoon * 0.7))
+    earthMoonArrow.userData.baseScale = Math.max(0.8, rMoon * 0.7)
+    earthMoonArrow.scale.setScalar(earthMoonArrow.userData.baseScale as number)
     earthMoonArrow.frustumCulled = false
     earthMoonGroup.add(earthMoonArrow)
     const decor = [label, orbitRing, earthMoonArrow]
@@ -193,6 +194,19 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     arrow.quaternion.setFromUnitVectors(Y_UP, av)
   }
   const Z_AXIS = new THREE.Vector3(0, 0, 1)
+  // camera position in heliocentric group space — arrows fade by distance to
+  // their body (close up a cone bigger than the moon reads as debris, not UI)
+  const camLocal = new THREE.Vector3()
+  const aw = new THREE.Vector3()
+  const fadeArrow = (arrow: THREE.Mesh, bx: number, by: number, bz: number, r: number) => {
+    const d = Math.hypot(camLocal.x - bx, camLocal.y - by, camLocal.z - bz)
+    const f = Math.min(1, Math.max(0, (d - r * 9) / (r * 7)))
+    // angular-size cap: a cone the camera flies close to must never fill the
+    // screen — its height stays under ~3.5 % of the view at any distance
+    arrow.getWorldPosition(aw)
+    const cap = (aw.distanceTo(globe.camera().position) * 0.035) / 2.6
+    arrow.scale.setScalar(Math.min(((arrow.userData.baseScale as number) ?? 1) * f, cap))
+  }
   const frame = (now: Date) => {
     const eh = earthHelio(now)
     // group.position = Rx(-90°) · (−eh·AU):  (x,y,z) → (x, z, −y)
@@ -202,12 +216,18 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     const ms = now.getTime()
     // slunce ve world space pro stínové shadery prstenců (sdílený Vector3)
     sunWorldPos.copy(group.position)
+    camLocal.copy(globe.camera().position)
+    group.worldToLocal(camLocal)
     // 🌙 Moon rides along with Earth and walks its orbit
     if (earthMoonMesh && earthMoonDef) {
       earthMoonGroup.position.copy(earthProxy.position)
       const a = moonAngle(earthMoonDef, ms)
       earthMoonMesh.position.set(Math.cos(a) * earthMoonRScene, Math.sin(a) * earthMoonRScene, 0)
       earthMoonMesh.rotation.y = a // vázaná rotace: k Zemi pořád stejnou tváří
+      earthMoonMesh.getWorldPosition(ov)
+      setOccluder(11, ov.x, ov.y, ov.z, earthMoonMesh.userData.displayRadius as number)
+      group.worldToLocal(ov)
+      if (earthMoonArrow) fadeArrow(earthMoonArrow, ov.x, ov.y, ov.z, earthMoonMesh.userData.displayRadius as number)
       if (earthMoonArrow) {
         const aN = moonAngle(earthMoonDef, ms + 3_600_000) // 1 h ahead — retrograde-safe
         aimArrow(
@@ -245,7 +265,9 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         here.x, here.y, here.z,
         next[0] * AU_SCENE, next[1] * AU_SCENE, next[2] * AU_SCENE,
       )
+      fadeArrow(pa.arrow, here.x, here.y, here.z, pa.lead / 2 + 6)
     }
+    let moonOi = 12 // occluder slots: 0 Sun, 1 Earth, 2-10 planets, 11 Earth's Moon
     for (const entry of deps.solarAnimRef.current) {
       entry.mesh.rotation.y = planetSpin(entry.rotationH, ms)
       for (const m of entry.moons) {
@@ -264,7 +286,12 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
         // ☀️→moon ray vs the planet sphere — a hit means the moon's shadow
         // transits the disc (Galilean shadows are real observable events)
         m.mesh.getWorldPosition(mv)
+        // the moon is also a trail occluder: its own orbit ring must end at
+        // its surface instead of slicing through the ball (slots 12+)
+        setOccluder(moonOi, mv.x, mv.y, mv.z, m.mesh.userData.displayRadius as number)
+        moonOi += 1
         group.worldToLocal(mv) // heliocentric group space: the Sun is at 0
+        fadeArrow(m.arrow, mv.x, mv.y, mv.z, m.mesh.userData.displayRadius as number)
         const c = entry.system.position
         dv.copy(mv).normalize()
         const b = dv.dot(c)

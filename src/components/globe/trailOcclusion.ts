@@ -11,7 +11,8 @@
 
 import * as THREE from 'three'
 
-export const MAX_OCCLUDERS = 12
+// 0 = Sun, 1 = Earth, 2–10 = planets, 11 = Earth's Moon, 12+ = planet moons
+export const MAX_OCCLUDERS = 40
 
 export const occluderUniform: { value: THREE.Vector4[] } = {
   value: Array.from({ length: MAX_OCCLUDERS }, () => new THREE.Vector4(0, 0, 0, 0)),

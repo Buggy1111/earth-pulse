@@ -29,11 +29,17 @@ export function returnHome(globe: GlobeInstance, durationMs: number): void {
   globe.pointOfView(HOME_VIEW, durationMs)
 }
 
-export const ARROW_GEO = new THREE.ConeGeometry(0.8, 2.4, 8)
+// 24 segments = smooth silhouette up close; additive glow reads "hologram",
+// not "plastic cone". Arrows fade out via SCALE as the camera approaches a
+// body (never via .visible — that would fight the solar layer filter and the
+// focus-gated moon decor, which both own the visibility flag).
+export const ARROW_GEO = new THREE.ConeGeometry(0.7, 2.6, 24)
 export const ARROW_MAT = new THREE.MeshBasicMaterial({
   color: '#bdf0ff',
   transparent: true,
-  opacity: 0.95,
+  opacity: 0.85,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
 })
 
 /** One datum for the objects layer: a tracked satellite or the ISS itself. */
