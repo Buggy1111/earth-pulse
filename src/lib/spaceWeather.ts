@@ -5,8 +5,10 @@
  */
 
 export const KP_URL = 'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'
+// SWPC removed /products/solar-wind/ (plasma-5-minute.json → 404 since ~July 2026);
+// the geospace propagated feed keeps the same "products" table shape at ~6 kB.
 export const SOLAR_WIND_URL =
-  'https://services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json'
+  'https://services.swpc.noaa.gov/products/geospace/propagated-solar-wind-1-hour.json'
 
 export interface KpReading {
   kp: number
@@ -35,8 +37,9 @@ export interface SolarWindReading {
   time: string
 }
 
-/** SWPC "products" format: row 0 = column names, then string/null cells. */
-export function parseSolarWind(rows: (string | null)[][]): SolarWindReading | null {
+/** SWPC "products" format: row 0 = column names, then string/number/null cells
+ * (the geospace feed sends raw numbers where the old plasma feed sent strings). */
+export function parseSolarWind(rows: (string | number | null)[][]): SolarWindReading | null {
   if (!Array.isArray(rows) || rows.length < 2) return null
   const header = rows[0]
   const iTime = header.indexOf('time_tag')
@@ -50,7 +53,7 @@ export function parseSolarWind(rows: (string | null)[][]): SolarWindReading | nu
     return {
       speedKms: speed,
       densityPerCm3: iDensity >= 0 ? Number(row[iDensity] ?? NaN) : NaN,
-      time: row[iTime] ?? '',
+      time: String(row[iTime] ?? ''),
     }
   }
   return null
