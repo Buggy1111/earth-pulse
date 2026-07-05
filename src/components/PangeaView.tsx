@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { makeAtmosphereMaterial } from './globe/planetEffects'
 
 // past frames live every 10 Myr from 0 (today) to 340 Mya (public/planets/paleo);
 // the future is one reprojected frame at −250 Myr (Pangaea Proxima)
@@ -40,7 +41,7 @@ uniform sampler2D texA; uniform sampler2D texB; uniform float mixf; uniform vec3
 varying vec2 vUv; varying vec3 vN;
 void main(){
   vec3 col = mix(texture2D(texA, vUv).rgb, texture2D(texB, vUv).rgb, mixf);
-  float lit = 0.62 + 0.38 * clamp(dot(normalize(vN), normalize(sunDir)), 0.0, 1.0);
+  float lit = 0.52 + 0.48 * clamp(dot(normalize(vN), normalize(sunDir)), 0.0, 1.0);
   gl_FragColor = vec4(col * lit, 1.0);
 }`
 
@@ -62,7 +63,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     let disposed = false
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 2000)
-    camera.position.set(0, 60, 320)
+    camera.position.set(0, 55, 375)
     // phones/tablets: lighter renderer to stay well inside the mobile GPU budget
     const mobile =
       matchMedia('(pointer: coarse)').matches && matchMedia('(max-width: 1024px)').matches
@@ -73,6 +74,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2))
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     mount.appendChild(renderer.domElement)
+    // anisotropic filtering keeps the paleo maps crisp at grazing angles —
+    // the single biggest visual upgrade this view can buy on any GPU
+    const maxAniso = renderer.capabilities.getMaxAnisotropy()
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
@@ -108,6 +112,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       if (textures[i]) return textures[i] as THREE.Texture
       const t = loader.load(`planets/paleo/paleo-${pad(FRAMES[i])}.webp`)
       t.colorSpace = THREE.SRGBColorSpace
+      t.anisotropy = maxAniso
       textures[i] = t
       return t
     }
@@ -119,6 +124,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       if (futureTex[k]) return futureTex[k] as THREE.Texture
       const t = loader.load(`planets/paleo/paleo-fut${pad(k * 50)}.webp`)
       t.colorSpace = THREE.SRGBColorSpace
+      t.anisotropy = maxAniso
       futureTex[k] = t
       return t
     }
@@ -133,6 +139,11 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const globe = new THREE.Mesh(new THREE.SphereGeometry(100, 96, 64), mat)
     globe.rotation.y = -Math.PI / 2 // align texture seam to the back
     scene.add(globe)
+    // soft blue fresnel rim — the same atmosphere shell the solar planets wear;
+    // it turns a textured ball into "Earth seen from orbit"
+    const atmoMat = makeAtmosphereMaterial('#6fb7ff', 3.2, 0.7)
+    const atmo = new THREE.Mesh(new THREE.SphereGeometry(104, 64, 64), atmoMat)
+    scene.add(atmo)
 
     const onResize = () => {
       if (!mount) return
@@ -161,6 +172,12 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         uniforms.mixf.value = f - i
       }
       controls.update()
+      // key light rides just off the camera axis — the face you look at is
+      // always lit, the offset keeps a soft terminator for depth
+      uniforms.sunDir.value.copy(camera.position).normalize()
+      uniforms.sunDir.value.x += 0.35
+      uniforms.sunDir.value.y += 0.2
+      uniforms.sunDir.value.normalize()
       renderer.render(scene, camera)
       raf = requestAnimationFrame(loop)
     }
@@ -173,6 +190,8 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       controls.dispose()
       globe.geometry.dispose()
       mat.dispose()
+      atmo.geometry.dispose()
+      atmoMat.dispose()
       starTex.dispose()
       blank.dispose()
       for (const t of textures) t?.dispose()
@@ -219,7 +238,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* title + date (centred; sits below the back button row on phones) */}
-      <div className="pointer-events-none absolute inset-x-0 top-14 flex flex-col items-center gap-0.5 px-4 text-center sm:top-4 sm:gap-1">
+      <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top,0px)_+_3.25rem)] flex flex-col items-center gap-0.5 px-4 text-center sm:top-4 sm:gap-1">
         <span className="vf-eyebrow">◂ continental drift ▸</span>
         <h1 className="font-[var(--font-display)] text-base tracking-wide text-slate-100 sm:text-lg">
           {milestone.title}
@@ -231,10 +250,14 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       <button
         type="button"
         onClick={onClose}
-        style={{ position: 'absolute' }}
-        className="hud pointer-events-auto top-3 left-3 px-2.5 py-1.5 text-xs text-slate-200 sm:top-4 sm:left-4"
+        style={{
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
+        }}
+        className="hud pointer-events-auto px-3 py-2 text-xs text-slate-200 sm:px-2.5 sm:py-1.5"
       >
-        <span className="sm:hidden">←</span>
+        <span className="sm:hidden">← Earth</span>
         <span className="hidden sm:inline">← back to Earth</span>
       </button>
 
@@ -254,7 +277,10 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         </p>
       </div>
       {/* compact attribution for phones (bottom, above the scrubber) */}
-      <p className="pointer-events-none absolute inset-x-0 bottom-20 px-4 text-center text-[10px] text-slate-500 sm:hidden">
+      <p
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
+        className="pointer-events-none absolute inset-x-0 px-4 text-center text-[10px] text-slate-500 sm:hidden"
+      >
         {ma < 0
           ? 'Pangaea Proxima · Wikimedia · CC-BY-SA 4.0 — projected'
           : 'Maps © Scotese, PALEOMAP · CC-BY-4.0'}
@@ -262,8 +288,8 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
 
       {/* timeline scrubber: Pangaea (340 Ma) → today → projected future (+250 My) */}
       <div
-        style={{ position: 'absolute' }}
-        className="hud pointer-events-auto inset-x-0 bottom-5 mx-auto flex w-[min(42rem,94vw)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4"
+        style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
+        className="hud pointer-events-auto inset-x-0 mx-auto flex w-[min(42rem,94vw)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4"
       >
         <button
           type="button"
@@ -279,20 +305,33 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
           340 Ma
         </span>
-        <input
-          type="range"
-          min={0}
-          max={MAX_MA - FUTURE_MA}
-          step={1}
-          aria-label="Geological time"
-          // slider left = oldest (Pangaea), right = projected future → invert
-          value={MAX_MA - ma}
-          onChange={(e) => {
-            setPlaying(false)
-            setMa(MAX_MA - Number(e.target.value))
-          }}
-          className="grow accent-amber-400"
-        />
+        <div className="relative grow">
+          {/* milestone ticks: each story beat gets a faint marker; "today" glows cyan */}
+          {MILESTONES.map((m) => (
+            <span
+              key={m.ma}
+              title={m.title}
+              style={{ left: `${(((MAX_MA - m.ma) / (MAX_MA - FUTURE_MA)) * 100).toFixed(2)}%` }}
+              className={`pointer-events-none absolute -top-1.5 h-1 w-1 -translate-x-1/2 rounded-full ${
+                m.ma === 0 ? 'bg-cyan-300 shadow-[0_0_6px_#67e8f9]' : 'bg-amber-300/50'
+              }`}
+            />
+          ))}
+          <input
+            type="range"
+            min={0}
+            max={MAX_MA - FUTURE_MA}
+            step={1}
+            aria-label="Geological time"
+            // slider left = oldest (Pangaea), right = projected future → invert
+            value={MAX_MA - ma}
+            onChange={(e) => {
+              setPlaying(false)
+              setMa(MAX_MA - Number(e.target.value))
+            }}
+            className="w-full accent-amber-400"
+          />
+        </div>
         <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
           +250 My
         </span>
