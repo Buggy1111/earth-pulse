@@ -92,6 +92,7 @@ export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[]
     let ws: WebSocket | null = null
     let reconnect: ReturnType<typeof setTimeout> | undefined
     let lastMsg = Date.now()
+    let attempts = 0
     const freshTimers = new Set<ReturnType<typeof setTimeout>>()
     const connect = () => {
       if (cancelled) return
@@ -103,6 +104,7 @@ export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[]
       }
       ws.onmessage = (event) => {
         lastMsg = Date.now()
+        attempts = 0 // live data flowing → next reconnect starts fast again
         const q = parseEmscEvent(String(event.data))
         if (!q || cancelled) return
         const cutoff = Date.now() - maxAgeMs
@@ -115,7 +117,10 @@ export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[]
         freshTimers.add(t)
       }
       ws.onclose = () => {
-        if (!cancelled) reconnect = setTimeout(connect, 8_000)
+        // exponential backoff to 2 min — a dead seismicportal isn't redialed
+        // every 8 s forever (USGS poll covers quakes meanwhile)
+        attempts++
+        if (!cancelled) reconnect = setTimeout(connect, Math.min(8_000 * 2 ** (attempts - 1), 120_000))
       }
     }
     connect()
@@ -219,12 +224,15 @@ export function useSpaceWeather(intervalMs = 60_000): SpaceWeather {
   return state
 }
 
-/** ISS position, refreshed every `intervalMs` (API asks for >= 1s between calls). */
+/** ISS position, refreshed every `intervalMs` (API asks for >= 1s between calls).
+ * Consecutive failures back the poll off up to 60 s — a dead endpoint isn't
+ * hammered every 3 s for the whole visit; one success snaps the cadence back. */
 export function useIss(intervalMs = 3_000): IssState | null {
   const [iss, setIss] = useState<IssState | null>(null)
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
+    let failures = 0
     const tick = async () => {
       if (!document.hidden) {
         // hidden tab: skip the fetch (and its setState) but keep the timer
@@ -232,12 +240,14 @@ export function useIss(intervalMs = 3_000): IssState | null {
         try {
           const resp = await fetch(ISS_URL)
           const data = await resp.json()
+          failures = 0
           if (!cancelled) setIss(parseIss(data))
         } catch {
-          // keep last position
+          failures++ // keep last position
         }
       }
-      if (!cancelled) timer = setTimeout(tick, intervalMs)
+      const delay = Math.min(intervalMs * 2 ** failures, 60_000)
+      if (!cancelled) timer = setTimeout(tick, delay)
     }
     void tick()
     return () => {

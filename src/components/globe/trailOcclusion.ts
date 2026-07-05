@@ -35,12 +35,12 @@ export function occludeLineMaterial<T extends THREE.Material>(mat: T): T {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'uniform float opacity;',
-        'uniform float opacity;\nuniform vec4 uBodies[12];\nvarying vec3 vWorldTrail;',
+        `uniform float opacity;\nuniform vec4 uBodies[${MAX_OCCLUDERS}];\nvarying vec3 vWorldTrail;`,
       )
       .replace(
         'void main() {',
         `void main() {
-\tfor (int i = 0; i < 12; i++) {
+\tfor (int i = 0; i < ${MAX_OCCLUDERS}; i++) {
 \t\tif (uBodies[i].w <= 0.0) continue;
 \t\tvec3 dToBody = vWorldTrail - uBodies[i].xyz;
 \t\tif (dot(dToBody, dToBody) < uBodies[i].w) discard;

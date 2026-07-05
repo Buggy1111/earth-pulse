@@ -15,7 +15,11 @@ async function bootGlobe(page: Page): Promise<string[]> {
     const externalResource =
       /Failed to load resource|net::ERR/.test(text) && url !== '' && !url.includes('localhost')
     const externalSocket = /WebSocket connection to 'wss:\/\/(?!localhost)/.test(text)
-    if (externalResource || externalSocket) return
+    // CORS-phrased outages of third-party feeds (a dead endpoint's 404 page
+    // carries no ACAO header, so Chromium reports it as a CORS block, not
+    // net::ERR) — e.g. the July 2026 SWPC solar-wind 404 turned CI red
+    const externalCors = /Access to fetch at 'https?:\/\/(?!localhost)[^']+' from origin/.test(text)
+    if (externalResource || externalSocket || externalCors) return
     errors.push(text)
   })
   await page.goto('/')

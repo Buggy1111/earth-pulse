@@ -70,6 +70,9 @@ export function updateSolarTrails(trails: SolarTrail[]): void {
         h = i
       }
     }
+    // head didn't move a whole vertex → the paint is already right; skip the
+    // repaint AND the per-frame GPU re-upload of the colour attribute
+    if (h === tr.prevHead) continue
     // motion direction from the head's step — auto-handles retrograde moons
     let dir = tr.lastDir
     if (tr.prevHead >= 0) {

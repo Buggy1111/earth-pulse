@@ -51,8 +51,9 @@ varying vec3 vViewNormal;
 ` + NOISE_GLSL + /* glsl */ `
 
 void main() {
-  // ☀️ diferenciální rotace: rovník obíhá rychleji než póly (25 vs 34 dní) —
-  // šum se vzorkuje z otočeného směru, granulace u rovníku viditelně "ujíždí"
+  // ☀️ diferenciální rotace: rovník obíhá rychleji než póly (reálně 25 vs
+  // 34 dní ≈ 1,4×; tady záměrně zveličeno na ~3× ať je jev vidět) — šum se
+  // vzorkuje z otočeného směru, granulace u rovníku viditelně "ujíždí"
   float diffRate = uTime * (0.004 + 0.009 * (1.0 - vObj.y * vObj.y));
   float cd = cos(diffRate);
   float sd = sin(diffRate);

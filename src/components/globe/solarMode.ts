@@ -53,7 +53,6 @@ export function enterSolarMode(globe: GlobeInstance, sky: SkyHandle, deps: Solar
     moonMeshesRef: deps.moonMeshesRef,
     solarAnimRef: deps.solarAnimRef,
     solarFrameRef: deps.solarFrameRef,
-    solarTimeRef: deps.solarTimeRef,
     applySkyRef: deps.applySkyRef,
     sunUniform: sky.sunUniform,
   })

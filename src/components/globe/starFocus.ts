@@ -141,6 +141,8 @@ export function setupStarFocus(
       mesh.geometry.dispose()
       mat.dispose()
       glowMat.dispose()
+      corona.geometry.dispose()
+      coronaMat.dispose()
     },
     current() {
       return focused

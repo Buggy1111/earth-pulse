@@ -59,7 +59,6 @@ export interface SolarDeps {
   solarAnimRef: { current: SolarAnimEntry[] }
   /** Called from the orbit engine's rAF — drives ALL solar motion. */
   solarFrameRef: { current: (now: Date) => void }
-  solarTimeRef: { current: { realMs: number; simMs: number; warp: number } }
   applySkyRef: { current: (date: Date) => void }
   /** Mini-Earth/clouds shader sun — re-aimed at the big Sun in solar mode. */
   sunUniform: { value: THREE.Vector3 }
@@ -548,14 +547,18 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
       mercuryTail.quaternion.setFromUnitVectors(Y_UP, av.multiplyScalar(-1))
     }
 
-    // 🡒 planet/Earth direction cones — one day ahead along each orbit
+    // 🡒 planet/Earth direction cones — one day ahead along each orbit;
+    // "here" reuses the positions already solved this frame (earthProxy /
+    // system.position), so each arrow costs one Kepler solve, not two
+    const tomorrow = new Date(ms + DAY_MS)
     for (const pa of planetArrows) {
-      const here = pa.id === 'earth' ? earthHelio(now) : planetHelio(pa.id, now)
-      const next = pa.id === 'earth' ? earthHelio(new Date(ms + DAY_MS)) : planetHelio(pa.id, new Date(ms + DAY_MS))
+      const here = pa.id === 'earth' ? earthProxy.position : deps.planetMeshesRef.current.get(pa.id)?.position
+      if (!here) continue
+      const next = pa.id === 'earth' ? earthHelio(tomorrow) : planetHelio(pa.id, tomorrow)
       aimArrow(
         pa.arrow,
         pa.lead,
-        here[0] * AU_SCENE, here[1] * AU_SCENE, here[2] * AU_SCENE,
+        here.x, here.y, here.z,
         next[0] * AU_SCENE, next[1] * AU_SCENE, next[2] * AU_SCENE,
       )
     }

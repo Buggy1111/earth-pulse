@@ -522,7 +522,6 @@ export const AURORAS: Record<string, { color: string; sizeRad: number }> = {
 
 const SODIUM_TAIL_FRAG = /* glsl */ `
 uniform float uTime;
-varying vec3 vLocalPos;
 varying vec2 vUvTail;
 ` + NOISE_GLSL + /* glsl */ `
 void main() {
@@ -536,10 +535,8 @@ void main() {
 `
 
 const SODIUM_TAIL_VERT = /* glsl */ `
-varying vec3 vLocalPos;
 varying vec2 vUvTail;
 void main() {
-  vLocalPos = position;
   vUvTail = uv;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
