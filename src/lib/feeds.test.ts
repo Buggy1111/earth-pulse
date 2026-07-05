@@ -107,6 +107,18 @@ describe('space weather (NOAA SWPC)', () => {
     expect(parseSolarWind([['time_tag', 'speed']])).toBeNull()
   })
 
+  it('parseSolarWind bere i číselné buňky geospace feedu (propagated-solar-wind)', () => {
+    const rows: (string | number | null)[][] = [
+      ['time_tag', 'speed', 'density', 'temperature', 'bz', 'propagated_time_tag'],
+      ['2026-07-05T05:13:00Z', 532.7, 3.58, 91286, 0.87, '2026-07-05T05:50:58Z'],
+      ['2026-07-05T06:08:00Z', 519.1, 4.09, 51324, -1.14, '2026-07-05T06:46:58Z'],
+    ]
+    const r = parseSolarWind(rows)
+    expect(r?.speedKms).toBeCloseTo(519.1)
+    expect(r?.densityPerCm3).toBeCloseTo(4.09)
+    expect(r?.time).toBe('2026-07-05T06:08:00Z')
+  })
+
   it('kpColor/kpLabel: zelená klid, žlutá aktivní, červená bouře', () => {
     expect(kpColor(2)).toBe('#34d399')
     expect(kpColor(4.5)).toBe('#fbbf24')
