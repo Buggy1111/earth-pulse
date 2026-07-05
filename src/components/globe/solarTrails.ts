@@ -50,7 +50,9 @@ export function makeTrailOrbit(
     base: new THREE.Color(colorHex),
     n,
     body,
-    span: Math.max(2, Math.floor(n * 0.7)),
+    // ~110° komety za tělesem — stejný živý "ocásek" jako mají satelity
+    // a Měsíc na Earth view, žádný statický pruh přes 3/4 orbity
+    span: Math.max(2, Math.floor(n * 0.3)),
     prevHead: -1,
     lastDir: 1,
   })

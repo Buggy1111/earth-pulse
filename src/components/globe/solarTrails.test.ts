@@ -15,9 +15,9 @@ function ring(n: number) {
 }
 
 describe('makeTrailOrbit', () => {
-  it('span ≈ 70 % dráhy a color atribut má n×3 floatů', () => {
+  it('span ≈ 30 % dráhy (kometový ocásek) a color atribut má n×3 floatů', () => {
     const { tr } = ring(100)
-    expect(tr.span).toBe(70)
+    expect(tr.span).toBe(30)
     expect(tr.colors.array.length).toBe(300)
   })
 })
