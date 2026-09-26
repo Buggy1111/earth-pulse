@@ -23,6 +23,7 @@ import { enterSolarMode } from './globe/solarMode'
 import { setupScene, swapGlobeTextures } from './globe/sceneSetup'
 import { applyGibsImage } from './globe/gibsLayer'
 import { detectWeakGpu, isMobileDevice } from './perf'
+import { markBoot, uncleanBoots, CRASH_DEMOTE_AFTER } from '../lib/crashGuard'
 import type { GlobeViewProps } from './globe/globeView.types'
 
 /** Texture resolution for the day/night globe stack, from the user's quality
@@ -39,6 +40,10 @@ function pickTextureRes(
   solarMode: boolean,
   moonMode: boolean,
 ): '2k' | '4k' | '8k' {
+  // crash loop guard: this device has killed the renderer ≥2× without 15 s of
+  // healthy runtime — demote to 2K BEFORE the globe mounts, whatever the link,
+  // quality pick or view says. Repeating the same heavy config just re-crashes.
+  if (crashDemoted) return '2k'
   if (isMobileDevice()) {
     if (solarMode || moonMode) return '2k'
     return quality === '2k' ? '2k' : '4k'
@@ -46,6 +51,12 @@ function pickTextureRes(
   if ((solarMode || moonMode) && detectWeakGpu()) return '2k'
   return quality
 }
+
+// module-level, evaluated once per page load: counts this boot and reads how
+// many unclean boots preceded it (see crashGuard). Prior count is kept in a
+// writable variable for potential HUD display; the demote flag is what matters.
+export let priorUncleanBoots = markBoot()
+export const crashDemoted = uncleanBoots() >= CRASH_DEMOTE_AFTER
 
 export function GlobeView(props: GlobeViewProps) {
   const { quakes, flashes, iss, sats, kp, layers, selectedOrbitIds, userLoc, locVersion } = props
@@ -169,13 +180,15 @@ export function GlobeView(props: GlobeViewProps) {
   // eco/performance + view-mode: pixel ratio + texture resolution swap on the fly.
   // Re-runs when entering/leaving the solar or Moon view so the Earth drops to 2K
   // there (it's a distant dot) and restores its full tier on return.
+  // crashDemoted forces the full lite config (1× DPR + 2K) — same rationale as
+  // in pickTextureRes: the previous heavier setup already killed the renderer.
   useEffect(() => {
-    ecoRef.current = eco
+    ecoRef.current = eco || crashDemoted
     const globe = globeRef.current
     if (!globe) return
     // mobile stays at 1× DPR no matter the eco flag — a 2–3× framebuffer is the
     // other half of the memory blow-up (textures are capped via pickTextureRes)
-    const lowDpr = eco || isMobileDevice()
+    const lowDpr = eco || crashDemoted || isMobileDevice()
     globe.renderer().setPixelRatio(lowDpr ? 1 : Math.min(window.devicePixelRatio, 2))
     const wanted = pickTextureRes(quality, solarMode, moonMode)
     const material = globeMaterialRef.current
