@@ -74,8 +74,52 @@ export function SideDrawer({
   const accent = isLeft ? '#7dd3fc' : '#fbbf24'
   const scanline =
     'repeating-linear-gradient(0deg, rgba(94,234,255,0.022) 0, rgba(94,234,255,0.022) 1px, transparent 1px, transparent 3px), linear-gradient(158deg, rgba(8,14,28,0.96), rgba(5,9,20,0.9))'
+
+  // ——— edge-swipe gesture (touch devices) ———
+  // OPEN: swipe from the screen edge (left→right for the left drawer,
+  // right→left for the right). CLOSE: swipe the other way starting anywhere
+  // over the OPEN drawer. Listeners live on window so a swipe over the WebGL
+  // canvas is caught too; vertical-dominant gestures are ignored — that's the
+  // globe's rotate, not our drawer (≥60 px of vertical slop cancels).
+  useEffect(() => {
+    const EDGE = 28 // px from screen edge where the open swipe must start
+    const MIN = 48 // px of horizontal travel for the gesture to fire
+    let startX: number | null = null
+    let startY = 0
+    let startedOnDrawer = false
+
+    const down = (e: PointerEvent) => {
+      startX = e.clientX
+      startY = e.clientY
+      const t = e.target as HTMLElement | null
+      startedOnDrawer = !!t && !!t.closest(`[data-drawer='${side}']`)
+    }
+    const up = (e: PointerEvent) => {
+      if (startX === null) return
+      const dx = e.clientX - startX
+      const dy = Math.abs(e.clientY - startY)
+      const fromLeftEdge = startX < EDGE
+      const fromRightEdge = startX > window.innerWidth - EDGE
+      startX = null
+      if (dy > 60 || Math.abs(dx) < MIN) return
+      const inward = isLeft ? dx > 0 : dx < 0 // toward the screen centre
+      const fromEdge = isLeft ? fromLeftEdge : fromRightEdge
+      // OPEN: started at the edge AND moved inward, over a closed drawer
+      if (!open && fromEdge && inward) onToggle()
+      // CLOSE: started anywhere on the OPEN drawer AND moved outward
+      else if (open && startedOnDrawer && !inward) onToggle()
+    }
+    window.addEventListener('pointerdown', down, { passive: true })
+    window.addEventListener('pointerup', up, { passive: true })
+    return () => {
+      window.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointerup', up)
+    }
+  }, [open, onToggle, side, isLeft])
   return (
     <>
+      {/* no gesture layer element — listeners live on window (see useEffect),
+          ignoring vertical-dominant gestures so the globe's rotate is safe */}
       {!open && (
         <button
           type="button"
@@ -103,6 +147,7 @@ export function SideDrawer({
         </button>
       )}
       <aside
+        data-drawer={side}
         style={{
           background: scanline,
           boxShadow: `${isLeft ? '' : '-'}1px 0 0 ${accent}80, 0 0 60px -10px ${accent}40, 0 24px 60px -20px rgba(0,0,0,0.9)`,
