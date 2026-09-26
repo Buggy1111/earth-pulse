@@ -56,6 +56,14 @@ test('enabling the Starlink layer builds a ~10k InstancedMesh with positioned in
   // plus fetching the 1.8 MB TLE snapshot and building 10k instances can exceed the
   // default 60 s on a cold run; give this one test headroom (warm runs take ~35 s).
   test.setTimeout(120_000)
+  // The swarm size is device-tiered (RAM/cores) — CI runners report no
+  // navigator.deviceMemory and few cores, which lands them in the LOW band
+  // (120 sats) and this test's `> 1000 positioned` never fires (Sept 2026 CI
+  // failure). Emulate a capable desktop so the test exercises the full swarm.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'deviceMemory', { get: () => 8, configurable: true })
+    Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8, configurable: true })
+  })
   await bootGlobe(page)
 
   // open the customize panel, then flip the Starlink layer on
