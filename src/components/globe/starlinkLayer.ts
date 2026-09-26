@@ -19,17 +19,18 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { globeAltitude } from '../../lib/satellites'
 import { selectNearest } from '../../lib/lod'
+import { deviceTier } from '../../lib/deviceTier'
+
+// Phones can't take the full constellation: the snapshot now holds 32k sats and
+// an InstancedMesh of that size plus 2 Hz SGP4 passes OOM-kills mobile Chrome
+// (tab crash "S tímto procesem došlo k opakovaným problémům"). The limit is
+// decided by the DEVICE's real capability (memory + cores), not the UA string.
+const TIER = deviceTier()
+const SAT_LIMIT = TIER.satLimit
 
 const TLE_URL = 'tle/starlink.txt'
 const MODEL_URL = 'models/sats/starlink.glb'
 const TICK_MS = 500 // propagation cadence — the swarm crawls, so 2 Hz reads smooth
-// Phones can't take the full constellation: the snapshot now holds 32k sats and
-// an InstancedMesh of that size plus 2 Hz SGP4 passes OOM-kills mobile Chrome
-// (tab crash "S tímto procesem došlo k opakovaným problémům"). Phones get a
-// representative subset; desktops keep everything.
-const MOBILE_SAT_LIMIT = 400
-const isMobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) ||
-  (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820)
 const TARGET_SIZE = 1.6 // scene units the model/panel is normalised to (small = a swarm)
 const MODEL_POOL = 400 // how many of the nearest sats get the real GLB model
 // zoom-aware model size: a satellite this close (scene units, globe radius=100)
@@ -190,9 +191,12 @@ export function setupStarlinkLayer(
     tryBuild()
   }
   // a true software renderer (headless/CI) would freeze on 400 model instances,
-  // so it stays on panels; a real GPU (incl. phones) gets the models
-  ;(rendererIsSoftware(globe) ? Promise.resolve(null) : glbParts()).then(resolveModel, () =>
-    resolveModel(null),
+  // so it stays on panels; a real GPU (incl. phones) gets the models. Low-power
+  // devices (small RAM / few cores) also skip the model pool — every bit of
+  // headroom goes to keeping the tab alive.
+  ;(TIER.lowPower || rendererIsSoftware(globe) ? Promise.resolve(null) : glbParts()).then(
+    resolveModel,
+    () => resolveModel(null),
   )
 
   fetch(TLE_URL)
@@ -200,8 +204,8 @@ export function setupStarlinkLayer(
     .then((tle) => {
       if (disposed) return
       let payload = tle
-      if (isMobile) {
-        // keep only the first MOBILE_SAT_LIMIT entries (name + 2 TLE lines each)
+      if (SAT_LIMIT !== Infinity) {
+        // keep only the first SAT_LIMIT entries (name + 2 TLE lines each)
         // — a 3-line block, name first, exactly what parseTle consumes. A slice
         // of the file is fine: entries are ordered, not sorted by significance,
         // and the swarm read (a shell around Earth) is preserved by any subset.
@@ -209,7 +213,7 @@ export function setupStarlinkLayer(
         const kept: string[] = []
         let sats = 0
         for (let i = 0; i < lines.length; i += 3) {
-          if (sats >= MOBILE_SAT_LIMIT) break
+          if (sats >= SAT_LIMIT) break
           kept.push(lines[i], lines[i + 1] ?? '', lines[i + 2] ?? '')
           sats++
         }
