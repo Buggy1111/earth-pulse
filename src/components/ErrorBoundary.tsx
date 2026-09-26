@@ -27,7 +27,20 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private reload = (): void => {
     // a full reload is the safest recovery after a GPU / render failure —
-    // it rebuilds the renderer and re-uploads every resource from scratch
+    // it rebuilds the renderer and re-uploads every resource from scratch.
+    // GUARD against a reload loop: if we already reloaded seconds ago, showing
+    // the recovery card again means the crash is persistent — reloading again
+    // would just churn (and on Android Chrome a repeated crashed renderer is
+    // what triggers the system "repeated problems" dialog). One automatic
+    // retry, then the card takes over and the user decides.
+    const KEY = 'ep-last-reload'
+    const now = Date.now()
+    const last = Number(sessionStorage.getItem(KEY) ?? 0)
+    if (now - last < 60_000) {
+      this.setState({ error: this.state.error }) // stay on the card, don't loop
+      return
+    }
+    sessionStorage.setItem(KEY, String(now))
     window.location.reload()
   }
 
