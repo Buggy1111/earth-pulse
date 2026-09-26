@@ -23,7 +23,7 @@ export function uncleanBoots(): number {
 /** Call once at module load on boot: increments the counter, arms a timer that
  * clears it after HEALTHY_MS. Returns how many unclean boots preceded this one. */
 export function markBoot(): number {
-  let n = uncleanBoots()
+  const n = uncleanBoots()
   try {
     localStorage.setItem(KEY, String(n + 1))
   } catch {

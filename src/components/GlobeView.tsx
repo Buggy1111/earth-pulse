@@ -23,7 +23,7 @@ import { enterSolarMode } from './globe/solarMode'
 import { setupScene, swapGlobeTextures } from './globe/sceneSetup'
 import { applyGibsImage } from './globe/gibsLayer'
 import { detectWeakGpu, isMobileDevice } from './perf'
-import { markBoot, uncleanBoots, CRASH_DEMOTE_AFTER } from '../lib/crashGuard'
+import { markBoot, CRASH_DEMOTE_AFTER } from '../lib/crashGuard'
 import type { GlobeViewProps } from './globe/globeView.types'
 
 /** Texture resolution for the day/night globe stack, from the user's quality
@@ -53,10 +53,9 @@ function pickTextureRes(
 }
 
 // module-level, evaluated once per page load: counts this boot and reads how
-// many unclean boots preceded it (see crashGuard). Prior count is kept in a
-// writable variable for potential HUD display; the demote flag is what matters.
-export let priorUncleanBoots = markBoot()
-export const crashDemoted = uncleanBoots() >= CRASH_DEMOTE_AFTER
+// many unclean boots preceded it (see crashGuard). The demote flag is what
+// matters — the boot counter itself is for console diagnostics only.
+const crashDemoted = markBoot() >= CRASH_DEMOTE_AFTER
 
 export function GlobeView(props: GlobeViewProps) {
   const { quakes, flashes, iss, sats, kp, layers, selectedOrbitIds, userLoc, locVersion } = props
