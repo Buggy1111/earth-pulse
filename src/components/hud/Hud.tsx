@@ -13,6 +13,7 @@ import {
 import { EventDetail, EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
 import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { HudCard } from './HudCard'
+import { MeteorPanel } from './MeteorPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
 import { PlanetPanel } from '../PlanetPanel'
@@ -196,6 +197,7 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' && p.userLoc ? (
       <AbovePanel overhead={p.overhead} onPickSat={p.onPickSat} />
     ) : null
+  const meteorEl = p.mode === 'earth' ? <MeteorPanel now={p.now} userLoc={p.userLoc} /> : null
   const timelineEl =
     p.mode === 'earth' ? (
       <TimelinePanel
@@ -232,7 +234,10 @@ export function Hud(p: HudProps) {
     ) : null
   const topRightEl =
     p.mode === 'earth' ? (
-      <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
+      <div className="flex flex-col items-end gap-3">
+        <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
+        <div className="hide-short">{meteorEl}</div>
+      </div>
     ) : p.mode === 'solar' ? (
       <SolarNavTree
         focus={p.focusPlanet}
