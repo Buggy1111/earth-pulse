@@ -48,6 +48,12 @@ pondělí GitHub Action **„Refresh live-data snapshots"**
   vrstvy (teplota moří, MODIS aerosoly, sníh) byly jen-oceán/jen-pevnina (černá
   no-data) → nahrazeny full-globe MERRA-2.
 
+## Alerty (mimo aplikaci)
+`scripts/quake-alert.mjs` + `.github/workflows/quake-alert.yml`: každých 10 min
+čte USGS (`all_day`) a EMSC FDSN, filtruje podle `alerts.config.json` a posílá
+na Telegram Bot API. Potřebuje **vlastního bota** (secrets `TELEGRAM_BOT_TOKEN`,
+`TELEGRAM_CHAT_ID`); stav „už odesláno“ je na orphan větvi `alert-state`.
+
 ## Build-time snapshoty (přibalené)
 
 | Data | Zdroj | Soubor | Obnova příkazem |
@@ -83,6 +89,11 @@ Polohy a fáze se počítají čistou matematikou v `src/lib/` — bez sítě:
 | Měsíce planet — dráhy | `planets.ts` | skutečné periody + fázový offset |
 | Satelity/ISS — dráhy | `satellites.ts` | SGP4 nad TLE |
 | Polární záře | `aurora.ts` | empirický model dle Kp + IGRF-13 póly |
+| Webb / Roman (L2 halo) | `l2.ts` | L2 = Země·(1+0,01004) + halo ~6 měsíců; reprezentativní, ne efemerida |
+| Meteorické roje | `meteors.ts` | ruční tabulka dle IMO Working List (radiant, ZHR, rychlost, drift) |
+| Deník planety | `diary.ts` | agregace již načtených feedů (USGS/EONET/Kp) |
+| Historie planety | `history.ts` | ručně kurátorovaný seznam; čísla USGS / Smithsonian GVP / NOAA (u starých událostí odhady) |
+| Aktivita planety → zvuk | `ambient.ts` | energie otřesů za 6 h (~10^1,5M) + Kp |
 
 ## Textury a obrázky (atribuce)
 - **8K Země, 2K Měsíc, planety, Mléčná dráha** © [Solar System Scope](https://www.solarsystemscope.com/textures/) — CC BY 4.0

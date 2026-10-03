@@ -12,7 +12,7 @@ import {
   useTleSats,
   useWikiFeed,
 } from './hooks'
-import { useQuakePing } from './uiHooks'
+import { useAmbient, useQuakePing } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 
 export function useLiveData() {
@@ -26,5 +26,6 @@ export function useLiveData() {
   const { edits, totalSeen } = useWikiFeed()
   const now = useNow()
   const { soundOn, toggleSound } = useQuakePing(newQuakes, emscFresh)
-  return { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound }
+  const { ambientOn, toggleAmbient } = useAmbient(quakes, weather.kp?.kp ?? null, now)
+  return { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient }
 }

@@ -2,7 +2,7 @@
  * corner dashboards or, on phones & tablets, two slide-out drawers so the
  * globe stays clear. Rendered only when the HUD is visible. */
 
-import type { ComponentProps } from 'react'
+import { useState, type ComponentProps } from 'react'
 import {
   AbovePanel,
   DataLayerPanel,
@@ -13,6 +13,8 @@ import {
 import { EventDetail, EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
 import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { HudCard } from './HudCard'
+import { DiaryPanel } from './DiaryPanel'
+import { HistoryPanel } from './HistoryPanel'
 import { MeteorPanel } from './MeteorPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
@@ -87,12 +89,24 @@ interface HudProps {
   timelinePlaying: boolean
   onTimelineScrub: (h: number) => void
   onTimelineToggle: () => void
+  // 🏛 history of the planet
+  historyOpen: boolean
+  historyCount: number
+  historyTotal: number
+  historyPlaying: boolean
+  onToggleHistory: () => void
+  onHistoryScrub: (n: number) => void
+  onHistoryPlay: () => void
+  /** The full live USGS list (displayQuakes is cut to the timeline moment). */
+  allQuakes: ComponentProps<typeof QuakePanel>['quakes']
   displayQuakes: ComponentProps<typeof QuakePanel>['quakes']
   flashes: ComponentProps<typeof QuakePanel>['flashes']
   simNow: number
   onFocusQuake: ComponentProps<typeof QuakePanel>['onFocusQuake']
   soundOn: boolean
   onToggleSound: () => void
+  ambientOn: boolean
+  onToggleAmbient: () => void
   selected: ComponentProps<typeof QuakeDetail>['quake'] | null
   onCloseQuake: () => void
   // events + data layers
@@ -122,6 +136,7 @@ interface HudProps {
 }
 
 export function Hud(p: HudProps) {
+  const [diaryOpen, setDiaryOpen] = useState(false)
   const titleEl = (
     <TitleCard
       now={p.now}
@@ -216,6 +231,8 @@ export function Hud(p: HudProps) {
         onFocusQuake={p.onFocusQuake}
         soundOn={p.soundOn}
         onToggleSound={p.onToggleSound}
+        ambientOn={p.ambientOn}
+        onToggleAmbient={p.onToggleAmbient}
       />
     ) : null
   const eventsEl =
@@ -236,7 +253,7 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' ? (
       <div className="flex flex-col items-end gap-3">
         <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
-        <div className="hide-short">{meteorEl}</div>
+        {meteorEl}
       </div>
     ) : p.mode === 'solar' ? (
       <SolarNavTree
@@ -271,6 +288,42 @@ export function Hud(p: HudProps) {
         onFollow={p.onFollow}
         onResetView={p.onResetView}
         onHideHud={p.onHideHud}
+        diaryOpen={diaryOpen}
+        // the two bottom-right cards are alternatives — opening one closes the other
+        onDiary={() => {
+          if (!diaryOpen && p.historyOpen) p.onToggleHistory()
+          setDiaryOpen(!diaryOpen)
+        }}
+        historyOpen={p.historyOpen}
+        onHistory={() => {
+          if (!p.historyOpen) setDiaryOpen(false)
+          p.onToggleHistory()
+        }}
+      />
+    ) : null
+  const diaryEl =
+    p.mode === 'earth' && diaryOpen ? (
+      <DiaryPanel
+        input={{
+          quakes: p.allQuakes,
+          events: p.events,
+          kp: p.weather.kp?.kp ?? null,
+          windKms: p.weather.wind?.speedKms ?? null,
+          now: p.now,
+        }}
+        onReplay={p.onTimelineToggle}
+        onClose={() => setDiaryOpen(false)}
+      />
+    ) : null
+  const historyEl =
+    p.mode === 'earth' && p.historyOpen ? (
+      <HistoryPanel
+        count={p.historyCount}
+        total={p.historyTotal}
+        playing={p.historyPlaying}
+        onScrub={p.onHistoryScrub}
+        onPlay={p.onHistoryPlay}
+        onClose={p.onToggleHistory}
       />
     ) : null
   const issEl = p.mode === 'earth' ? <IssPanel iss={p.iss} pass={p.issPass} now={p.now} /> : null
@@ -322,6 +375,8 @@ export function Hud(p: HudProps) {
               {quakeDetailEl}
               {eventDetailEl}
               {missionEl}
+              {diaryEl}
+              {historyEl}
               {dockEl}
               {issEl}
             </div>
@@ -347,6 +402,8 @@ export function Hud(p: HudProps) {
             icon="🛰"
             title="live & controls"
           >
+            {diaryEl}
+            {historyEl}
             {dockEl}
             {issEl}
             {topRightEl}

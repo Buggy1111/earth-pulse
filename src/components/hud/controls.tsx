@@ -221,6 +221,10 @@ export function EarthDock({
   onFollow,
   onResetView,
   onHideHud,
+  diaryOpen,
+  onDiary,
+  historyOpen,
+  onHistory,
 }: {
   tourOn: boolean
   followIss: boolean
@@ -229,12 +233,18 @@ export function EarthDock({
   onFollow: () => void
   onResetView: () => void
   onHideHud: () => void
+  diaryOpen: boolean
+  onDiary: () => void
+  historyOpen: boolean
+  onHistory: () => void
 }) {
   const actions: DockAction[] = [
     { icon: '🎬', label: 'cinematic tour', activeLabel: 'touring — drag to stop', active: tourOn, activeColor: 'text-amber-300', onToggle: onTour },
   ]
   if (showFollow)
     actions.push({ icon: '🛰', label: 'follow ISS', activeLabel: 'following — drag to stop', active: followIss, activeColor: 'text-sky-300', onToggle: onFollow })
+  actions.push({ icon: '📓', label: 'planet diary (24 h)', activeLabel: 'planet diary — open', active: diaryOpen, activeColor: 'text-amber-300', onToggle: onDiary })
+  actions.push({ icon: '🏛', label: 'history of the planet', activeLabel: 'history — open', active: historyOpen, activeColor: 'text-amber-300', onToggle: onHistory })
   actions.push({ icon: '⌖', label: 'reset view', activeLabel: 'reset view', active: false, activeColor: '', onToggle: onResetView })
   actions.push({ icon: '👁', label: 'clean view (H)', activeLabel: 'clean view (H)', active: false, activeColor: '', onToggle: onHideHud })
   return <ModeDock actions={actions} />

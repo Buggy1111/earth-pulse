@@ -1,7 +1,8 @@
 # 🏗 Architektura
 
 Earth Pulse je čistě klientská SPA — **žádný backend, žádné API klíče, žádný
-tracking**. Vše běží v prohlížeči proti veřejným feedům (mnohé s
+tracking**. (Jediná výjimka je *mimo* aplikaci: volitelný Telegram alerter
+`scripts/quake-alert.mjs`, který běží jako GitHub Actions cron.) Vše běží v prohlížeči proti veřejným feedům (mnohé s
 `Access-Control-Allow-Origin: *`, takže je čte browser přímo).
 
 ## Princip: čistá logika dole, React jen drát, scéna z modulů
@@ -15,6 +16,11 @@ src/
 │   ├── satellites.ts   parser TLE + SGP4 wrappery
 │   ├── spacecraft.ts   cenzus aktivních robotických sond (mid-2026)
 │   ├── probes.ts       trajektorie sond z baked HORIZONS snapshotu
+│   ├── l2.ts           Webb/Roman: vlastní propagace halo orbity kolem L2
+│   ├── meteors.ts      meteorické roje: peak, radiant, kvalita oblohy
+│   ├── diary.ts        24h digest planety (otřesy, události, Kp)
+│   ├── history.ts      kurátorovaná chronologie velkých událostí
+│   ├── ambient.ts      aktivita planety → parametry ambientního dronu
 │   ├── stars.ts        HYG katalog hvězd (J2000 unit směry, mag, B–V)
 │   ├── starLook.ts     fyzika hvězdy → vzhled 3D koule (barva, velikost, korona)
 │   ├── lod.ts          LOD výběr pro Starlink roj (model jen u kamery)

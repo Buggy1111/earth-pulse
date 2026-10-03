@@ -276,3 +276,26 @@ test.describe('mobile', () => {
     expect(state.hasVideo).toBe(true)
   })
 })
+
+test('planet diary, history film and meteor showers open from the Earth HUD', async ({ page }) => {
+  // desktop-width HUD: below ~1400px the right-hand panels live in a slide-out drawer
+  await page.setViewportSize({ width: 1500, height: 900 })
+  const errors = await bootGlobe(page)
+  // ☄️ the meteor card always lists the showers in season / next up
+  await expect(page.getByText('Meteor showers')).toBeVisible()
+
+  // 📓 diary: dock button → card with a headline and the replay control
+  await page.getByRole('button', { name: /planet diary/ }).click()
+  await expect(page.getByText(/Planet diary/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /replay the day/ })).toBeVisible()
+
+  // 🏛 history: opens showing the whole chronology, play restarts from Vesuvius
+  await page.getByRole('button', { name: /history of the planet/ }).click()
+  await expect(page.getByLabel('History timeline')).toBeVisible()
+  await page.getByRole('button', { name: /play from the start/ }).click()
+  await expect(page.getByText('AD 79').first()).toBeVisible()
+  await expect(page.getByText(/Vesuvius buries Pompeii/).first()).toBeVisible()
+  // the globe now carries the curated pins instead of the live EONET ones
+  await page.waitForFunction(() => document.body.innerText.includes('Vesuvius'), null, { timeout: 10_000 })
+  expect(errors).toEqual([])
+})

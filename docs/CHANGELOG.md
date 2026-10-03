@@ -278,6 +278,20 @@ infrastruktura:
 > Stav: **108 unit testů (15 souborů) + 5 Playwright e2e**, `tsc` + `eslint`
 > čisté, build OK — a nově to samé hlídá CI na každý push.
 
+## 🔭 Season 4 — TODO list odškrtnut (3. 10. 2026)
+Sedm nápadů z `docs/TODO.md`, šest hotových:
+- **Webb + Roman** v L2 — vlastní propagace halo orbity (`lib/l2.ts`), takže
+  fungují bez HORIZONS; procedurální modely; Webb i v `fetch-probes`.
+- **Telegram alerting** — `scripts/quake-alert.mjs`, pravidla v
+  `alerts.config.json` (kruh/bbox + práh, worldwide práh), USGS + EMSC, dedup,
+  GitHub Actions cron s dedupe stavem na orphan větvi.
+- **Meteorické roje** — karta s odpočtem, kvalita oblohy dle Měsíce, radianty v Sky AR.
+- **Deník planety** — 24h digest + replay dne + export textu.
+- **Historie planety** — 29 událostí, posuvník a „film“ s letem kamery.
+- **Ambientní zvuk** — dron, jehož nálada sleduje aktivitu planety.
+- **Nedělá se:** rozšíření hvězdných fotek — vyžaduje stahování z archivů
+  (ESO/NASA/Commons), v sandboxu bez sítě to nešlo; viz `docs/TODO.md`.
+
 ---
 
 ## Verzování
