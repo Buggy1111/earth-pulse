@@ -153,7 +153,7 @@ export function SideDrawer({
           boxShadow: `${isLeft ? '' : '-'}1px 0 0 ${accent}80, 0 0 60px -10px ${accent}40, 0 24px 60px -20px rgba(0,0,0,0.9)`,
           [isLeft ? 'borderRight' : 'borderLeft']: `2px solid ${accent}aa`,
         }}
-        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto p-3 safe-pt safe-pb backdrop-blur-xl transition-transform duration-300 ease-out ${
+        className={`pointer-events-auto fixed top-0 bottom-0 z-30 flex w-[min(21rem,90vw)] flex-col gap-3 overflow-y-auto p-3 [&>*]:shrink-0 safe-pt safe-pb backdrop-blur-xl transition-transform duration-300 ease-out ${
           isLeft ? 'left-0 safe-pl' : 'right-0 safe-pr'
         } ${open ? 'translate-x-0' : isLeft ? '-translate-x-full' : 'translate-x-full'}`}
         aria-hidden={!open}
@@ -183,6 +183,8 @@ export function SideDrawer({
           </button>
         </div>
         {children}
+        {/* room to scroll past the floating "sky AR" button on phones */}
+        <div className="h-14 shrink-0" aria-hidden />
       </aside>
     </>
   )
@@ -221,6 +223,10 @@ export function EarthDock({
   onFollow,
   onResetView,
   onHideHud,
+  diaryOpen,
+  onDiary,
+  historyOpen,
+  onHistory,
 }: {
   tourOn: boolean
   followIss: boolean
@@ -229,12 +235,18 @@ export function EarthDock({
   onFollow: () => void
   onResetView: () => void
   onHideHud: () => void
+  diaryOpen: boolean
+  onDiary: () => void
+  historyOpen: boolean
+  onHistory: () => void
 }) {
   const actions: DockAction[] = [
     { icon: '🎬', label: 'cinematic tour', activeLabel: 'touring — drag to stop', active: tourOn, activeColor: 'text-amber-300', onToggle: onTour },
   ]
   if (showFollow)
     actions.push({ icon: '🛰', label: 'follow ISS', activeLabel: 'following — drag to stop', active: followIss, activeColor: 'text-sky-300', onToggle: onFollow })
+  actions.push({ icon: '📓', label: 'planet diary (24 h)', activeLabel: 'planet diary — open', active: diaryOpen, activeColor: 'text-amber-300', onToggle: onDiary })
+  actions.push({ icon: '🏛', label: 'history of the planet', activeLabel: 'history — open', active: historyOpen, activeColor: 'text-amber-300', onToggle: onHistory })
   actions.push({ icon: '⌖', label: 'reset view', activeLabel: 'reset view', active: false, activeColor: '', onToggle: onResetView })
   actions.push({ icon: '👁', label: 'clean view (H)', activeLabel: 'clean view (H)', active: false, activeColor: '', onToggle: onHideHud })
   return <ModeDock actions={actions} />

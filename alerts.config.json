@@ -1,0 +1,9 @@
+{
+  "_comment": "Earthquake alert rules for scripts/quake-alert.mjs. Edit freely. A region is a bbox [south, west, north, east] or a circle {lat, lng, radiusKm}.",
+  "worldwideMinMagnitude": 6.5,
+  "regions": [
+    { "name": "Czechia + neighbours", "minMagnitude": 3.0, "circle": { "lat": 49.8, "lng": 15.5, "radiusKm": 400 } },
+    { "name": "Central Europe", "minMagnitude": 4.5, "bbox": [43, 5, 55, 25] },
+    { "name": "Mediterranean", "minMagnitude": 5.5, "bbox": [30, -10, 46, 40] }
+  ]
+}

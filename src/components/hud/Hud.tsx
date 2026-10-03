@@ -2,7 +2,7 @@
  * corner dashboards or, on phones & tablets, two slide-out drawers so the
  * globe stays clear. Rendered only when the HUD is visible. */
 
-import type { ComponentProps } from 'react'
+import { useState, type ComponentProps } from 'react'
 import {
   AbovePanel,
   DataLayerPanel,
@@ -13,6 +13,9 @@ import {
 import { EventDetail, EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
 import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { HudCard } from './HudCard'
+import { DiaryPanel } from './DiaryPanel'
+import { HistoryPanel } from './HistoryPanel'
+import { MeteorPanel } from './MeteorPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { MoonPanel } from '../MoonPanel'
 import { PlanetPanel } from '../PlanetPanel'
@@ -86,12 +89,26 @@ interface HudProps {
   timelinePlaying: boolean
   onTimelineScrub: (h: number) => void
   onTimelineToggle: () => void
+  // 🏛 history of the planet (state machine lives in useHistory)
+  history: {
+    open: boolean
+    count: number
+    total: number
+    playing: boolean
+    toggle: () => void
+    show: (n: number) => void
+    play: () => void
+  }
+  /** The full live USGS list (displayQuakes is cut to the timeline moment). */
+  allQuakes: ComponentProps<typeof QuakePanel>['quakes']
   displayQuakes: ComponentProps<typeof QuakePanel>['quakes']
   flashes: ComponentProps<typeof QuakePanel>['flashes']
   simNow: number
   onFocusQuake: ComponentProps<typeof QuakePanel>['onFocusQuake']
   soundOn: boolean
   onToggleSound: () => void
+  ambientOn: boolean
+  onToggleAmbient: () => void
   selected: ComponentProps<typeof QuakeDetail>['quake'] | null
   onCloseQuake: () => void
   // events + data layers
@@ -121,6 +138,7 @@ interface HudProps {
 }
 
 export function Hud(p: HudProps) {
+  const [diaryOpen, setDiaryOpen] = useState(false)
   const titleEl = (
     <TitleCard
       now={p.now}
@@ -196,6 +214,7 @@ export function Hud(p: HudProps) {
     p.mode === 'earth' && p.userLoc ? (
       <AbovePanel overhead={p.overhead} onPickSat={p.onPickSat} />
     ) : null
+  const meteorEl = p.mode === 'earth' ? <MeteorPanel now={p.now} userLoc={p.userLoc} /> : null
   const timelineEl =
     p.mode === 'earth' ? (
       <TimelinePanel
@@ -214,6 +233,8 @@ export function Hud(p: HudProps) {
         onFocusQuake={p.onFocusQuake}
         soundOn={p.soundOn}
         onToggleSound={p.onToggleSound}
+        ambientOn={p.ambientOn}
+        onToggleAmbient={p.onToggleAmbient}
       />
     ) : null
   const eventsEl =
@@ -232,7 +253,10 @@ export function Hud(p: HudProps) {
     ) : null
   const topRightEl =
     p.mode === 'earth' ? (
-      <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
+      <div className="flex flex-col items-start gap-3">
+        <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
+        {meteorEl}
+      </div>
     ) : p.mode === 'solar' ? (
       <SolarNavTree
         focus={p.focusPlanet}
@@ -266,6 +290,42 @@ export function Hud(p: HudProps) {
         onFollow={p.onFollow}
         onResetView={p.onResetView}
         onHideHud={p.onHideHud}
+        diaryOpen={diaryOpen}
+        // the two bottom-right cards are alternatives — opening one closes the other
+        onDiary={() => {
+          if (!diaryOpen && p.history.open) p.history.toggle()
+          setDiaryOpen(!diaryOpen)
+        }}
+        historyOpen={p.history.open}
+        onHistory={() => {
+          if (!p.history.open) setDiaryOpen(false)
+          p.history.toggle()
+        }}
+      />
+    ) : null
+  const diaryEl =
+    p.mode === 'earth' && diaryOpen ? (
+      <DiaryPanel
+        input={{
+          quakes: p.allQuakes,
+          events: p.events,
+          kp: p.weather.kp?.kp ?? null,
+          windKms: p.weather.wind?.speedKms ?? null,
+          now: p.now,
+        }}
+        onReplay={p.onTimelineToggle}
+        onClose={() => setDiaryOpen(false)}
+      />
+    ) : null
+  const historyEl =
+    p.mode === 'earth' && p.history.open ? (
+      <HistoryPanel
+        count={p.history.count}
+        total={p.history.total}
+        playing={p.history.playing}
+        onScrub={p.history.show}
+        onPlay={p.history.play}
+        onClose={p.history.toggle}
       />
     ) : null
   const issEl = p.mode === 'earth' ? <IssPanel iss={p.iss} pass={p.issPass} now={p.now} /> : null
@@ -317,6 +377,8 @@ export function Hud(p: HudProps) {
               {quakeDetailEl}
               {eventDetailEl}
               {missionEl}
+              {diaryEl}
+              {historyEl}
               {dockEl}
               {issEl}
             </div>
@@ -342,6 +404,8 @@ export function Hud(p: HudProps) {
             icon="🛰"
             title="live & controls"
           >
+            {diaryEl}
+            {historyEl}
             {dockEl}
             {issEl}
             {topRightEl}

@@ -22,6 +22,8 @@ const PROBES = [
   { id: 'lucy', name: 'Lucy', h: '-49' },
   { id: 'hayabusa2', name: 'Hayabusa2', h: '-37', fine: true },
   { id: 'hera', name: 'Hera', h: '-658030' },
+  // JWST sits on a halo orbit around Sun–Earth L2; HORIZONS carries it as -170
+  { id: 'webb', name: 'James Webb Space Telescope', h: '-170', fine: true },
 ]
 
 // Each spacecraft's HORIZONS trajectory is only valid over its published SPK

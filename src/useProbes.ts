@@ -3,16 +3,19 @@
  * separately for rendering; the browser caches it, so it's one fetch in effect. */
 
 import { useEffect, useState } from 'react'
+import { withL2Probes } from './lib/l2'
 import { isValidTraj, type ProbeTraj } from './lib/probes'
 
 export function useProbes(): ProbeTraj[] {
-  const [trajs, setTrajs] = useState<ProbeTraj[]>([])
+  // L2 telescopes (Webb, Roman) are propagated locally, so they're listed even
+  // before / without the baked HORIZONS snapshot
+  const [trajs, setTrajs] = useState<ProbeTraj[]>(() => withL2Probes([]))
   useEffect(() => {
     let cancelled = false
     fetch('probes/probes.json')
       .then((r) => (r.ok ? (r.json() as Promise<ProbeTraj[]>) : Promise.reject(new Error('no probes'))))
       .then((data) => {
-        if (!cancelled) setTrajs(data.filter(isValidTraj))
+        if (!cancelled) setTrajs(withL2Probes(data.filter(isValidTraj)))
       })
       .catch(() => {
         // offline / no snapshot → the nav just won't list probes

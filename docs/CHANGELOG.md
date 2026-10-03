@@ -6,6 +6,14 @@ vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
+## Opravy z revize (3. 10. 2026)
+
+- **Quake alerty:** síťová chyba při odesílání už nepřeskočí uložení stavu už doručených zpráv (žádné duplicitní alerty); denní digest počítá zemětřesení hlášené USGS i EMSC jednou; neúspěšný první běh nevytvoří větev `alert-state` s prázdným stavem (následující běh by přehrál 3 h historie).
+- **Historie planety:** pauza → play pokračuje na zastavené události (dřív jednu přeskočil); tlačítko se vrátí na ▶ hned po poslední události; otevření historie zavře i kartu živé události.
+- **Meteorický panel:** „nad obzorem / ≈N za hodinu" jen u aktivních rojů.
+- **Ambient:** zemětřesení z posledních vteřin se počítá i při minutou zaokrouhleném čase.
+- **L2 dalekohledy:** trajektorie se staví jednou za UTC den a sdílí je strom navigace i 3D vrstva.
+
 ## 🌍 v0.1 — Živá Země (12. 6., 01:44)
 První verze: živá Země na 3D glóbu jako „WOW app z výzkumu". Hned poté skutečné
 README místo Vite boilerplate. *(60ffd8e, 2f38612)*
@@ -277,6 +285,20 @@ infrastruktura:
 
 > Stav: **108 unit testů (15 souborů) + 5 Playwright e2e**, `tsc` + `eslint`
 > čisté, build OK — a nově to samé hlídá CI na každý push.
+
+## 🔭 Season 4 — TODO list odškrtnut (3. 10. 2026)
+Sedm nápadů z `docs/TODO.md`, šest hotových:
+- **Webb + Roman** v L2 — vlastní propagace halo orbity (`lib/l2.ts`), takže
+  fungují bez HORIZONS; procedurální modely; Webb i v `fetch-probes`.
+- **Telegram alerting** — `scripts/quake-alert.mjs`, pravidla v
+  `alerts.config.json` (kruh/bbox + práh, worldwide práh), USGS + EMSC, dedup,
+  GitHub Actions cron s dedupe stavem na orphan větvi.
+- **Meteorické roje** — karta s odpočtem, kvalita oblohy dle Měsíce, radianty v Sky AR.
+- **Deník planety** — 24h digest + replay dne + export textu.
+- **Historie planety** — 29 událostí, posuvník a „film“ s letem kamery.
+- **Ambientní zvuk** — dron, jehož nálada sleduje aktivitu planety.
+- **Nedělá se:** rozšíření hvězdných fotek — vyžaduje stahování z archivů
+  (ESO/NASA/Commons), v sandboxu bez sítě to nešlo; viz `docs/TODO.md`.
 
 ---
 
