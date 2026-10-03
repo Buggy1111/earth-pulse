@@ -49,11 +49,13 @@ export function regionOf(place: string): string {
 
 export function buildDiary({ quakes, events, kp, windKms, now }: DiaryInput): Diary {
   const since = now - DIARY_HOURS * HOUR
+  // `now` may lag the real clock by up to a minute (callers bucket it), so a
+  // quake that just landed can be a few seconds "in the future" — keep it
   const recent = quakes.filter((q) => q.time >= since && q.time <= now + HOUR)
 
   const hourly = new Array<number>(DIARY_HOURS).fill(0)
   for (const q of recent) {
-    const age = Math.floor((now - q.time) / HOUR) // 0 = this hour
+    const age = Math.max(0, Math.floor((now - q.time) / HOUR)) // 0 = this hour
     if (age >= 0 && age < DIARY_HOURS) hourly[DIARY_HOURS - 1 - age]++
   }
 
@@ -70,7 +72,7 @@ export function buildDiary({ quakes, events, kp, windKms, now }: DiaryInput): Di
   for (const [region, count] of regions) if (!busiest || count > busiest.count) busiest = { region, count }
   if (busiest && busiest.count < 3) busiest = null // two quakes is not a "hotspot"
 
-  const dayEvents = events.filter((e) => e.date >= since)
+  const dayEvents = events.filter((e) => e.date >= since && e.date <= now + HOUR)
   const groups = new Map<string, number>()
   for (const e of dayEvents) groups.set(e.category, (groups.get(e.category) ?? 0) + 1)
   const eventGroups: DiaryEventGroup[] = [...groups.entries()]
@@ -95,11 +97,12 @@ export function buildDiary({ quakes, events, kp, windKms, now }: DiaryInput): Di
 }
 
 function headline(count: number, strongest: Quake | null, strongCount: number, kp: number | null): string {
-  if (count === 0) return 'A quiet planet — nothing logged yet.'
+  const storm = kp !== null && kp >= 5
+  if (count === 0) return storm ? `Geomagnetic storm (Kp ${kp.toFixed(0)}) — auroras reach lower latitudes.` : 'A quiet planet — nothing logged yet.'
   const where = strongest ? regionOf(strongest.place) : ''
   if (strongest && strongest.mag >= 7) return `A major day: M ${strongest.mag.toFixed(1)} near ${where}.`
   if (strongest && strongest.mag >= 6) return `A strong shake: M ${strongest.mag.toFixed(1)} near ${where}.`
-  if (kp !== null && kp >= 5) return `Geomagnetic storm (Kp ${kp.toFixed(0)}) — auroras reach lower latitudes.`
+  if (storm) return `Geomagnetic storm (Kp ${kp.toFixed(0)}) — auroras reach lower latitudes.`
   if (strongCount > 0) return `${strongCount} quake${strongCount > 1 ? 's' : ''} of M 5+; the biggest was M ${strongest?.mag.toFixed(1)} near ${where}.`
   return `An ordinary day: ${count} quakes, the biggest M ${strongest?.mag.toFixed(1)} near ${where}.`
 }

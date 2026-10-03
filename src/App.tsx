@@ -290,6 +290,7 @@ export default function App() {
       setSelected(null)
       setSelectedEvent(null)
       setSelectedMission(null)
+      history.close()
     }
   }
 
@@ -441,7 +442,7 @@ export default function App() {
           onToggleAmbient={toggleAmbient}
           selected={selected}
           onCloseQuake={() => setSelected(null)}
-          events={events}
+          events={history.open ? [] : events}
           onEventClick={onEventClick}
           selectedEvent={selectedEvent}
           onCloseEvent={() => setSelectedEvent(null)}

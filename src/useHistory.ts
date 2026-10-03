@@ -29,8 +29,9 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
       const next = Math.max(0, Math.min(N, Math.round(c)))
       setCount(next)
       if (next > 0) onFocus(HISTORIC_EVENTS[next - 1])
+      else onClose() // nothing on the globe any more → drop the open event card
     },
-    [onFocus],
+    [onFocus, onClose],
   )
 
   const toggle = useCallback(() => {
@@ -38,6 +39,15 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
     setCount(N)
     if (open) onClose()
     setOpen(!open)
+  }, [open, onClose])
+
+  /** Shut History mode down for good (e.g. when leaving the Earth view). */
+  const close = useCallback(() => {
+    if (!open) return
+    setPlaying(false)
+    setCount(N)
+    setOpen(false)
+    onClose()
   }, [open, onClose])
 
   const play = useCallback(() => {
@@ -56,5 +66,5 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
   }, [count])
 
   const shown = useMemo(() => historyUpTo(count), [count])
-  return { open, count, playing, shown, total: N, toggle, play, show }
+  return { open, count, playing, shown, total: N, toggle, play, show, close }
 }

@@ -1,18 +1,18 @@
 /** 📓 Planet diary card: the last 24 h in one glance, with a one-click replay
  * of the day on the globe (the quake timeline) and a copy-as-text share. */
 
-import { memo, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HudCard } from './HudCard'
 import { buildDiary, diaryText, type DiaryInput } from '../../lib/diary'
 import { magColor } from '../../lib/quakes'
 import { kpColor, kpLabel } from '../../lib/spaceWeather'
 
-export const DiaryPanel = memo(function DiaryPanel({
+export function DiaryPanel({
   input,
   onReplay,
   onClose,
 }: {
-  input: Omit<DiaryInput, 'now'> & { now: number }
+  input: DiaryInput
   onReplay: () => void
   onClose: () => void
 }) {
@@ -130,6 +130,6 @@ export const DiaryPanel = memo(function DiaryPanel({
       </div>
     </HudCard>
   )
-})
+}
 
 const DIARY_AGO = (h: number) => (h === 0 ? 'this hour' : `${h} h ago`)

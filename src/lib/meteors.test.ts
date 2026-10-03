@@ -81,5 +81,11 @@ describe('meteor showers', () => {
     expect(later.map((o) => o.status)).toEqual([...later.map((o) => o.status)].sort((a, b) => ['peaking', 'active', 'upcoming'].indexOf(a) - ['peaking', 'active', 'upcoming'].indexOf(b)))
     expect(peakLabel({ ...later[0], status: 'upcoming', daysToPeak: 12 })).toBe('peaks in 12 d')
     expect(peakLabel({ ...later[0], status: 'active', daysToPeak: -3 })).toBe('peaked 3 d ago')
+    // a real one: Perseids three days after their maximum are still active
+    const perseids = outlook(utc(2026, 8, 15, 12)).find((o) => o.shower.id === 'per')!
+    expect(perseids.status).toBe('active')
+    expect(peakLabel(perseids)).toBe('peaked 3 d ago')
+    // …but ten+ days later it flips to next year's countdown
+    expect(peakLabel(outlook(utc(2026, 8, 24)).find((o) => o.shower.id === 'per')!)).toMatch(/^peaks /)
   })
 })

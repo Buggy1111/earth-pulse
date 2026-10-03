@@ -1,7 +1,7 @@
 /** App-level UI hooks: timeline replay, eco mode, time-warp anchor and
  * browser geolocation. Pure React state machines — no globe knowledge. */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectWeakGpu, isMobileDevice, sampleFps } from './components/perf'
 import { SOLAR_LAYER_DEFAULTS, type LayerState, type OrbitEntry, type SolarLayerState } from './components/hud/types'
 import { warpedSimMs } from './lib/clock'
@@ -149,7 +149,7 @@ export function useAmbient(quakes: Quake[], kp: number | null, now: number) {
   const activityRef = useRef(0)
   // re-evaluated each minute so a fresh quake nudges the mood without per-frame work
   const minute = Math.floor(now / 60_000)
-  const activity = planetActivity({ quakes, kp, now: minute * 60_000 })
+  const activity = useMemo(() => planetActivity({ quakes, kp, now: minute * 60_000 }), [quakes, kp, minute])
   useEffect(() => {
     activityRef.current = activity
   }, [activity])

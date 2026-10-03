@@ -60,6 +60,17 @@ describe('planet diary', () => {
     expect(d.headline).toMatch(/quiet planet/)
   })
 
+  it('keeps a quake that landed a few seconds after the bucketed clock', () => {
+    const d = buildDiary({ quakes: [q({ agoH: -0.005 })], events: [], kp: null, windKms: null, now: NOW })
+    expect(d.quakeCount).toBe(1)
+    expect(d.hourly[DIARY_HOURS - 1]).toBe(1)
+  })
+
+  it('still reports a geomagnetic storm when the quake feed is empty', () => {
+    const d = buildDiary({ quakes: [], events: [], kp: 7, windKms: null, now: NOW })
+    expect(d.headline).toMatch(/Geomagnetic storm/)
+  })
+
   it('writes a shareable text digest', () => {
     const d = buildDiary({ quakes: [q({ agoH: 1, mag: 5.4 })], events: [ev({ agoH: 1 })], kp: 5.2, windKms: 520, now: NOW })
     const t = diaryText(d, NOW)

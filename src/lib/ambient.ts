@@ -68,6 +68,14 @@ export interface Drone {
   stop(): void
 }
 
+/** Glide a parameter from wherever it is NOW to `value` — an unanchored
+ * linearRamp would start from the previous scheduled event and click. */
+function glide(param: AudioParam, value: number, now: number, end: number): void {
+  param.cancelScheduledValues(now)
+  param.setValueAtTime(param.value, now)
+  param.linearRampToValueAtTime(value, end)
+}
+
 export function startDrone(ctx: AudioContext, activity: number): Drone {
   const p = droneParams(activity)
   const t = ctx.currentTime
@@ -113,15 +121,15 @@ export function startDrone(ctx: AudioContext, activity: number): Drone {
       const q = droneParams(next)
       const now = ctx.currentTime
       const end = now + seconds
-      root.frequency.linearRampToValueAtTime(q.rootHz, end)
-      second.frequency.linearRampToValueAtTime(q.rootHz * q.ratio, end)
-      sub.frequency.linearRampToValueAtTime(q.rootHz / 2, end)
-      filter.frequency.linearRampToValueAtTime(q.cutoffHz, end)
-      lfo.frequency.linearRampToValueAtTime(q.lfoHz, end)
-      lfoAmt.gain.linearRampToValueAtTime(q.lfoDepth / 2, end)
-      trem.gain.linearRampToValueAtTime(1 - q.lfoDepth / 2, end)
-      subGain.gain.linearRampToValueAtTime(q.subLevel, end)
-      master.gain.linearRampToValueAtTime(q.gain, end)
+      glide(root.frequency, q.rootHz, now, end)
+      glide(second.frequency, q.rootHz * q.ratio, now, end)
+      glide(sub.frequency, q.rootHz / 2, now, end)
+      glide(filter.frequency, q.cutoffHz, now, end)
+      glide(lfo.frequency, q.lfoHz, now, end)
+      glide(lfoAmt.gain, q.lfoDepth / 2, now, end)
+      glide(trem.gain, 1 - q.lfoDepth / 2, now, end)
+      glide(subGain.gain, q.subLevel, now, end)
+      glide(master.gain, q.gain, now, end)
     },
     stop() {
       const now = ctx.currentTime

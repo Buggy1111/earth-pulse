@@ -2,7 +2,7 @@
  * each peak, how much moonlight will spoil it, and — when we know where you
  * are — how high the radiant is right now and roughly how many you'd see. */
 
-import { memo, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HudCard } from './HudCard'
 import { subLunarPoint } from '../../lib/moon'
 import {
@@ -84,7 +84,7 @@ function Row({
   )
 }
 
-export const MeteorPanel = memo(function MeteorPanel({
+export function MeteorPanel({
   now,
   userLoc,
 }: {
@@ -112,4 +112,4 @@ export const MeteorPanel = memo(function MeteorPanel({
       </ul>
     </HudCard>
   )
-})
+}

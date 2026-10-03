@@ -63,6 +63,13 @@ export function nextPeak(s: MeteorShower, from: Date): Date {
   return peakDate(s, y + 2)
 }
 
+/** The most recent peak at or before `from`. */
+export function lastPeak(s: MeteorShower, from: Date): Date {
+  const y = from.getUTCFullYear()
+  const p = peakDate(s, y)
+  return p.getTime() <= from.getTime() ? p : peakDate(s, y - 1)
+}
+
 const md = (m: number, d: number) => m * 100 + d
 
 /** Is the shower inside its activity window? Handles windows that wrap New Year. */
@@ -136,13 +143,13 @@ export interface ShowerOutlook {
 export function outlook(from: Date): ShowerOutlook[] {
   const rank: Record<ShowerStatus, number> = { peaking: 0, active: 1, upcoming: 2 }
   return SHOWERS.map((shower) => {
-    const peak = nextPeak(shower, from)
-    return {
-      shower,
-      status: showerStatus(shower, from),
-      peak,
-      daysToPeak: (peak.getTime() - from.getTime()) / DAY,
-    }
+    const status = showerStatus(shower, from)
+    // a shower still active a few days AFTER its maximum reads "peaked 3 d ago",
+    // not next year's countdown
+    const past = lastPeak(shower, from)
+    const recent = status === 'active' && from.getTime() - past.getTime() <= 10 * DAY
+    const peak = recent ? past : nextPeak(shower, from)
+    return { shower, status, peak, daysToPeak: (peak.getTime() - from.getTime()) / DAY }
   }).sort((a, b) => rank[a.status] - rank[b.status] || a.daysToPeak - b.daysToPeak)
 }
 
