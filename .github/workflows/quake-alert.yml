@@ -1,0 +1,70 @@
+# Earthquake → Telegram alerts. Rules live in alerts.config.json.
+#
+# Setup (once): create YOUR OWN bot with @BotFather, then add repository
+# secrets TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID. Without them the job just
+# does a dry run and prints what it would send.
+#
+# "Already alerted" state lives on an orphan branch `alert-state` (one JSON
+# file), so main stays clean and no alert is ever sent twice. GitHub cron is
+# best-effort (every 5–15 min in practice) — fine for a hobby early-warning.
+name: Quake alerts
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # push the alert-state branch only
+
+concurrency:
+  group: quake-alert
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HAS_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Restore alert state
+        id: state
+        run: |
+          if git fetch --depth=1 origin alert-state && git show FETCH_HEAD:.alert-state.json > .alert-state.json; then
+            echo "first=false" >> "$GITHUB_OUTPUT"
+          else
+            echo '{"sent":[]}' > .alert-state.json
+            echo "first=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check earthquakes and send alerts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FIRST_RUN: ${{ steps.state.outputs.first }}
+        run: |
+          if [ "$FIRST_RUN" = "true" ] && [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            node scripts/quake-alert.mjs --baseline
+          else
+            node scripts/quake-alert.mjs
+          fi
+      - name: Save alert state
+        if: always() && env.HAS_TOKEN == 'true'
+        run: |
+          git config user.name "quake-alert bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin alert-state; then
+            git worktree add /tmp/state FETCH_HEAD --detach
+          else
+            git worktree add --orphan -b alert-state /tmp/state
+          fi
+          cp .alert-state.json /tmp/state/.alert-state.json
+          cd /tmp/state
+          git add .alert-state.json
+          if git diff --cached --quiet; then echo "state unchanged"; exit 0; fi
+          git commit -m "alert state"
+          git push origin HEAD:refs/heads/alert-state
