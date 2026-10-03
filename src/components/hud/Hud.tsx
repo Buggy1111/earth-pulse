@@ -89,14 +89,16 @@ interface HudProps {
   timelinePlaying: boolean
   onTimelineScrub: (h: number) => void
   onTimelineToggle: () => void
-  // 🏛 history of the planet
-  historyOpen: boolean
-  historyCount: number
-  historyTotal: number
-  historyPlaying: boolean
-  onToggleHistory: () => void
-  onHistoryScrub: (n: number) => void
-  onHistoryPlay: () => void
+  // 🏛 history of the planet (state machine lives in useHistory)
+  history: {
+    open: boolean
+    count: number
+    total: number
+    playing: boolean
+    toggle: () => void
+    show: (n: number) => void
+    play: () => void
+  }
   /** The full live USGS list (displayQuakes is cut to the timeline moment). */
   allQuakes: ComponentProps<typeof QuakePanel>['quakes']
   displayQuakes: ComponentProps<typeof QuakePanel>['quakes']
@@ -251,7 +253,7 @@ export function Hud(p: HudProps) {
     ) : null
   const topRightEl =
     p.mode === 'earth' ? (
-      <div className="flex flex-col items-end gap-3">
+      <div className="flex flex-col items-start gap-3">
         <WikiPanel edits={p.edits} totalSeen={p.totalSeen} />
         {meteorEl}
       </div>
@@ -291,13 +293,13 @@ export function Hud(p: HudProps) {
         diaryOpen={diaryOpen}
         // the two bottom-right cards are alternatives — opening one closes the other
         onDiary={() => {
-          if (!diaryOpen && p.historyOpen) p.onToggleHistory()
+          if (!diaryOpen && p.history.open) p.history.toggle()
           setDiaryOpen(!diaryOpen)
         }}
-        historyOpen={p.historyOpen}
+        historyOpen={p.history.open}
         onHistory={() => {
-          if (!p.historyOpen) setDiaryOpen(false)
-          p.onToggleHistory()
+          if (!p.history.open) setDiaryOpen(false)
+          p.history.toggle()
         }}
       />
     ) : null
@@ -316,14 +318,14 @@ export function Hud(p: HudProps) {
       />
     ) : null
   const historyEl =
-    p.mode === 'earth' && p.historyOpen ? (
+    p.mode === 'earth' && p.history.open ? (
       <HistoryPanel
-        count={p.historyCount}
-        total={p.historyTotal}
-        playing={p.historyPlaying}
-        onScrub={p.onHistoryScrub}
-        onPlay={p.onHistoryPlay}
-        onClose={p.onToggleHistory}
+        count={p.history.count}
+        total={p.history.total}
+        playing={p.history.playing}
+        onScrub={p.history.show}
+        onPlay={p.history.play}
+        onClose={p.history.toggle}
       />
     ) : null
   const issEl = p.mode === 'earth' ? <IssPanel iss={p.iss} pass={p.issPass} now={p.now} /> : null

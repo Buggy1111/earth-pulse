@@ -44,6 +44,8 @@ src/
 ├── useLiveData.ts  agregace všech živých feedů do jednoho hooku pro App
 ├── useWorldView.ts stavový automat světů (Earth/Moon/solar/drift) + navigace
 ├── useProbes.ts    baked trajektorie sond pro React (nav list, živá vzdálenost)
+├── useHistory.ts   stavový automat režimu Historie (otevřeno / počet / přehrávání)
+├── useAmbient.ts   ambientní dron: životní cyklus AudioContextu + aktivita planety
 ├── uiHooks.ts      useQuality(2K/4K/8K)/useTimeline/useSolarTime/useGeolocate
 │                   /useMediaQuery/useIdleKiosk/useKioskShow/useQuakePing/useShareHash
 ├── workers/

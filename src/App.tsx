@@ -424,13 +424,7 @@ export default function App() {
           timelinePlaying={timelinePlaying}
           onTimelineScrub={onTimelineScrub}
           onTimelineToggle={onTimelineToggle}
-          historyOpen={history.open}
-          historyCount={history.count}
-          historyTotal={history.total}
-          historyPlaying={history.playing}
-          onToggleHistory={history.toggle}
-          onHistoryScrub={history.show}
-          onHistoryPlay={history.play}
+          history={history}
           allQuakes={quakes}
           displayQuakes={displayQuakes}
           flashes={timelineActive ? [] : flashes}

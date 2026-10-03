@@ -12,7 +12,8 @@ import {
   useTleSats,
   useWikiFeed,
 } from './hooks'
-import { useAmbient, useQuakePing } from './uiHooks'
+import { useAmbient } from './useAmbient'
+import { useQuakePing } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 
 export function useLiveData() {

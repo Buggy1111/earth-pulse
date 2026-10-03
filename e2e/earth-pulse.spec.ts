@@ -299,3 +299,25 @@ test('planet diary, history film and meteor showers open from the Earth HUD', as
   await page.waitForFunction(() => document.body.innerText.includes('Vesuvius'), null, { timeout: 10_000 })
   expect(errors).toEqual([])
 })
+
+test.describe('phone HUD', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('diary, history and meteors live in the right drawer and fit the screen', async ({ page }) => {
+    const errors = await bootGlobe(page)
+    await page.getByRole('button', { name: /Open live & controls/i }).click()
+    await expect(page.getByText('Meteor showers')).toBeVisible()
+    await page.getByRole('button', { name: /planet diary/ }).click()
+    await expect(page.getByRole('button', { name: /replay the day/ })).toBeVisible()
+    await page.getByRole('button', { name: /history of the planet/ }).click()
+    await expect(page.getByLabel('History timeline')).toBeVisible()
+    // opening history replaces the diary card (one at a time), nothing spills sideways
+    await expect(page.getByRole('button', { name: /replay the day/ })).toHaveCount(0)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(overflow).toBeLessThanOrEqual(0)
+    // the drawer's cards keep their natural height (no squashed dock rows)
+    const dock = await page.getByRole('button', { name: /clean view/ }).boundingBox()
+    expect(dock && dock.height).toBeGreaterThan(20)
+    expect(errors).toEqual([])
+  })
+})
