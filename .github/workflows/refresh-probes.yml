@@ -13,8 +13,6 @@ on:
   schedule:
     - cron: '0 4 * * 1' # every Monday 04:00 UTC
   workflow_dispatch: {} # allow a manual run from the Actions tab
-  push:
-    branches: ['claude/relaxed-planck-f4u13q'] # TEMPORARY: re-bake once on this branch, then removed
 
 permissions:
   contents: write
