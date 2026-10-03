@@ -191,6 +191,22 @@ test('solar mode places the deep-space probes from their baked trajectories', as
   )
   // the solar navigator lists the probes (click a name to fly out to the craft)
   await page.waitForFunction(() => /Voyager/.test(document.body.innerText), null, { timeout: 15_000 })
+  // the L2 telescopes are propagated locally, so they're present with or without HORIZONS data
+  await page.waitForFunction(
+    () => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        scene(): { traverse(cb: (o: unknown) => void): void }
+      }
+      const ids = new Set<string>()
+      g.scene().traverse((o) => {
+        const id = (o as { userData?: { probeId?: string } }).userData?.probeId
+        if (id) ids.add(id)
+      })
+      return ids.has('webb') && ids.has('roman')
+    },
+    null,
+    { timeout: 15_000 },
+  )
   // and the real ~8.9k-star sky builds as a Points cloud (shader compiles cleanly)
   await page.waitForFunction(
     () => {

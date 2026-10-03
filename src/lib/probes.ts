@@ -40,6 +40,7 @@ export const PROBE_INFO: Record<string, ProbeInfo> = {
   solarorbiter: { id: 'solarorbiter', name: 'Solar Orbiter', operator: 'ESA', launched: 2020, color: '#fb923c', blurb: 'images the Sun up close, tilting out to see its poles' },
   bepicolombo: { id: 'bepicolombo', name: 'BepiColombo', operator: 'ESA/JAXA', launched: 2018, color: '#94a3b8', blurb: 'en route to Mercury via nine planetary flybys' },
   webb: { id: 'webb', name: 'James Webb Space Telescope', operator: 'NASA/ESA/CSA', launched: 2021, color: '#f5d76e', blurb: 'infrared observatory parked on a halo orbit around Sun–Earth L2, 1.5 million km behind Earth' },
+  roman: { id: 'roman', name: 'Nancy Grace Roman Space Telescope', operator: 'NASA', launched: 2026, color: '#7dd3fc', blurb: 'wide-field infrared survey for dark energy and exoplanets, launched Aug 2026 to the same L2 neighbourhood as Webb' },
   hayabusa2: { id: 'hayabusa2', name: 'Hayabusa2', operator: 'JAXA', launched: 2014, color: '#34d399', blurb: 'returned samples of asteroid Ryugu; now on an extended mission' },
 }
 
