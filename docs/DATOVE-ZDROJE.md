@@ -52,7 +52,7 @@ pondělí GitHub Action **„Refresh live-data snapshots"**
 `scripts/quake-alert.mjs` + `.github/workflows/quake-alert.yml`: každých 10 min
 čte USGS (`all_day`) a EMSC FDSN, filtruje podle `alerts.config.json` a posílá
 na Telegram Bot API. Potřebuje **vlastního bota** (secrets `TELEGRAM_BOT_TOKEN`,
-`TELEGRAM_CHAT_ID`); stav „už odesláno“ je na orphan větvi `alert-state`.
+`TELEGRAM_CHAT_ID`); stav „už odesláno“ je na orphan větvi `alert-state`. Denní souhrn: `quake-digest.yml`. Návod: `docs/TELEGRAM-ALERTY.md`.
 
 ## Build-time snapshoty (přibalené)
 

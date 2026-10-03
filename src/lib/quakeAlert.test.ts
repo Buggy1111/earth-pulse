@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatDigest,
   formatMessage,
+  regionOf,
   haversineKm,
   matchingRules,
   nextState,
@@ -88,5 +90,22 @@ describe('quake alert rules', () => {
     expect(validateConfig(config)).toBeNull()
     expect(validateConfig({ worldwideMinMagnitude: 6, regions: [{ name: 'x', minMagnitude: 3 }] })).toMatch(/bbox/)
     expect(validateConfig({ worldwideMinMagnitude: 'high' })).toMatch(/number/)
+  })
+
+  it('writes a daily digest of the last 24 h', () => {
+    const qs = [
+      quake({ id: 'a', mag: 6.1, place: '10 km S of Hualien, Taiwan', time: NOW - 2 * 3_600_000 }),
+      quake({ id: 'b', mag: 3, place: 'A, Chile', time: NOW - 3 * 3_600_000 }),
+      quake({ id: 'c', mag: 3, place: 'B, Chile', time: NOW - 4 * 3_600_000 }),
+      quake({ id: 'd', mag: 3, place: 'C, Chile', time: NOW - 5 * 3_600_000 }),
+      quake({ id: 'old', mag: 8, time: NOW - 30 * 3_600_000 }),
+    ]
+    const text = formatDigest(qs, NOW)
+    expect(text).toContain('4 earthquakes, 1 of M 5+')
+    expect(text).toContain('M 6.1')
+    expect(text).toContain('busiest: Chile (3)')
+    expect(text).not.toContain('M 8.0')
+    expect(formatDigest([], NOW)).toContain('No earthquakes')
+    expect(regionOf('12 km SSW of Ridgecrest, CA')).toBe('CA')
   })
 })

@@ -1,0 +1,26 @@
+# Daily 24 h earthquake summary → Telegram (same bot/secrets as quake-alert.yml).
+# Runs dry (prints only) without TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.
+name: Quake digest
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # every day 06:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Send the 24 h digest
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/quake-alert.mjs --digest

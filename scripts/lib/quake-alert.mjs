@@ -154,3 +154,28 @@ export function validateConfig(config) {
   }
   return null
 }
+
+/** "12 km SSW of Ridgecrest, CA" → "CA"; "Fiji region" → "Fiji region". */
+export function regionOf(place) {
+  const tail = String(place).split(',').pop().trim()
+  return tail.replace(/^\d+\s*km\s+\S+\s+of\s+/i, '').trim() || String(place)
+}
+
+/** Plain digest of the last 24 h for the daily Telegram summary (HTML-safe). */
+export function formatDigest(quakes, nowMs) {
+  const since = nowMs - 86_400_000
+  const day = quakes.filter((q) => q.time >= since && q.time <= nowMs + 3_600_000)
+  if (day.length === 0) return '📓 <b>Earth Pulse — last 24 h</b>\nNo earthquakes logged.'
+  const strong = day.filter((q) => q.mag >= 5).length
+  const top = day.reduce((a, b) => (b.mag > a.mag ? b : a))
+  const regions = new Map()
+  for (const q of day) regions.set(regionOf(q.place), (regions.get(regionOf(q.place)) ?? 0) + 1)
+  const [busyName, busyCount] = [...regions.entries()].sort((a, b) => b[1] - a[1])[0]
+  const lines = [
+    '📓 <b>Earth Pulse — last 24 h</b>',
+    `🌐 ${day.length} earthquakes, ${strong} of M 5+`,
+    `${severity(top.mag)} strongest <b>M ${top.mag.toFixed(1)}</b> — ${esc(top.place)}`,
+  ]
+  if (busyCount >= 3) lines.push(`📍 busiest: ${esc(busyName)} (${busyCount})`)
+  return lines.join('\n')
+}

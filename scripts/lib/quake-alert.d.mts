@@ -42,3 +42,5 @@ export function selectAlerts(quakes: AlertQuake[], config: AlertConfig, state: A
 export function nextState(state: AlertState, alerts: Alert[], nowMs: number, keepDays?: number): AlertState
 export function formatMessage(alert: Alert): string
 export function validateConfig(config: unknown): string | null
+export function regionOf(place: string): string
+export function formatDigest(quakes: AlertQuake[], nowMs: number): string

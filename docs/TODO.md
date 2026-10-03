@@ -34,6 +34,7 @@
   *vlastního* bota u @BotFather a přidat repo secrets `TELEGRAM_BOT_TOKEN`
   a `TELEGRAM_CHAT_ID`; pravidla uprav v `alerts.config.json`. Bez secretů běží
   workflow jen nasucho. (Cron jede až po mergi do `main`.)
+  Návod krok za krokem: `docs/TELEGRAM-ALERTY.md` (+ denní digest `quake-digest.yml`).
 - **(3)(4)(5)(7)** v aplikaci — viz `docs/FUNKCE.md`.
 - **(6) zbývá:** přidat položky do `PHOTOS` ve `scripts/fetch-star-photos.mjs`
   a spustit `npm run fetch-star-photos` (potřebuje síť; ID obrázků je potřeba

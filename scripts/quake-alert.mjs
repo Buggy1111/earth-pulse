@@ -3,14 +3,16 @@
 //
 //   TELEGRAM_BOT_TOKEN  your OWN bot's token (from @BotFather) — never shared
 //   TELEGRAM_CHAT_ID    chat / channel id to post into
-//   node scripts/quake-alert.mjs [--dry] [--baseline] [--config alerts.config.json] [--state path]
+//   node scripts/quake-alert.mjs [--dry] [--baseline] [--digest] [--config alerts.config.json] [--state path]
 //
 // --dry (or missing credentials) prints the messages instead of sending them
 // and leaves the state file untouched. --baseline records everything currently
 // matching as already sent WITHOUT messaging (first run: no replay of the last
-// few hours).
+// few hours). --digest sends ONE 24 h summary message instead of per-quake alerts
+// (the daily workflow); it never touches the alert state.
 import { readFile, writeFile } from 'node:fs/promises'
 import {
+  formatDigest,
   formatMessage,
   nextState,
   parseEmsc,
@@ -28,6 +30,7 @@ const statePath = opt('--state', '.alert-state.json')
 const token = process.env.TELEGRAM_BOT_TOKEN
 const chatId = process.env.TELEGRAM_CHAT_ID
 const baseline = flag('--baseline')
+const digest = flag('--digest')
 const dry = !baseline && (flag('--dry') || !token || !chatId)
 
 async function readJson(path, fallback) {
@@ -77,6 +80,25 @@ for (const [name, load] of sources) {
 if (okSources === 0) {
   console.error('No earthquake source reachable.')
   process.exit(1)
+}
+
+if (digest) {
+  const text = formatDigest(quakes, now)
+  if (!token || !chatId || flag('--dry')) {
+    console.log(`${text}\n(dry run — nothing sent)`)
+    process.exit(0)
+  }
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+  })
+  if (!r.ok) {
+    console.error(`Telegram sendMessage failed: ${r.status} ${(await r.text().catch(() => '')).slice(0, 200)}`)
+    process.exit(1)
+  }
+  console.log('digest sent')
+  process.exit(0)
 }
 
 const state = await readJson(statePath, { sent: [] })
