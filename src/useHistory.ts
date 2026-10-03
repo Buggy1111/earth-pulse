@@ -17,9 +17,9 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
   // the film: advance one event at a time, flying to each as it appears
   useEffect(() => {
     if (!open || !playing) return
+    if (count >= N) return // the film is over (`isPlaying` below already reads false)
     const id = setTimeout(() => {
-      if (count >= N) setPlaying(false)
-      else setCount(count + 1)
+      setCount(count + 1)
     }, STEP_MS)
     return () => clearTimeout(id)
   }, [open, playing, count])
@@ -37,7 +37,7 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
   const toggle = useCallback(() => {
     setPlaying(false)
     setCount(N)
-    if (open) onClose()
+    onClose() // opening swaps the live pins for the chronology → drop a live event card too
     setOpen(!open)
   }, [open, onClose])
 
@@ -50,14 +50,20 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
     onClose()
   }, [open, onClose])
 
+  // the film ends the moment the last event is on screen — derived, so the button flips back to ▶ at once
+  const isPlaying = playing && count < N
+
   const play = useCallback(() => {
-    if (playing) return setPlaying(false)
-    // restart from the first event when at the end (or just starting)
-    setCount(count >= N ? 1 : count + 1)
-    if (count >= N) onFocus(HISTORIC_EVENTS[0])
-    else onFocus(HISTORIC_EVENTS[count])
+    if (isPlaying) return setPlaying(false)
+    if (count >= N || count < 1) {
+      // at the end (or just opened with everything shown): start the film from the top
+      setCount(1)
+      onFocus(HISTORIC_EVENTS[0])
+    } else {
+      onFocus(HISTORIC_EVENTS[count - 1]) // resume AT the paused event, don't skip one
+    }
     setPlaying(true)
-  }, [playing, count, onFocus])
+  }, [isPlaying, count, onFocus])
 
   // keep the camera following the film
   useEffect(() => {
@@ -66,5 +72,5 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
   }, [count])
 
   const shown = useMemo(() => historyUpTo(count), [count])
-  return { open, count, playing, shown, total: N, toggle, play, show, close }
+  return { open, count, playing: isPlaying, shown, total: N, toggle, play, show, close }
 }

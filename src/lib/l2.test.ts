@@ -59,4 +59,11 @@ describe('L2 telescopes', () => {
     expect(all.find((t) => t.id === 'webb')).toBe(baked)
     expect(all.some((t) => t.id === 'roman')).toBe(true)
   })
+
+  it('builds the trajectories once per UTC day and shares them', () => {
+    const a = withL2Probes([], new Date(Date.UTC(2026, 9, 3, 1)))
+    const b = withL2Probes([], new Date(Date.UTC(2026, 9, 3, 23)))
+    expect(b.find((t) => t.id === 'webb')).toBe(a.find((t) => t.id === 'webb'))
+    expect(b.find((t) => t.id === 'roman')).toBe(a.find((t) => t.id === 'roman'))
+  })
 })

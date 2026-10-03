@@ -108,4 +108,12 @@ describe('quake alert rules', () => {
     expect(formatDigest([], NOW)).toContain('No earthquakes')
     expect(regionOf('12 km SSW of Ridgecrest, CA')).toBe('CA')
   })
+
+  it('digest counts a quake reported by both agencies once', () => {
+    const usgs = quake({ id: 'us1', time: NOW - 3_600_000, mag: 5.1, lat: 38, lng: 22, place: '10 km N of Athens, Greece' })
+    const emsc = quake({ id: 'em1', time: NOW - 3_600_000 + 20_000, mag: 4.9, lat: 38.02, lng: 22.01, place: 'GREECE' })
+    const text = formatDigest([usgs, emsc], NOW)
+    expect(text).toContain('1 earthquakes')
+    expect(text).toContain('M 5.1') // the stronger entry wins
+  })
 })

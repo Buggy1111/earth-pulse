@@ -68,6 +68,7 @@ function Row({
             radiant RA {(r.raDeg / 15).toFixed(1)}h, Dec {r.decDeg >= 0 ? '+' : ''}
             {r.decDeg.toFixed(0)}°
             {elev !== null &&
+              o.status !== 'upcoming' &&
               (elev > 0 ? (
                 <>
                   {' '}

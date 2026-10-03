@@ -164,7 +164,12 @@ export function regionOf(place) {
 /** Plain digest of the last 24 h for the daily Telegram summary (HTML-safe). */
 export function formatDigest(quakes, nowMs) {
   const since = nowMs - 86_400_000
-  const day = quakes.filter((q) => q.time >= since && q.time <= nowMs + 3_600_000)
+  const inWindow = quakes
+    .filter((q) => q.time >= since && q.time <= nowMs + 3_600_000)
+    .sort((a, b) => b.mag - a.mag) // keep the better-measured/higher entry when two agencies overlap
+  // USGS and EMSC both report the big ones — count each physical event once
+  const day = []
+  for (const q of inWindow) if (!day.some((d) => isSameEvent(d, q))) day.push(q)
   if (day.length === 0) return '📓 <b>Earth Pulse — last 24 h</b>\nNo earthquakes logged.'
   const strong = day.filter((q) => q.mag >= 5).length
   const top = day.reduce((a, b) => (b.mag > a.mag ? b : a))

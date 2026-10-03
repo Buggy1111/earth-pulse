@@ -88,11 +88,18 @@ if (digest) {
     console.log(`${text}\n(dry run — nothing sent)`)
     process.exit(0)
   }
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-  })
+  let r
+  try {
+    r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch (err) {
+    console.error(`Telegram sendMessage failed: ${err?.name ?? 'error'}`) // never the URL — it embeds the token
+    process.exit(1)
+  }
   if (!r.ok) {
     console.error(`Telegram sendMessage failed: ${r.status} ${(await r.text().catch(() => '')).slice(0, 200)}`)
     process.exit(1)
@@ -113,11 +120,19 @@ for (const alert of baseline ? [] : alerts) {
     console.log(`\n${text}\n`)
     continue
   }
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-  })
+  let r
+  try {
+    r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch (err) {
+    // a network error must not skip writing the state of what WAS delivered (it would be re-sent)
+    console.error(`Telegram sendMessage failed: ${err?.name ?? 'error'}`) // never the URL — it embeds the token
+    break // the rest retries on the next run
+  }
   if (!r.ok) {
     // never echo the URL (it embeds the token) — only the status and Telegram's reason
     const body = await r.text().catch(() => '')

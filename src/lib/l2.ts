@@ -124,10 +124,28 @@ const NAMES: Record<string, string> = {
 
 /** Baked HORIZONS trajectories plus our own L2 propagation for any telescope
  * HORIZONS didn't deliver — a baked entry for the same id always wins. */
+const trajCache = new Map<string, ProbeTraj>()
+let trajCacheDay = -1
+
 export function withL2Probes(baked: ProbeTraj[], now: Date = new Date()): ProbeTraj[] {
   const have = new Set(baked.map((t) => t.id))
+  // ~3,600 earthHelio samples per mission: build once per UTC day and share between
+  // the nav tree and the 3D layer (which also keeps both on the same centre date)
+  const day = Math.floor(now.getTime() / DAY_MS)
   const extra = Object.values(L2_MISSIONS)
     .filter((m) => !have.has(m.id))
-    .map((m) => l2Traj(m, NAMES[m.id] ?? m.id, now))
+    .map((m) => {
+      const key = `${m.id}@${day}`
+      let t = trajCache.get(key)
+      if (!t) {
+        t = l2Traj(m, NAMES[m.id] ?? m.id, new Date(day * DAY_MS))
+        if (trajCacheDay !== day) {
+          trajCache.clear() // only the current day is ever useful
+          trajCacheDay = day
+        }
+        trajCache.set(key, t)
+      }
+      return t
+    })
   return [...baked, ...extra]
 }

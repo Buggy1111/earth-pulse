@@ -42,6 +42,7 @@ jobs:
             echo "first=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Check earthquakes and send alerts
+        id: check
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -53,7 +54,9 @@ jobs:
             node scripts/quake-alert.mjs
           fi
       - name: Save alert state
-        if: always() && env.HAS_TOKEN == 'true'
+        # A failed FIRST run must not create the branch (an empty state would make
+        # the next run replay 3 h of history instead of recording a baseline).
+        if: ${{ !cancelled() && env.HAS_TOKEN == 'true' && (steps.check.outcome == 'success' || steps.state.outputs.first == 'false') }}
         run: |
           git config user.name "quake-alert bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"

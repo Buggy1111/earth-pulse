@@ -42,3 +42,11 @@ describe('ambient drone', () => {
     expect(droneParams(5).ratio).toBe(droneParams(1).ratio) // clamped
   })
 })
+
+describe('planetActivity — minute-floored clock', () => {
+  it('counts a quake from a few seconds after the floored `now`', () => {
+    const now = Date.UTC(2026, 9, 3, 12, 0, 0)
+    const fresh = { id: 'x', time: now + 20_000, mag: 7.2, lat: 0, lng: 0, place: 'x' } as never
+    expect(planetActivity({ quakes: [fresh], kp: 1, now })).toBeGreaterThan(0.5)
+  })
+})

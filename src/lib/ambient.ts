@@ -16,8 +16,9 @@ export function planetActivity({ quakes, kp, now }: { quakes: Quake[]; kp: numbe
   let energy = 0
   let strongest = 0
   for (const q of quakes) {
-    const ageH = (now - q.time) / HOUR
-    if (ageH < 0 || ageH > 6) continue
+    // `now` is floored to the minute by the hook, so a quake from the last seconds is "in the future"
+    const ageH = Math.max(0, (now - q.time) / HOUR)
+    if (q.time > now + HOUR || ageH > 6) continue
     const w = 1 - ageH / 6 / 2 // 1 → 0.5 across the window
     energy += w * Math.pow(10, 1.5 * (Math.min(q.mag, 9.5) - 4))
     strongest = Math.max(strongest, q.mag)
