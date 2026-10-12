@@ -171,6 +171,14 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const futureTex: (THREE.Texture | null)[] = [null, null, null, null, null, null]
     const getFutureTex = (k: number): THREE.Texture => {
       if (k <= 0) return getTex(0)
+      // Keep just the neighboring future frames, like the historical timeline.
+      // Otherwise navigating through all future chapters pins five large textures.
+      for (let j = 1; j < futureTex.length; j++) {
+        if (futureTex[j] && Math.abs(j - k) > 1) {
+          futureTex[j]?.dispose()
+          futureTex[j] = null
+        }
+      }
       if (futureTex[k]) return futureTex[k] as THREE.Texture
       const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp${REV}`)
       t.colorSpace = THREE.SRGBColorSpace

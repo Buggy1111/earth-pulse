@@ -3,13 +3,16 @@
 //
 //   TELEGRAM_BOT_TOKEN  your OWN bot's token (from @BotFather) — never shared
 //   TELEGRAM_CHAT_ID    chat / channel id to post into
-//   node scripts/quake-alert.mjs [--dry] [--baseline] [--digest] [--config alerts.config.json] [--state path]
+//   node scripts/quake-alert.mjs [--dry] [--baseline] [--digest] [--retry-undeliverable] [--config alerts.config.json] [--state path]
 //
 // --dry (or missing credentials) prints the messages instead of sending them
 // and leaves the state file untouched. --baseline records everything currently
 // matching as already sent WITHOUT messaging (first run: no replay of the last
 // few hours). --digest sends ONE 24 h summary message instead of per-quake alerts
 // (the daily workflow); it never touches the alert state.
+// --retry-undeliverable manually replays the durable dead-letter queue. Review
+// the saved state before doing so; successful Telegram delivery is not atomic
+// with saving the state, so a crash during replay may create a duplicate.
 import { readFile, writeFile } from 'node:fs/promises'
 import {
   formatDigest,
@@ -31,6 +34,11 @@ const token = process.env.TELEGRAM_BOT_TOKEN
 const chatId = process.env.TELEGRAM_CHAT_ID
 const baseline = flag('--baseline')
 const digest = flag('--digest')
+const retryUndeliverable = flag('--retry-undeliverable')
+if (retryUndeliverable && (baseline || digest)) {
+  console.error('--retry-undeliverable cannot be combined with --baseline or --digest')
+  process.exit(1)
+}
 const dry = !baseline && (flag('--dry') || !token || !chatId)
 
 async function readJson(path, fallback) {
@@ -49,7 +57,7 @@ async function getJson(url) {
 
 /**
  * One Telegram sendMessage. Returns 'ok', 'retry' (network, 429, 5xx — try again
- * next run) or 'skip' (permanent 4xx such as a message Telegram can't parse: it
+ * next run, including auth failures) or 'skip' (a permanently rejected message: it
  * would fail forever and block every later alert). Never logs the URL — it
  * embeds the bot token.
  */
@@ -69,7 +77,9 @@ async function sendTelegram(text) {
   if (r.ok) return 'ok'
   const body = (await r.text().catch(() => '')).slice(0, 200)
   console.error(`Telegram sendMessage failed: ${r.status} ${body}`)
-  return r.status === 429 || r.status >= 500 ? 'retry' : 'skip'
+  // Authentication/authorization and bot endpoint failures affect every alert,
+  // not the individual message. Preserve the queue for a credential fix.
+  return [401, 403, 404, 429].includes(r.status) || r.status >= 500 ? 'retry' : 'skip'
 }
 
 const config = await readJson(configPath, null)
@@ -119,11 +129,15 @@ if (digest) {
 }
 
 const state = await readJson(statePath, { sent: [] })
-const alerts = selectAlerts(quakes, config, state, now)
+const pending = state.undeliverable ?? []
+const alerts = retryUndeliverable ? pending : selectAlerts(quakes, config, state, now).filter((a) =>
+  !pending.some((p) => p.quake.id === a.quake.id),
+)
 console.log(`${quakes.length} events checked, ${alerts.length} to alert${dry ? ' (dry run)' : ''}`)
 
 const delivered = []
 const skipped = []
+const stillPending = []
 if (baseline) delivered.push(...alerts)
 for (const alert of baseline ? [] : alerts) {
   const text = formatMessage(alert)
@@ -137,12 +151,21 @@ for (const alert of baseline ? [] : alerts) {
     // a message Telegram rejects for good must not block the newer alerts behind it
     console.error(`skipping undeliverable alert ${alert.quake.id}`)
     skipped.push(alert)
+    stillPending.push(alert)
     continue
   }
   delivered.push(alert)
 }
 
 if (baseline) console.log('baseline recorded — no messages sent')
-if (!dry) await writeFile(statePath, JSON.stringify(nextState(state, [...delivered, ...skipped], now)))
+if (!dry) {
+  const next = nextState(state, [...delivered, ...skipped], now)
+  // Permanent Telegram rejections are retained for inspection and explicit
+  // replay; they are not automatically retried on the regular cron schedule.
+  next.undeliverable = retryUndeliverable
+    ? [...pending.filter((p) => !alerts.some((a) => a.quake.id === p.quake.id)), ...stillPending]
+    : [...pending, ...stillPending.filter((a) => !pending.some((p) => p.quake.id === a.quake.id))]
+  await writeFile(statePath, JSON.stringify(next))
+}
 if (!dry && delivered.length + skipped.length < alerts.length) process.exit(1) // the rest retries next run
 if (skipped.length) process.exit(1) // surface permanent failures in the Actions run

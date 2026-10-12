@@ -9,19 +9,22 @@ import { describe, expect, it } from 'vitest'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-function run(telegram: string) {
+function run(telegram: string, replay = false) {
   const dir = mkdtempSync(join(tmpdir(), 'quake-'))
   const config = join(dir, 'config.json')
   const state = join(dir, 'state.json')
   writeFileSync(config, JSON.stringify({ worldwideMinMagnitude: 6.5, regions: [] }))
-  writeFileSync(state, JSON.stringify({ sent: [] }))
+  writeFileSync(state, JSON.stringify(replay ? {
+    sent: [{ id: 'usgs:a', time: Date.now() - 30 * 60000, lat: 35.6, lng: 139.7, mag: 7.1 }],
+    undeliverable: [{ quake: { id: 'usgs:a', lat: 35.6, lng: 139.7, mag: 7.1, depthKm: 10, place: 'Tokyo', time: Date.now() - 30 * 60000, src: 'USGS' }, rules: ['Worldwide'] }],
+  } : { sent: [] }))
   let code = 0
   let out: string
   try {
     out = execFileSync(
       process.execPath,
       ['--import', join(root, 'scripts/test-fixtures/mock-fetch.mjs'), join(root, 'scripts/quake-alert.mjs'),
-        '--config', config, '--state', state],
+        '--config', config, '--state', state, ...(replay ? ['--retry-undeliverable'] : [])],
       { env: { ...process.env, TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: 'c', MOCK_TELEGRAM: telegram }, encoding: 'utf8', stdio: 'pipe' },
     )
   } catch (e) {
@@ -29,8 +32,10 @@ function run(telegram: string) {
     code = err.status
     out = err.stdout + err.stderr
   }
-  const sent = (JSON.parse(readFileSync(state, 'utf8')) as { sent: { id: string }[] }).sent.map((s) => s.id)
-  return { code, out, sent }
+  const saved = JSON.parse(readFileSync(state, 'utf8')) as { sent: { id: string }[]; undeliverable?: { quake: { id: string } }[] }
+  const sent = saved.sent.map((s) => s.id)
+  const undeliverable = saved.undeliverable?.map((a) => a.quake.id) ?? []
+  return { code, out, sent, undeliverable }
 }
 
 describe('quake-alert script', () => {
@@ -44,12 +49,29 @@ describe('quake-alert script', () => {
     const r = run('400,200')
     expect(r.out).toContain('skipping undeliverable alert usgs:a')
     expect(r.sent.sort()).toEqual(['usgs:a', 'usgs:b']) // a is recorded so it can't block forever, b delivered
+    expect(r.undeliverable).toEqual(['usgs:a'])
     expect(r.code).toBe(1) // but the run still shows up as failed
+  })
+
+  it('explicit replay drains successful dead letters without sending current events', () => {
+    const r = run('200', true)
+    expect(r.code).toBe(0)
+    expect(r.undeliverable).toEqual([])
+    expect(r.sent).toContain('usgs:a')
+    expect(r.sent).not.toContain('usgs:b')
+  })
+
+  it('bot authentication errors preserve alerts for retry instead of dead-lettering', () => {
+    const r = run('401')
+    expect(r.code).toBe(1)
+    expect(r.sent).toEqual([])
+    expect(r.undeliverable).toEqual([])
   })
 
   it('a network error keeps what was delivered and retries the rest next run', () => {
     const r = run('200,net')
     expect(r.sent).toEqual(['usgs:a'])
+    expect(r.undeliverable).toEqual([])
     expect(r.code).toBe(1)
     expect(r.out).not.toContain('api.telegram.org') // the token-bearing URL is never logged
   })
