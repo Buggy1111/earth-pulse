@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { EMSC_WS_URL, parseEmscEvent } from './lib/emsc'
 import { EONET_URL, parseEvents, type EarthEvent } from './lib/events'
-import { parseIss, ISS_URL, type IssState } from './lib/iss'
+import { isIssTelemetryFresh, parseIss, ISS_URL, type IssState } from './lib/iss'
 import { diffNewQuakes, parseQuakes, USGS_FEED_URL, type Quake, type UsgsFeed } from './lib/quakes'
 import { parseTle, toTrackedSats, TLE_LOCAL_URL, type TrackedSat } from './lib/satellites'
 import {
@@ -228,7 +228,8 @@ export function useSpaceWeather(intervalMs = 60_000): SpaceWeather {
  * Consecutive failures back the poll off up to 60 s — a dead endpoint isn't
  * hammered every 3 s for the whole visit; one success snaps the cadence back. */
 export function useIss(intervalMs = 3_000): IssState | null {
-  const [iss, setIss] = useState<IssState | null>(null)
+  const [reading, setReading] = useState<{ data: IssState; receivedAt: number } | null>(null)
+  const [clock, setClock] = useState(() => Date.now())
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -239,9 +240,12 @@ export function useIss(intervalMs = 3_000): IssState | null {
         // ticking so the feed resumes the moment the tab is visible again
         try {
           const resp = await fetch(ISS_URL)
+          if (!resp.ok) throw new Error(`ISS API HTTP ${resp.status}`)
           const data = await resp.json()
+          const parsed = parseIss(data)
+          if (!parsed) throw new Error('Invalid ISS telemetry')
           failures = 0
-          if (!cancelled) setIss(parseIss(data))
+          if (!cancelled) setReading({ data: parsed, receivedAt: Date.now() })
         } catch {
           failures++ // keep last position
         }
@@ -255,7 +259,11 @@ export function useIss(intervalMs = 3_000): IssState | null {
       if (timer) clearTimeout(timer)
     }
   }, [intervalMs])
-  return iss
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 1_000)
+    return () => clearInterval(id)
+  }, [])
+  return reading && isIssTelemetryFresh(reading.receivedAt, clock) ? reading.data : null
 }
 
 /** Live Wikipedia edits over SSE + a counter of everything seen this visit.

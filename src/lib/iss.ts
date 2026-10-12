@@ -32,3 +32,10 @@ export function parseIss(data: Partial<IssResponse> | null | undefined): IssStat
     visibility: typeof data.visibility === 'string' ? data.visibility : 'unknown',
   }
 }
+
+/** Stale live telemetry must never be presented as the ISS position "now". */
+export const ISS_MAX_AGE_MS = 30_000
+
+export function isIssTelemetryFresh(lastSuccessMs: number, nowMs: number, maxAgeMs = ISS_MAX_AGE_MS): boolean {
+  return Number.isFinite(lastSuccessMs) && lastSuccessMs > 0 && nowMs >= lastSuccessMs && nowMs - lastSuccessMs <= maxAgeMs
+}
