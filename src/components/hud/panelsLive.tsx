@@ -184,8 +184,7 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
   )
 }
 
-/** Detail card for a clicked NASA EONET natural event — the events' answer to
- * QuakeDetail, so a wildfire/storm/volcano reads as richly as an earthquake. */
+/** "24 August AD 79" — day, month and year (AD for the ancient ones) of a historic event. */
 function formatHistoricDate(ms: number): string {
   const d = new Date(ms)
   const y = d.getUTCFullYear()
@@ -193,6 +192,8 @@ function formatHistoricDate(ms: number): string {
   return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })} ${year}`
 }
 
+/** Detail card for a clicked NASA EONET natural event — the events' answer to
+ * QuakeDetail, so a wildfire/storm/volcano reads as richly as an earthquake. */
 export function EventDetail({
   event,
   now,

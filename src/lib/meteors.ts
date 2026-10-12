@@ -95,7 +95,9 @@ export function radiantAt(s: MeteorShower, date: Date): { raDeg: number; decDeg:
   // upcoming one, so a date well after this year's peak is ~a year BEFORE the next
   let d = (date.getTime() - peak.getTime()) / DAY
   if (d < -183) d += 365.25
-  const days = Math.max(-25, Math.min(25, d))
+  // clamp to the longest activity window (Southern Taurids reach 46 d before peak);
+  // ±25 used to freeze long showers' radiants ~17° off at the edges of their season
+  const days = Math.max(-60, Math.min(60, d))
   return {
     raDeg: (((s.raDeg + s.driftRa * days) % 360) + 360) % 360,
     decDeg: Math.max(-90, Math.min(90, s.decDeg + s.driftDec * days)),
@@ -144,11 +146,13 @@ export function outlook(from: Date): ShowerOutlook[] {
   const rank: Record<ShowerStatus, number> = { peaking: 0, active: 1, upcoming: 2 }
   return SHOWERS.map((shower) => {
     const status = showerStatus(shower, from)
-    // a shower still active a few days AFTER its maximum reads "peaked 3 d ago",
-    // not next year's countdown
+    // an ACTIVE shower refers to the maximum of the season it's in: after the peak
+    // that's "peaked 16 d ago" (S. δ Aquariids run 3 weeks past theirs), not next
+    // year's countdown — so take whichever peak is closer
     const past = lastPeak(shower, from)
-    const recent = status === 'active' && from.getTime() - past.getTime() <= 10 * DAY
-    const peak = recent ? past : nextPeak(shower, from)
+    const next = nextPeak(shower, from)
+    const recent = status === 'active' && from.getTime() - past.getTime() < next.getTime() - from.getTime()
+    const peak = recent ? past : next
     return { shower, status, peak, daysToPeak: (peak.getTime() - from.getTime()) / DAY }
   }).sort((a, b) => rank[a.status] - rank[b.status] || a.daysToPeak - b.daysToPeak)
 }

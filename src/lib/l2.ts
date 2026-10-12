@@ -114,7 +114,8 @@ export function l2Traj(m: L2Mission, name: string, center: Date): ProbeTraj {
     const p = l2Pos(m, new Date(start + i * DAY_MS))
     pos.push(Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6, Math.round(p[2] * 1e6) / 1e6)
   }
-  return { id: m.id, name, jd0: start / DAY_MS + JD_UNIX, stepDays: 1, pos }
+  // samples drive the trail; the position itself is exact for ANY date on the warp clock
+  return { id: m.id, name, jd0: start / DAY_MS + JD_UNIX, stepDays: 1, pos, posAt: (d) => l2Pos(m, d), analytic: true }
 }
 
 const NAMES: Record<string, string> = {
@@ -122,13 +123,18 @@ const NAMES: Record<string, string> = {
   roman: 'Nancy Grace Roman Space Telescope',
 }
 
-/** Baked HORIZONS trajectories plus our own L2 propagation for any telescope
- * HORIZONS didn't deliver — a baked entry for the same id always wins. */
 const trajCache = new Map<string, ProbeTraj>()
 let trajCacheDay = -1
 
+/** Baked HORIZONS trajectories plus our own L2 propagation for any telescope
+ * HORIZONS didn't deliver — a baked entry for the same id wins inside its sampled
+ * window and falls back to the L2 model outside it (no freezing when warping). */
 export function withL2Probes(baked: ProbeTraj[], now: Date = new Date()): ProbeTraj[] {
   const have = new Set(baked.map((t) => t.id))
+  baked = baked.map((t) => {
+    const m = L2_MISSIONS[t.id]
+    return m && !t.posAt ? { ...t, posAt: (d: Date) => l2Pos(m, d) } : t
+  })
   // ~3,600 earthHelio samples per mission: build once per UTC day and share between
   // the nav tree and the 3D layer (which also keeps both on the same centre date)
   const day = Math.floor(now.getTime() / DAY_MS)

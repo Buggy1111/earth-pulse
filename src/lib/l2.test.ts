@@ -56,7 +56,9 @@ describe('L2 telescopes', () => {
     const baked = { id: 'webb', name: 'JWST', jd0: 1, stepDays: 1, pos: [0, 0, 0, 1, 0, 0] }
     const all = withL2Probes([baked], SOON)
     expect(all.filter((t) => t.id === 'webb')).toHaveLength(1)
-    expect(all.find((t) => t.id === 'webb')).toBe(baked)
+    const webb = all.find((t) => t.id === 'webb')!
+    expect(webb.pos).toBe(baked.pos) // the baked samples win
+    expect(webb.analytic).toBeUndefined() // model only fills dates outside the window
     expect(all.some((t) => t.id === 'roman')).toBe(true)
   })
 
@@ -65,5 +67,20 @@ describe('L2 telescopes', () => {
     const b = withL2Probes([], new Date(Date.UTC(2026, 9, 3, 23)))
     expect(b.find((t) => t.id === 'webb')).toBe(a.find((t) => t.id === 'webb'))
     expect(b.find((t) => t.id === 'roman')).toBe(a.find((t) => t.id === 'roman'))
+  })
+
+  it('keeps moving with Earth when the clock is warped far outside the samples', () => {
+    const t = l2Traj(L2_MISSIONS.roman, 'Roman', SOON)
+    for (const year of [2029, 2033]) {
+      const d = new Date(Date.UTC(year, 5, 1))
+      const km = dist(probePosAu(t, d), earthHelio(d)) * AU_KM
+      expect(km).toBeLessThan(2.4e6)
+    }
+    // a baked HORIZONS entry is used inside its window and the model outside it
+    const baked = withL2Probes([{ id: 'webb', name: 'JWST', jd0: 2461000.5, stepDays: 1, pos: [9, 9, 9, 9, 9, 9] }], SOON)
+    const webb = baked.find((x) => x.id === 'webb')!
+    expect(probePosAu(webb, new Date((2461000.5 - 2440587.5) * 86_400_000))[0]).toBe(9)
+    const far = new Date(Date.UTC(2030, 0, 1))
+    expect(dist(probePosAu(webb, far), earthHelio(far)) * AU_KM).toBeLessThan(2.4e6)
   })
 })

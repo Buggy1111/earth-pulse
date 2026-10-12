@@ -39,8 +39,9 @@ export function makeWebbModel(): THREE.Object3D {
   kite.lineTo(0.5, 0)
   kite.lineTo(0, -0.3)
   kite.closePath()
+  const sheetGeo = new THREE.ShapeGeometry(kite) // one buffer shared by all five layers
   for (let i = 0; i < 5; i++) {
-    const sheet = new THREE.Mesh(new THREE.ShapeGeometry(kite), SHIELD)
+    const sheet = new THREE.Mesh(sheetGeo, SHIELD)
     sheet.rotation.x = -Math.PI / 2
     sheet.position.y = i * 0.012
     g.add(sheet)
@@ -52,8 +53,9 @@ export function makeWebbModel(): THREE.Object3D {
   // the gold mirror, tilted up out of the shield plane
   const mirror = new THREE.Group()
   const hexR = 0.032
+  const hexGeo = new THREE.CylinderGeometry(hexR, hexR, 0.006, 6) // shared by all 18 segments
   for (const [q, r] of webbSegmentCoords()) {
-    const hex = new THREE.Mesh(new THREE.CylinderGeometry(hexR, hexR, 0.006, 6), GOLD)
+    const hex = new THREE.Mesh(hexGeo, GOLD)
     hex.position.set(hexR * 1.76 * (q + r / 2), 0, hexR * 1.52 * r)
     mirror.add(hex)
   }

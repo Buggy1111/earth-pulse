@@ -14,6 +14,11 @@ export interface ProbeTraj {
   stepDays: number
   /** Flat [x0,y0,z0, x1,y1,z1, …] in AU. */
   pos: number[]
+  /** Optional exact position model (L2 telescopes). Used for every date when
+   * `analytic`, otherwise only OUTSIDE the sampled window — so warping the clock
+   * past the samples keeps the craft moving instead of freezing at the edge. */
+  posAt?: (date: Date) => [number, number, number]
+  analytic?: boolean
 }
 
 export interface ProbeInfo {
@@ -71,6 +76,7 @@ export function probePosAu(t: ProbeTraj, date: Date): [number, number, number] {
   const n = t.pos.length / 3
   const jd = date.getTime() / 86_400_000 + JD_UNIX
   const f = (jd - t.jd0) / t.stepDays
+  if (t.posAt && (t.analytic || f < 0 || f > n - 1)) return t.posAt(date)
   const i = Math.max(0, Math.min(n - 1, Math.floor(f)))
   const j = Math.min(n - 1, i + 1)
   const a = Math.max(0, Math.min(1, f - i))

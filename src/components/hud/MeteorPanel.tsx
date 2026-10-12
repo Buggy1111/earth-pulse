@@ -36,8 +36,12 @@ function Row({
   onToggle: () => void
 }) {
   const s = o.shower
-  const q = QUALITY[skyQuality(subLunarPoint(o.peak).illumination)]
-  const r = radiantAt(s, new Date(now))
+  // moonlight at peak and the radiant drift change over days, not seconds — the
+  // panel ticks every second, so recompute them only when the hour changes
+  const hour = Math.floor(now / 3_600_000)
+  const peakMs = o.peak.getTime()
+  const q = useMemo(() => QUALITY[skyQuality(subLunarPoint(new Date(peakMs)).illumination)], [peakMs])
+  const r = useMemo(() => radiantAt(s, new Date(hour * 3_600_000)), [s, hour])
   const elev = userLoc ? radiantElevationDeg(userLoc, new Date(now), r.raDeg, r.decDeg) : null
   const hot = o.status === 'peaking'
   return (

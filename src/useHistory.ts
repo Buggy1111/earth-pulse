@@ -2,7 +2,7 @@
  * are on the globe, and the auto-playing "film" through them. Focusing an event
  * (fly there + open its card) is delegated to the caller. */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EarthEvent } from './lib/events'
 import { HISTORIC_EVENTS, historyUpTo } from './lib/history'
 
@@ -13,13 +13,23 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
   const [open, setOpen] = useState(false)
   const [count, setCount] = useState(N)
   const [playing, setPlaying] = useState(false)
+  // latest onFocus without re-arming the film timer when the caller passes a fresh function
+  const focusRef = useRef(onFocus)
+  useEffect(() => {
+    focusRef.current = onFocus
+  }, [onFocus])
 
   // the film: advance one event at a time, flying to each as it appears
   useEffect(() => {
     if (!open || !playing) return
-    if (count >= N) return // the film is over (`isPlaying` below already reads false)
+    if (count >= N) {
+      // the film is over: stop for real, so a later scrub can't silently restart it
+      const end = setTimeout(() => setPlaying(false), 0)
+      return () => clearTimeout(end)
+    }
     const id = setTimeout(() => {
       setCount(count + 1)
+      focusRef.current(HISTORIC_EVENTS[count]) // fly to the event that just appeared (exactly once)
     }, STEP_MS)
     return () => clearTimeout(id)
   }, [open, playing, count])
@@ -27,6 +37,7 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
   const show = useCallback(
     (c: number) => {
       const next = Math.max(0, Math.min(N, Math.round(c)))
+      setPlaying(false) // a manual scrub takes over from the film
       setCount(next)
       if (next > 0) onFocus(HISTORIC_EVENTS[next - 1])
       else onClose() // nothing on the globe any more → drop the open event card
@@ -64,12 +75,6 @@ export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void
     }
     setPlaying(true)
   }, [isPlaying, count, onFocus])
-
-  // keep the camera following the film
-  useEffect(() => {
-    if (open && playing && count > 0) onFocus(HISTORIC_EVENTS[count - 1])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count])
 
   const shown = useMemo(() => historyUpTo(count), [count])
   return { open, count, playing: isPlaying, shown, total: N, toggle, play, show, close }

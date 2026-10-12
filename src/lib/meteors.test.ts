@@ -85,7 +85,21 @@ describe('meteor showers', () => {
     const perseids = outlook(utc(2026, 8, 15, 12)).find((o) => o.shower.id === 'per')!
     expect(perseids.status).toBe('active')
     expect(peakLabel(perseids)).toBe('peaked 3 d ago')
-    // …but ten+ days later it flips to next year's countdown
-    expect(peakLabel(outlook(utc(2026, 8, 24)).find((o) => o.shower.id === 'per')!)).toMatch(/^peaks /)
+    // …still "peaked" on the last day of the season, next year's countdown once it's over
+    expect(peakLabel(outlook(utc(2026, 8, 24)).find((o) => o.shower.id === 'per')!)).toBe('peaked 11 d ago')
+    expect(peakLabel(outlook(utc(2026, 8, 25)).find((o) => o.shower.id === 'per')!)).toMatch(/^peaks /)
+  })
+
+  it('long-lasting showers: past-peak label and radiant drift across the whole season', () => {
+    const sda = SHOWERS.find((x) => x.id === 'sda')!
+    const aug15 = new Date(Date.UTC(2026, 7, 15))
+    const o = outlook(aug15).find((x) => x.shower.id === 'sda')!
+    expect(o.status).toBe('active')
+    expect(peakLabel(o)).toMatch(/^peaked 1[56] d ago$/)
+    const sta = SHOWERS.find((x) => x.id === 'sta')!
+    const sep20 = new Date(Date.UTC(2026, 8, 20, 12))
+    // 46 days before the peak the radiant has really drifted 46 × 0.8° back in RA
+    expect(radiantAt(sta, sep20).raDeg).toBeCloseTo(sta.raDeg - 0.8 * 46, 0)
+    expect(sda.zhr).toBeGreaterThan(0)
   })
 })

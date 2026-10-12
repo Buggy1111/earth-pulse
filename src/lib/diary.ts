@@ -5,6 +5,9 @@
 import { eventMeta, type EarthEvent } from './events'
 import type { Quake } from './quakes'
 import { kpLabel } from './spaceWeather'
+import { regionOf } from './quakeMatch.mjs'
+
+export { regionOf }
 
 const HOUR = 3_600_000
 export const DIARY_HOURS = 24
@@ -39,12 +42,6 @@ export interface Diary {
   kp: number | null
   windKms: number | null
   headline: string
-}
-
-/** "12 km SSW of Ridgecrest, CA" → "CA"; "Fiji region" → "Fiji region". */
-export function regionOf(place: string): string {
-  const tail = place.split(',').pop()?.trim() ?? place
-  return tail.replace(/^\d+\s*km\s+\S+\s+of\s+/i, '').trim() || place
 }
 
 export function buildDiary({ quakes, events, kp, windKms, now }: DiaryInput): Diary {

@@ -43,4 +43,5 @@ export function nextState(state: AlertState, alerts: Alert[], nowMs: number, kee
 export function formatMessage(alert: Alert): string
 export function validateConfig(config: unknown): string | null
 export function regionOf(place: string): string
+export const DIGEST_MIN_MAG: number
 export function formatDigest(quakes: AlertQuake[], nowMs: number): string

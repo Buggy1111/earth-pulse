@@ -1,15 +1,8 @@
 // Pure logic for the earthquake → Telegram alerter (scripts/quake-alert.mjs).
 // No I/O here, so it is unit-tested in src/lib/quakeAlert.test.ts.
+import { haversineKm, isSameEvent, regionOf } from '../../src/lib/quakeMatch.mjs'
 
-const RAD = Math.PI / 180
-
-/** Great-circle distance in km. */
-export function haversineKm(lat1, lng1, lat2, lng2) {
-  const dLat = (lat2 - lat1) * RAD
-  const dLng = (lng2 - lng1) * RAD
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * RAD) * Math.cos(lat2 * RAD) * Math.sin(dLng / 2) ** 2
-  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)))
-}
+export { haversineKm, isSameEvent, regionOf }
 
 /** USGS summary GeoJSON → [{ id, lat, lng, mag, depthKm, place, time, url, src }]. */
 export function parseUsgs(json) {
@@ -40,7 +33,8 @@ export function parseEmsc(json) {
     const c = f?.geometry?.coordinates
     const p = f?.properties
     const time = Date.parse(p?.time ?? '')
-    if (!c || !p?.unid || !Number.isFinite(Number(p.mag)) || !Number.isFinite(time)) continue
+    // `Number(null)` is 0 — an EMSC event with no magnitude yet must be skipped, not read as M 0.0
+    if (!c || !p?.unid || p.mag == null || !Number.isFinite(Number(p.mag)) || !Number.isFinite(time)) continue
     out.push({
       id: `emsc:${p.unid}`,
       lat: c[1],
@@ -54,13 +48,6 @@ export function parseEmsc(json) {
     })
   }
   return out
-}
-
-/** Same physical event reported by two agencies (time, place and magnitude agree). */
-export function isSameEvent(a, b) {
-  if (Math.abs(a.time - b.time) > 120_000) return false
-  if (Math.abs(a.mag - b.mag) > 1.2) return false
-  return haversineKm(a.lat, a.lng, b.lat, b.lng) < 250
 }
 
 /**
@@ -135,7 +122,7 @@ export function formatMessage({ quake: q, rules }) {
     `🕒 ${when}`,
     `⬇️ depth ${Math.round(q.depthKm)} km · 📍 ${q.lat.toFixed(2)}, ${q.lng.toFixed(2)}`,
     `🔔 ${esc(rules.join(', '))} · via ${q.src}`,
-    `<a href="${map}">map</a>${q.url ? ` · <a href="${esc(q.url)}">details</a>` : ''}`,
+    `<a href="${esc(map)}">map</a>${q.url ? ` · <a href="${esc(q.url)}">details</a>` : ''}`,
   ]
   return lines.join('\n')
 }
@@ -152,33 +139,32 @@ export function validateConfig(config) {
     const okCircle = c && [c.lat, c.lng, c.radiusKm].every(Number.isFinite)
     if (!okBox && !okCircle) return `region "${r.name}" needs a valid bbox [s,w,n,e] or circle {lat,lng,radiusKm}`
   }
+  if (w == null && !(config.regions ?? []).length) return 'no rules: set worldwideMinMagnitude or add a region'
   return null
 }
 
-/** "12 km SSW of Ridgecrest, CA" → "CA"; "Fiji region" → "Fiji region". */
-export function regionOf(place) {
-  const tail = String(place).split(',').pop().trim()
-  return tail.replace(/^\d+\s*km\s+\S+\s+of\s+/i, '').trim() || String(place)
-}
+export const DIGEST_MIN_MAG = 2.5
 
 /** Plain digest of the last 24 h for the daily Telegram summary (HTML-safe). */
 export function formatDigest(quakes, nowMs) {
   const since = nowMs - 86_400_000
+  // M 2.5+ only: USGS all_day is mostly tiny US events while EMSC is queried from
+  // M 2.5 — one threshold keeps the count comparable from day to day
   const inWindow = quakes
-    .filter((q) => q.time >= since && q.time <= nowMs + 3_600_000)
+    .filter((q) => q.mag >= DIGEST_MIN_MAG && q.time >= since && q.time <= nowMs + 3_600_000)
     .sort((a, b) => b.mag - a.mag) // keep the better-measured/higher entry when two agencies overlap
   // USGS and EMSC both report the big ones — count each physical event once
   const day = []
   for (const q of inWindow) if (!day.some((d) => isSameEvent(d, q))) day.push(q)
   if (day.length === 0) return '📓 <b>Earth Pulse — last 24 h</b>\nNo earthquakes logged.'
   const strong = day.filter((q) => q.mag >= 5).length
-  const top = day.reduce((a, b) => (b.mag > a.mag ? b : a))
+  const top = day[0] // sorted by magnitude, strongest first
   const regions = new Map()
   for (const q of day) regions.set(regionOf(q.place), (regions.get(regionOf(q.place)) ?? 0) + 1)
   const [busyName, busyCount] = [...regions.entries()].sort((a, b) => b[1] - a[1])[0]
   const lines = [
     '📓 <b>Earth Pulse — last 24 h</b>',
-    `🌐 ${day.length} earthquakes, ${strong} of M 5+`,
+    `🌐 ${day.length} earthquakes of M 2.5+, ${strong} of M 5+`,
     `${severity(top.mag)} strongest <b>M ${top.mag.toFixed(1)}</b> — ${esc(top.place)}`,
   ]
   if (busyCount >= 3) lines.push(`📍 busiest: ${esc(busyName)} (${busyCount})`)

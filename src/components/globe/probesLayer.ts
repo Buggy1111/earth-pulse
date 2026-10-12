@@ -264,7 +264,9 @@ export function setupProbes(
         // the planets) so their real form shows — solar panels, body — keeping only
         // a faint accent floor so the shadowed side still reads its colour.
         const accent = new THREE.Color(color)
-        model.traverse((o) => {
+        // procedural telescopes carry hand-tuned materials (Webb's gold mirror) —
+        // only the generic GLB fleet needs the relighting rewrite below
+        if (!procedural) model.traverse((o) => {
           const mesh = o as THREE.Mesh
           const src = mesh.material as THREE.MeshStandardMaterial | undefined
           if (!src?.emissive) return
@@ -299,7 +301,14 @@ export function setupProbes(
     .catch(() => [] as ProbeTraj[])
     .then((trajs) => {
       if (disposed) return
-      for (const traj of withL2Probes(trajs.filter(isValidTraj))) addCraft(traj)
+      for (const traj of withL2Probes(trajs.filter(isValidTraj))) {
+        // one bad craft (model factory / trail) must not take the rest of the fleet down
+        try {
+          addCraft(traj)
+        } catch (err) {
+          console.warn(`probe ${traj.id} skipped`, err)
+        }
+      }
     })
 
   return {

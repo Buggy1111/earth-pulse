@@ -107,7 +107,13 @@ export default function App() {
     [sats],
   )
 
-  const { timeOffsetH, playing: timelinePlaying, onToggle: onTimelineToggle, onScrub: onTimelineScrub } = useTimeline()
+  const {
+    timeOffsetH,
+    playing: timelinePlaying,
+    onToggle: onTimelineToggle,
+    onScrub: onTimelineScrub,
+    onReplay: onTimelineReplay,
+  } = useTimeline()
   const simNow = now + timeOffsetH * 3_600_000
   const timelineActive = timeOffsetH < 0
   const displayQuakes = useMemo(
@@ -277,6 +283,15 @@ export default function App() {
     () => (history.open && !layers.events ? { ...layers, events: true } : layers),
     [history.open, layers],
   )
+  // the HUD toggle shows what's really on the globe; switching events off while the
+  // chronology is up leaves History (otherwise the click would do nothing visible)
+  const onToggleHudLayer = useCallback(
+    (key: keyof LayerState) => {
+      if (key === 'events' && history.open) history.close()
+      else onToggleLayer(key)
+    },
+    [history, onToggleLayer],
+  )
 
   // the quake / event / mission detail cards are Earth-view only — drop them the
   // moment we leave Earth so a card opened before hopping to the Moon, the solar
@@ -402,8 +417,8 @@ export default function App() {
           solarLayers={solarLayers}
           onToggleSolarLayer={toggleSolarLayer}
           probes={probes}
-          layers={layers}
-          onToggleLayer={onToggleLayer}
+          layers={globeLayers}
+          onToggleLayer={onToggleHudLayer}
           orbits={orbits}
           onRemoveOrbit={onRemoveOrbit}
           onClearOrbits={onClearOrbits}
@@ -424,6 +439,7 @@ export default function App() {
           timelinePlaying={timelinePlaying}
           onTimelineScrub={onTimelineScrub}
           onTimelineToggle={onTimelineToggle}
+          onTimelineReplay={onTimelineReplay}
           history={history}
           allQuakes={quakes}
           displayQuakes={displayQuakes}

@@ -32,3 +32,4 @@ dist-ssr
 test-results/
 playwright-report/
 .alert-state.json
+docs/star-photo-fetch.txt

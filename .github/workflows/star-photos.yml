@@ -3,10 +3,7 @@
 name: Star photos
 
 on:
-  workflow_dispatch: {}
-  push:
-    branches: [claude/relaxed-planck-f4u13q] # TEMPORARY — removed before merge
-    paths: [scripts/fetch-star-photos.mjs, scripts/find-star-photo-candidates.mjs]
+  workflow_dispatch: {} # manual only — new photos are hand-picked, never automatic
 
 permissions:
   contents: write
@@ -23,11 +20,14 @@ jobs:
       - name: Find candidates (Wikimedia Commons, free licences only)
         run: node scripts/find-star-photo-candidates.mjs
       - name: Bake configured photos
-        run: node scripts/fetch-star-photos.mjs 2>&1 | tee docs/star-photo-fetch.txt || true
+        # pipefail: a failed bake must fail the run, never commit half the cards
+        run: |
+          set -o pipefail
+          node scripts/fetch-star-photos.mjs 2>&1 | tee docs/star-photo-fetch.txt
       - name: Commit results
         run: |
           git config user.name "star-photos bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/star-photo-candidates.json docs/star-photo-fetch.txt public/stars/cards
+          git add docs/star-photo-candidates.json public/stars/cards
           git diff --cached --quiet || git commit -m "🌟 chore: star photo candidates + baked cards"
           git push

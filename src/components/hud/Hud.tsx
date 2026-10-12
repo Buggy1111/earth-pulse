@@ -89,6 +89,7 @@ interface HudProps {
   timelinePlaying: boolean
   onTimelineScrub: (h: number) => void
   onTimelineToggle: () => void
+  onTimelineReplay: () => void
   // 🏛 history of the planet (state machine lives in useHistory)
   history: {
     open: boolean
@@ -238,7 +239,7 @@ export function Hud(p: HudProps) {
       />
     ) : null
   const eventsEl =
-    p.mode === 'earth' && p.layers.events ? (
+    p.mode === 'earth' && p.layers.events && !p.history.open ? (
       <EventsPanel events={p.events} onEventClick={p.onEventClick} />
     ) : null
   const dataLayerEl =
@@ -313,7 +314,7 @@ export function Hud(p: HudProps) {
           windKms: p.weather.wind?.speedKms ?? null,
           now: p.now,
         }}
-        onReplay={p.onTimelineToggle}
+        onReplay={p.onTimelineReplay}
         onClose={() => setDiaryOpen(false)}
       />
     ) : null

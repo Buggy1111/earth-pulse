@@ -47,6 +47,31 @@ async function getJson(url) {
   return r.json()
 }
 
+/**
+ * One Telegram sendMessage. Returns 'ok', 'retry' (network, 429, 5xx — try again
+ * next run) or 'skip' (permanent 4xx such as a message Telegram can't parse: it
+ * would fail forever and block every later alert). Never logs the URL — it
+ * embeds the bot token.
+ */
+async function sendTelegram(text) {
+  let r
+  try {
+    r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch (err) {
+    console.error(`Telegram sendMessage failed: ${err?.name ?? 'network error'}`)
+    return 'retry'
+  }
+  if (r.ok) return 'ok'
+  const body = (await r.text().catch(() => '')).slice(0, 200)
+  console.error(`Telegram sendMessage failed: ${r.status} ${body}`)
+  return r.status === 429 || r.status >= 500 ? 'retry' : 'skip'
+}
+
 const config = await readJson(configPath, null)
 const bad = validateConfig(config)
 if (bad) {
@@ -64,7 +89,7 @@ const sources = [
     'EMSC',
     () =>
       getJson(
-        `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=300&orderby=time&minmag=${Math.max(0, lowest - 0.5)}&start=${new Date(now - 86_400_000).toISOString().slice(0, 19)}`,
+        `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=300&orderby=time&minmag=${Number.isFinite(lowest) ? Math.max(0, lowest - 0.5) : 2.5}&start=${new Date(now - 86_400_000).toISOString().slice(0, 19)}`,
       ).then(parseEmsc),
   ],
 ]
@@ -88,22 +113,7 @@ if (digest) {
     console.log(`${text}\n(dry run — nothing sent)`)
     process.exit(0)
   }
-  let r
-  try {
-    r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-      signal: AbortSignal.timeout(15_000),
-    })
-  } catch (err) {
-    console.error(`Telegram sendMessage failed: ${err?.name ?? 'error'}`) // never the URL — it embeds the token
-    process.exit(1)
-  }
-  if (!r.ok) {
-    console.error(`Telegram sendMessage failed: ${r.status} ${(await r.text().catch(() => '')).slice(0, 200)}`)
-    process.exit(1)
-  }
+  if ((await sendTelegram(text)) !== 'ok') process.exit(1)
   console.log('digest sent')
   process.exit(0)
 }
@@ -113,6 +123,7 @@ const alerts = selectAlerts(quakes, config, state, now)
 console.log(`${quakes.length} events checked, ${alerts.length} to alert${dry ? ' (dry run)' : ''}`)
 
 const delivered = []
+const skipped = []
 if (baseline) delivered.push(...alerts)
 for (const alert of baseline ? [] : alerts) {
   const text = formatMessage(alert)
@@ -120,28 +131,18 @@ for (const alert of baseline ? [] : alerts) {
     console.log(`\n${text}\n`)
     continue
   }
-  let r
-  try {
-    r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-      signal: AbortSignal.timeout(15_000),
-    })
-  } catch (err) {
-    // a network error must not skip writing the state of what WAS delivered (it would be re-sent)
-    console.error(`Telegram sendMessage failed: ${err?.name ?? 'error'}`) // never the URL — it embeds the token
-    break // the rest retries on the next run
-  }
-  if (!r.ok) {
-    // never echo the URL (it embeds the token) — only the status and Telegram's reason
-    const body = await r.text().catch(() => '')
-    console.error(`Telegram sendMessage failed: ${r.status} ${body.slice(0, 200)}`)
-    break // keep what was delivered; the rest retries on the next run
+  const res = await sendTelegram(text)
+  if (res === 'retry') break // keep what was delivered; the rest retries on the next run
+  if (res === 'skip') {
+    // a message Telegram rejects for good must not block the newer alerts behind it
+    console.error(`skipping undeliverable alert ${alert.quake.id}`)
+    skipped.push(alert)
+    continue
   }
   delivered.push(alert)
 }
 
 if (baseline) console.log('baseline recorded — no messages sent')
-if (!dry) await writeFile(statePath, JSON.stringify(nextState(state, delivered, now)))
-if (!dry && delivered.length < alerts.length) process.exit(1)
+if (!dry) await writeFile(statePath, JSON.stringify(nextState(state, [...delivered, ...skipped], now)))
+if (!dry && delivered.length + skipped.length < alerts.length) process.exit(1) // the rest retries next run
+if (skipped.length) process.exit(1) // surface permanent failures in the Actions run

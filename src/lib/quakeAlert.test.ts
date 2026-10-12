@@ -101,7 +101,7 @@ describe('quake alert rules', () => {
       quake({ id: 'old', mag: 8, time: NOW - 30 * 3_600_000 }),
     ]
     const text = formatDigest(qs, NOW)
-    expect(text).toContain('4 earthquakes, 1 of M 5+')
+    expect(text).toContain('4 earthquakes of M 2.5+, 1 of M 5+')
     expect(text).toContain('M 6.1')
     expect(text).toContain('busiest: Chile (3)')
     expect(text).not.toContain('M 8.0')
@@ -113,7 +113,7 @@ describe('quake alert rules', () => {
     const usgs = quake({ id: 'us1', time: NOW - 3_600_000, mag: 5.1, lat: 38, lng: 22, place: '10 km N of Athens, Greece' })
     const emsc = quake({ id: 'em1', time: NOW - 3_600_000 + 20_000, mag: 4.9, lat: 38.02, lng: 22.01, place: 'GREECE' })
     const text = formatDigest([usgs, emsc], NOW)
-    expect(text).toContain('1 earthquakes')
+    expect(text).toContain('1 earthquakes of M 2.5+')
     expect(text).toContain('M 5.1') // the stronger entry wins
   })
 })
