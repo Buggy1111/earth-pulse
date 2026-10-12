@@ -10,7 +10,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { makeAtmosphereMaterial } from './globe/planetEffects'
 import { t } from '../lib/i18n'
 
-// past frames live every 10 Myr from 0 (today) to 340 Mya (public/planets/paleo);
+// past frames live every 5 Myr from 0 (today) to 340 Mya (public/planets/paleo,
+// restyled by scripts/build-drift-frames.mjs; 2048 px, phones read the 1024 px sd/ set);
 // the future is one reprojected frame at −250 Myr (Pangaea Proxima)
 const STEP = 5 // 5-Myr frames → the drift reads as smooth motion, not stepped
 const MAX_MA = 340
@@ -33,17 +34,56 @@ const MILESTONES: { ma: number; title: string; text: string }[] = [
 const nearestMilestone = (ma: number) =>
   MILESTONES.reduce((best, m) => (Math.abs(m.ma - ma) < Math.abs(best.ma - ma) ? m : best))
 
+// geological periods on the scrubber, coloured with the official ICS chart
+// colours (International Commission on Stratigraphy); start/end in Ma
+const PERIODS: { name: string; short: string; from: number; to: number; color: string }[] = [
+  { name: 'Carboniferous', short: 'C', from: 340, to: 298.9, color: '#67a599' },
+  { name: 'Permian', short: 'P', from: 298.9, to: 251.9, color: '#f04028' },
+  { name: 'Triassic', short: 'T', from: 251.9, to: 201.4, color: '#812b92' },
+  { name: 'Jurassic', short: 'J', from: 201.4, to: 145, color: '#34b2c9' },
+  { name: 'Cretaceous', short: 'K', from: 145, to: 66, color: '#7fc64e' },
+  { name: 'Paleogene', short: 'Pg', from: 66, to: 23, color: '#fd9a52' },
+  { name: 'Neogene', short: 'N', from: 23, to: 0, color: '#ffe619' },
+  { name: 'Future', short: '?', from: 0, to: FUTURE_MA, color: '#64748b' },
+]
+const periodAt = (ma: number) =>
+  ma < -0.5 ? PERIODS[PERIODS.length - 1] : (PERIODS.slice(0, -1).find((p) => ma <= p.from && ma > p.to) ?? PERIODS[6])
+/** Slider position (0 = Pangaea, 1 = +250 My) of a time in Ma. */
+const pos = (ma: number) => (MAX_MA - ma) / (MAX_MA - FUTURE_MA)
+
 const VERT = /* glsl */ `
-varying vec2 vUv; varying vec3 vN;
+varying vec2 vUv; varying vec3 vN; varying vec3 vW;
 void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
+  vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz;
+  gl_Position = projectionMatrix * viewMatrix * w; }`
+// cross-faded paleo frames, lit like Earth from orbit: a soft terminator, sun
+// glint on the oceans only (water = blue-dominant pixels of the restyled
+// frames) and a blue haze thickening toward the limb
 const FRAG = /* glsl */ `
 uniform sampler2D texA; uniform sampler2D texB; uniform float mixf; uniform vec3 sunDir;
-varying vec2 vUv; varying vec3 vN;
+varying vec2 vUv; varying vec3 vN; varying vec3 vW;
 void main(){
   vec3 col = mix(texture2D(texA, vUv).rgb, texture2D(texB, vUv).rgb, mixf);
-  float lit = 0.52 + 0.48 * clamp(dot(normalize(vN), normalize(sunDir)), 0.0, 1.0);
-  gl_FragColor = vec4(col * lit, 1.0);
+  vec3 n = normalize(vN), l = normalize(sunDir), v = normalize(cameraPosition - vW);
+  float day = smoothstep(-0.3, 0.55, dot(n, l));
+  float water = smoothstep(0.03, 0.1, col.b - max(col.r, col.g * 0.92));
+  vec3 h = normalize(l + v);
+  float nh = max(dot(n, h), 0.0);
+  float glint = water * (pow(nh, 140.0) * 0.4 + pow(nh, 18.0) * 0.035);
+  float rim = pow(1.0 - max(dot(n, v), 0.0), 2.6);
+  vec3 lit = col * (0.13 + 0.95 * day) + vec3(1.0, 0.93, 0.8) * glint * day;
+  lit = mix(lit, vec3(0.32, 0.58, 1.0) * (0.15 + 0.85 * day), rim * 0.6);
+  gl_FragColor = vec4(lit, 1.0);
+  #include <colorspace_fragment>
+}`
+const CLOUD_FRAG = /* glsl */ `
+uniform sampler2D map; uniform vec3 sunDir; uniform float opacity;
+varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+void main(){
+  vec4 c = texture2D(map, vUv);
+  float day = smoothstep(-0.2, 0.5, dot(normalize(vN), normalize(sunDir)));
+  gl_FragColor = vec4(vec3(0.96) * (0.2 + 0.8 * day), c.a * opacity * (0.35 + 0.65 * day));
+  #include <colorspace_fragment>
 }`
 
 export function PangeaView({ onClose }: { onClose: () => void }) {
@@ -64,7 +104,13 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     let disposed = false
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 2000)
-    camera.position.set(0, 55, 375)
+    // frame the whole globe whatever the aspect — a portrait phone used to crop it
+    const fitDistance = () => {
+      const v = THREE.MathUtils.degToRad(camera.fov / 2)
+      const h = Math.atan(Math.tan(v) * camera.aspect)
+      return Math.max(375, 118 / Math.sin(Math.min(v, h)))
+    }
+    camera.position.set(0, 0.147, 1).normalize().multiplyScalar(fitDistance())
     // phones/tablets: lighter renderer to stay well inside the mobile GPU budget
     const mobile =
       matchMedia('(pointer: coarse)').matches && matchMedia('(max-width: 1024px)').matches
@@ -84,7 +130,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     controls.autoRotate = true
     controls.autoRotateSpeed = 0.35
     controls.minDistance = 150
-    controls.maxDistance = 600
+    controls.maxDistance = Math.max(600, fitDistance() * 1.4)
     controls.enablePan = false
 
     const loader = new THREE.TextureLoader()
@@ -98,6 +144,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     // all 69 past frames (~200 MB with mips) until unmount, real pressure on
     // iOS memory budgets; re-entering a frame reloads instantly from SW cache.
     const KEEP_RADIUS = 5
+    const dir = mobile ? 'planets/paleo/sd/' : 'planets/paleo/'
     const textures: (THREE.Texture | null)[] = FRAMES.map(() => null)
     const blank = new THREE.DataTexture(new Uint8Array([10, 16, 30, 255]), 1, 1)
     blank.needsUpdate = true
@@ -111,7 +158,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         }
       }
       if (textures[i]) return textures[i] as THREE.Texture
-      const t = loader.load(`planets/paleo/paleo-${pad(FRAMES[i])}.webp`)
+      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp`)
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       textures[i] = t
@@ -123,7 +170,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const getFutureTex = (k: number): THREE.Texture => {
       if (k <= 0) return getTex(0)
       if (futureTex[k]) return futureTex[k] as THREE.Texture
-      const t = loader.load(`planets/paleo/paleo-fut${pad(k * 50)}.webp`)
+      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp`)
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       futureTex[k] = t
@@ -145,16 +192,34 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const atmoMat = makeAtmosphereMaterial('#6fb7ff', 3.2, 0.7)
     const atmo = new THREE.Mesh(new THREE.SphereGeometry(104, 64, 64), atmoMat)
     scene.add(atmo)
+    // a thin, slowly drifting cloud deck — the difference between a map on a
+    // ball and a living planet
+    const cloudTex = loader.load('clouds.webp')
+    cloudTex.colorSpace = THREE.SRGBColorSpace
+    const cloudMat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: cloudTex }, sunDir: uniforms.sunDir, opacity: { value: 0.42 } },
+      vertexShader: VERT,
+      fragmentShader: CLOUD_FRAG,
+      transparent: true,
+      depthWrite: false,
+    })
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(101.2, mobile ? 48 : 96, mobile ? 32 : 64), cloudMat)
+    clouds.renderOrder = 1
+    scene.add(clouds)
 
     const onResize = () => {
       if (!mount) return
       camera.aspect = mount.clientWidth / mount.clientHeight
       camera.updateProjectionMatrix()
+      controls.maxDistance = Math.max(600, fitDistance() * 1.4)
+      if (camera.position.length() < fitDistance() * 0.9) camera.position.setLength(fitDistance())
       renderer.setSize(mount.clientWidth, mount.clientHeight)
     }
     window.addEventListener('resize', onResize)
 
     let raf = 0
+    const right = new THREE.Vector3()
+    const up = new THREE.Vector3()
     const loop = () => {
       if (disposed) return
       const m = maRef.current
@@ -173,12 +238,18 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         uniforms.mixf.value = f - i
       }
       controls.update()
+      clouds.rotation.y += 0.00025
       // key light rides just off the camera axis — the face you look at is
       // always lit, the offset keeps a soft terminator for depth
-      uniforms.sunDir.value.copy(camera.position).normalize()
-      uniforms.sunDir.value.x += 0.35
-      uniforms.sunDir.value.y += 0.2
-      uniforms.sunDir.value.normalize()
+      // (offset in camera space, so the terminator stays on the right as it orbits)
+      right.setFromMatrixColumn(camera.matrixWorld, 0)
+      up.setFromMatrixColumn(camera.matrixWorld, 1)
+      uniforms.sunDir.value
+        .copy(camera.position)
+        .normalize()
+        .addScaledVector(right, 0.75)
+        .addScaledVector(up, 0.35)
+        .normalize()
       renderer.render(scene, camera)
       raf = requestAnimationFrame(loop)
     }
@@ -193,6 +264,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
       mat.dispose()
       atmo.geometry.dispose()
       atmoMat.dispose()
+      clouds.geometry.dispose()
+      cloudMat.dispose()
+      cloudTex.dispose()
       starTex.dispose()
       blank.dispose()
       for (const t of textures) t?.dispose()
@@ -227,27 +301,44 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
   }, [playing])
 
   const milestone = nearestMilestone(ma)
+  const mIndex = MILESTONES.indexOf(milestone)
+  const period = periodAt(ma)
+  const future = ma < -0.5
   const label =
     Math.abs(ma) < 1
       ? t('today')
       : ma > 0
         ? t('{n} million years ago', { n: Math.round(ma) })
         : t('{n} million years from now', { n: Math.round(-ma) })
+  const jump = (to: number) => {
+    setPlaying(false)
+    setMa(to)
+  }
+  const credit = future
+    ? t('Pangaea Proxima · Wikimedia · CC-BY-SA 4.0 — projected')
+    : t('Maps © Scotese, PALEOMAP · CC-BY-4.0')
 
   return (
-    <div className="fixed inset-0 z-50 h-dvh w-dvw bg-[#01030a]">
+    <div className="fixed inset-0 z-50 h-dvh w-dvw overflow-hidden bg-[#01030a]">
       <div ref={mountRef} className="absolute inset-0" />
+      {/* cinematic vignette — pulls the eye to the globe, calms the star field */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(1,3,10,0.75)_100%)]" />
 
-      {/* title + date (centred; sits below the back button row on phones) */}
-      <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top,0px)_+_3.25rem)] flex flex-col items-center gap-0.5 px-4 text-center sm:top-4 sm:gap-1">
+      {/* header: eyebrow · period chip · big date */}
+      <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top,0px)_+_3.5rem)] flex flex-col items-center gap-1.5 px-4 text-center sm:top-4">
         <span className="vf-eyebrow">◂ {t('continental drift')} ▸</span>
-        <h1 className="font-[var(--font-display)] text-base tracking-wide text-slate-100 sm:text-lg">
-          {t(milestone.title)}
-        </h1>
-        <p className="font-[var(--font-mono)] text-xl text-amber-300 sm:text-2xl">{label}</p>
-        {/* on phones the caption text lives here (the side card is desktop-only) */}
-        <p className="mt-1 max-w-md text-xs text-slate-300 sm:hidden">{t(milestone.text)}</p>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-[var(--font-mono)] text-[10px] tracking-[0.18em] uppercase backdrop-blur-sm"
+          style={{ borderColor: `${period.color}80`, color: period.color, background: `${period.color}14` }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: period.color, boxShadow: `0 0 8px ${period.color}` }} />
+          {t(period.name)}
+        </span>
+        <p className="font-[var(--font-display)] text-3xl font-light tracking-tight text-slate-50 tabular-nums drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:text-4xl">
+          {label}
+        </p>
       </div>
+
       <button
         type="button"
         onClick={onClose}
@@ -262,35 +353,46 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         <span className="hidden sm:inline">← {t('back to Earth')}</span>
       </button>
 
-      {/* caption card — desktop only (top-right); phones show the text in the header */}
+      {/* story card: milestone n/9 with prev/next — right column on desktop,
+          a compact strip above the timeline on phones */}
       <div
         style={{ position: 'absolute' }}
-        className="hud pointer-events-none top-20 right-4 hidden w-72 px-4 py-3 sm:block"
+        className="hud pointer-events-auto inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)_+_7.75rem)] px-4 py-3 sm:inset-x-auto sm:top-1/2 sm:right-6 sm:bottom-auto sm:w-80 sm:-translate-y-1/2 sm:px-5 sm:py-4"
       >
-        <h2 className="text-xs font-semibold tracking-wide text-amber-300 uppercase">
-          {t(milestone.title)}
-        </h2>
-        <p className="mt-1 text-xs text-slate-300">{t(milestone.text)}</p>
-        <p className="mt-2 text-[10px] text-slate-500">
-          {ma < 0
-            ? t('Future = projected concept · Pangaea Proxima, Wikimedia Commons · CC-BY-SA 4.0')
-            : t('Maps © Scotese et al., PALEOMAP (Zenodo) · CC-BY-4.0')}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-[var(--font-mono)] text-[10px] tracking-[0.2em] text-slate-500 uppercase">
+            {String(mIndex + 1).padStart(2, '0')} / {String(MILESTONES.length).padStart(2, '0')}
+          </span>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={mIndex === 0}
+              onClick={() => jump(MILESTONES[mIndex - 1].ma)}
+              aria-label={t('Previous chapter')}
+              className="h-7 w-7 rounded-full border border-white/10 text-slate-300 transition hover:border-amber-300/60 hover:text-amber-200 disabled:opacity-30"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              disabled={mIndex === MILESTONES.length - 1}
+              onClick={() => jump(MILESTONES[mIndex + 1].ma)}
+              aria-label={t('Next chapter')}
+              className="h-7 w-7 rounded-full border border-white/10 text-slate-300 transition hover:border-amber-300/60 hover:text-amber-200 disabled:opacity-30"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+        <h2 className="mt-1.5 font-[var(--font-display)] text-base text-amber-200 sm:mt-2 sm:text-lg">{t(milestone.title)}</h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-300 sm:text-[13px]">{t(milestone.text)}</p>
+        <p className="mt-2 hidden text-[10px] text-slate-500 sm:block">{credit}</p>
       </div>
-      {/* compact attribution for phones (bottom, above the scrubber) */}
-      <p
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
-        className="pointer-events-none absolute inset-x-0 px-4 text-center text-[10px] text-slate-500 sm:hidden"
-      >
-        {ma < 0
-          ? t('Pangaea Proxima · Wikimedia · CC-BY-SA 4.0 — projected')
-          : t('Maps © Scotese, PALEOMAP · CC-BY-4.0')}
-      </p>
 
-      {/* timeline scrubber: Pangaea (340 Ma) → today → projected future (+250 My) */}
+      {/* timeline: play · period band (ICS colours) with chapter marks · scrubber */}
       <div
-        style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
-        className="hud pointer-events-auto inset-x-0 mx-auto flex w-[min(42rem,94vw)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4"
+        style={{ position: 'absolute', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+        className="hud pointer-events-auto inset-x-0 mx-auto flex w-[min(52rem,94vw)] items-center gap-3 px-3 py-3 sm:gap-4 sm:px-5"
       >
         <button
           type="button"
@@ -298,23 +400,52 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
             if (ma <= FUTURE_MA) setMa(MAX_MA)
             setPlaying((p) => !p)
           }}
-          className="shrink-0 text-lg text-slate-200"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300/50 bg-amber-300/10 text-base text-amber-100 shadow-[0_0_18px_rgba(252,211,77,0.25)] transition hover:bg-amber-300/20"
           aria-label={playing ? t('Pause') : t('Play')}
         >
-          {playing ? '⏸' : '▶'}
+          {playing ? '❚❚' : '▶'}
         </button>
-        <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
-          340 Ma
-        </span>
-        <div className="relative grow">
-          {/* milestone ticks: each story beat gets a faint marker; "today" glows cyan */}
-          {MILESTONES.map((m) => (
-            <span
+        <div className="relative grow pt-5 pb-4">
+          {/* period band */}
+          <div className="absolute inset-x-0 top-[1.15rem] flex h-1.5 overflow-hidden rounded-full">
+            {PERIODS.map((p) => (
+              <span
+                key={p.name}
+                title={t(p.name)}
+                style={{ width: `${(pos(p.to) - pos(p.from)) * 100}%`, background: p.color, opacity: p === period ? 1 : 0.45 }}
+                className="h-full transition-opacity"
+              />
+            ))}
+          </div>
+          {/* period labels */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex font-[var(--font-mono)] text-[9px] tracking-wider uppercase">
+            {PERIODS.map((p) => (
+              <span
+                key={p.name}
+                style={{ width: `${(pos(p.to) - pos(p.from)) * 100}%`, color: p === period ? p.color : undefined }}
+                className="truncate text-center text-slate-500"
+              >
+                {/* narrow periods (Neogene) keep their one-letter symbol */}
+                <span className={pos(p.to) - pos(p.from) < 0.06 ? '' : 'sm:hidden'}>{p.short}</span>
+                {pos(p.to) - pos(p.from) >= 0.06 && <span className="hidden sm:inline">{t(p.name)}</span>}
+              </span>
+            ))}
+          </div>
+          {/* chapter marks — click to jump */}
+          {MILESTONES.map((m, i) => (
+            <button
               key={m.ma}
+              type="button"
               title={t(m.title)}
-              style={{ left: `${(((MAX_MA - m.ma) / (MAX_MA - FUTURE_MA)) * 100).toFixed(2)}%` }}
-              className={`pointer-events-none absolute -top-1.5 h-1 w-1 -translate-x-1/2 rounded-full ${
-                m.ma === 0 ? 'bg-cyan-300 shadow-[0_0_6px_#67e8f9]' : 'bg-amber-300/50'
+              aria-label={t(m.title)}
+              onClick={() => jump(m.ma)}
+              style={{ left: `${(pos(m.ma) * 100).toFixed(2)}%` }}
+              className={`absolute top-0 h-3 w-3 -translate-x-1/2 rounded-full border transition ${
+                i === mIndex
+                  ? 'border-amber-200 bg-amber-300 shadow-[0_0_10px_#fcd34d]'
+                  : m.ma === 0
+                    ? 'border-cyan-200/80 bg-cyan-300/40'
+                    : 'border-white/30 bg-white/10 hover:border-amber-200'
               }`}
             />
           ))}
@@ -330,13 +461,17 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
               setPlaying(false)
               setMa(MAX_MA - Number(e.target.value))
             }}
-            className="w-full accent-amber-400"
+            className="drift-range absolute inset-x-0 top-[0.7rem] w-full"
           />
         </div>
-        <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
-          {t('+250 My')}
-        </span>
       </div>
+      {/* attribution on phones (desktop shows it in the story card) */}
+      <p
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.6rem)' }}
+        className="pointer-events-none absolute inset-x-0 px-4 text-center text-[9px] text-slate-500 sm:hidden"
+      >
+        {credit}
+      </p>
     </div>
   )
 }

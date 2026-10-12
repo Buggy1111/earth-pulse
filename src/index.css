@@ -540,3 +540,32 @@ body {
 .hud-column::-webkit-scrollbar {
   display: none;
 }
+
+/* Drift timeline scrubber: invisible track (the period band shows through),
+   a glowing amber thumb */
+.drift-range {
+  appearance: none;
+  background: transparent;
+  height: 1.25rem;
+  cursor: pointer;
+}
+.drift-range::-webkit-slider-runnable-track { background: transparent; height: 1.25rem; }
+.drift-range::-moz-range-track { background: transparent; height: 1.25rem; }
+.drift-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 9999px;
+  background: #fde68a;
+  border: 3px solid #0b1020;
+  box-shadow: 0 0 0 1px #fcd34d, 0 0 14px rgba(252, 211, 77, 0.7);
+}
+.drift-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #fde68a;
+  border: 3px solid #0b1020;
+  box-shadow: 0 0 0 1px #fcd34d, 0 0 14px rgba(252, 211, 77, 0.7);
+}

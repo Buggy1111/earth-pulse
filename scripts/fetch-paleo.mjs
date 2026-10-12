@@ -1,7 +1,8 @@
-// Builds the continental-drift frames in public/planets/paleo/*.webp from the
+// Fetches the continental-drift source frames scripts/paleo-src/*.webp from the
 // Scotese PALEOMAP "Rectilinear" (equirectangular) paleogeographic maps —
 // public-domain-friendly CC-BY-4.0 on Zenodo. Run: npm run fetch-paleo
 // (rarely — ~387 MB download, then it keeps every 5 Myr frame 0→340 Ma).
+// Then run npm run build-drift to restyle them into public/planets/paleo/.
 //
 // Source (CC-BY-4.0, verified): Scotese, C.R., Vérard, C., Burgener, L.,
 // Elling, R.P. & Kocsis, Á.T. (2024). PALEOMAP, Zenodo.
@@ -18,7 +19,7 @@ const ZIP_URL =
   'https://zenodo.org/api/records/10659112/files/4b1.%20Paleogeographic%20Maps%20(Rectilinear).zip/content'
 const STEP = 5
 const MAX_MA = 340
-const out = new URL('../public/planets/paleo/', import.meta.url)
+const out = new URL('./paleo-src/', import.meta.url)
 const zip = join(tmpdir(), 'scotese_rect.zip')
 const raw = join(tmpdir(), 'paleo_raw')
 
@@ -55,4 +56,4 @@ for (let m = 0; m <= MAX_MA; m += STEP) {
   await writeFile(new URL(`paleo-${p}.webp`, out), webp)
   total += webp.length
 }
-console.log(`✓ wrote ${MAX_MA / STEP + 1} frames (${Math.round(total / 1024)} KB) to public/planets/paleo/`)
+console.log(`✓ wrote ${MAX_MA / STEP + 1} frames (${Math.round(total / 1024)} KB) to scripts/paleo-src/ — now run npm run build-drift`)

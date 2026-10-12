@@ -197,8 +197,8 @@ npm run fetch-stars       # HYG katalog hvězd → public/stars/stars.json
 npm run fetch-star-photos # fotky slavných hvězd → public/stars/cards/
 npm run fetch-volcanoes   # Smithsonian GVP → public/geo/volcanoes.json
 npm run fetch-moons       # textury + portréty měsíců → public/planets/
-npm run fetch-paleo       # paleomapy PALEOMAP → public/planets/paleo/
-npm run gen-future        # SDF morph snímky budoucího driftu
+npm run fetch-paleo       # paleomapy PALEOMAP → scripts/paleo-src/
+npm run build-drift       # vyčištění + jednotný vzhled snímků driftu, SDF morph budoucnosti → public/planets/paleo/
 ```
 
 ### CI a automatická obnova dat
