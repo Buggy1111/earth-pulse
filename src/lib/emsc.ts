@@ -33,11 +33,13 @@ export function parseEmscEvent(json: string): Quake | null {
     const p = msg.data?.properties
     const coords = msg.data?.geometry?.coordinates
     if (!p?.unid || !coords || coords.length < 2) return null
-    const mag = Number(p.mag)
+    // Number(null) === 0: an event without a reported magnitude is not M0.
+    if (p.mag == null || typeof p.mag !== 'number') return null
+    const mag = p.mag
     const time = Date.parse(p.time ?? '')
     const [lng, lat] = coords
     if (!Number.isFinite(mag) || !Number.isFinite(time)) return null
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
     return {
       id: `emsc:${p.unid}`,
       lat,
