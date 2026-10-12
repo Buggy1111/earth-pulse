@@ -22,11 +22,11 @@ export function useLiveData() {
   const quakes = useMemo(() => mergeQuakes(usgsQuakes, emscQuakes), [usgsQuakes, emscQuakes])
   const flashes = useMemo(() => [...usgsFlashes, ...emscFresh], [usgsFlashes, emscFresh])
   const iss = useIss()
-  const sats = useTleSats()
+  const { sats, tleAgeDays } = useTleSats()
   const weather = useSpaceWeather()
   const { edits, totalSeen } = useWikiFeed()
   const now = useNow()
   const { soundOn, toggleSound } = useQuakePing(newQuakes, emscFresh)
   const { ambientOn, toggleAmbient } = useAmbient(quakes, weather.kp?.kp ?? null, now)
-  return { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient }
+  return { quakes, flashes, iss, sats, tleAgeDays, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient }
 }
