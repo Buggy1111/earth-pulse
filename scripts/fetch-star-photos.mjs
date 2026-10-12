@@ -32,6 +32,28 @@ const PHOTOS = [
   { slug: 'fomalhaut', type: 'nasa', id: 'PIA04942' }, // Hubble — debris disk
   { slug: 'vega', type: 'nasa', id: 'PIA16610' }, // Spitzer — debris-ring concept
   { slug: 'rigel', type: 'nasa', id: 'PIA17553' }, // Witch Head Nebula, lit by Rigel
+  // ── added 12.10.2026 — picked by hand from docs/star-photo-candidates.json
+  //    (real observations only; size diagrams and drawings left out)
+  { slug: 'mira', type: 'commons', file: 'Mira 1997.jpg' }, // Hubble — resolved, asymmetric
+  { slug: 'achernar', type: 'commons', file: 'The shape of Achernar (eso0316b).jpg' }, // VLTI — flattened
+  { slug: 'deneb', type: 'commons', file: 'Deneb observed with the VLT Adaptive Optics Prototype System (eso8908c).jpg' },
+  { slug: 'procyon', type: 'commons', file: 'Procyon A and Procyon B (29468251154).jpg' },
+  { slug: 'mizar', type: 'commons', file: 'Mizar and Alcor.png' },
+  { slug: 'albireo', type: 'commons', file: 'Albireo double star.jpg' },
+  { slug: 'alnitak', type: 'commons', file: "Alnitak & Orion's Sword (53514488047).jpg" },
+  { slug: 'alnilam', type: 'commons', file: 'Orion Belt.jpg' }, // DSS — the whole belt
+  { slug: 'mintaka', type: 'copy', from: 'alnilam' },
+  { slug: 'alcyone', type: 'commons', file: 'Pleiades large.jpg' }, // Palomar — the Pleiades
+  { slug: 'sadr', type: 'commons', file: 'Sadr JeffJohnson.jpg' }, // in IC 1318
+  { slug: 'ran', type: 'commons', file: 'Epsilon Eridani ALMA Image.png' }, // ALMA — debris ring
+  { slug: 'wolf-359', type: 'commons', file: 'Wolf359.jpg' },
+  { slug: 'aldebaran', type: 'commons', file: 'Aldebaran.jpg' }, // Hubble Hyades frame
+  { slug: 'capella', type: 'commons', file: 'Capella And Menkalinan.jpg' },
+  { slug: 'spica', type: 'commons', file: 'Spica DSS.png' },
+  { slug: 'castor', type: 'commons', file: 'Castor DSS.png' },
+  { slug: 'bellatrix', type: 'commons', file: 'Bellatrix DSS.png' },
+  { slug: 'regulus', type: 'commons', file: 'Regulus DSS.png' },
+  { slug: 'gl-581', type: 'commons', file: "Gliese 581 Artist's impression.jpg" }, // ESO artist concept
 ]
 
 /** Resolve a Wikimedia Commons file title to its direct upload URL. */
@@ -64,6 +86,7 @@ for (const p of PHOTOS) {
       // square-ish card, centred crop, 480 px wide — matches the moon cards
       buf = await sharp(src).resize({ width: 480 }).webp({ quality: 80 }).toBuffer()
     }
+    if (p.type === 'commons') await new Promise((r) => setTimeout(r, 1200)) // Commons rate limit
     await writeFile(out, buf)
     done.set(p.slug, buf)
     console.log(`✓ ${p.slug} (${(buf.length / 1024).toFixed(0)} KB)`)
