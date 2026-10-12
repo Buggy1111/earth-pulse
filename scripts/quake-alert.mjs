@@ -57,7 +57,7 @@ async function getJson(url) {
 
 /**
  * One Telegram sendMessage. Returns 'ok', 'retry' (network, 429, 5xx — try again
- * next run) or 'skip' (permanent 4xx such as a message Telegram can't parse: it
+ * next run, including auth failures) or 'skip' (a permanently rejected message: it
  * would fail forever and block every later alert). Never logs the URL — it
  * embeds the bot token.
  */
@@ -77,7 +77,9 @@ async function sendTelegram(text) {
   if (r.ok) return 'ok'
   const body = (await r.text().catch(() => '')).slice(0, 200)
   console.error(`Telegram sendMessage failed: ${r.status} ${body}`)
-  return r.status === 429 || r.status >= 500 ? 'retry' : 'skip'
+  // Authentication/authorization and bot endpoint failures affect every alert,
+  // not the individual message. Preserve the queue for a credential fix.
+  return [401, 403, 404, 429].includes(r.status) || r.status >= 500 ? 'retry' : 'skip'
 }
 
 const config = await readJson(configPath, null)
