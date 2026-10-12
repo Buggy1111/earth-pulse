@@ -42,6 +42,7 @@ interface HudProps {
   // title + clock
   now: number
   satCount: number
+  tleAgeDays: number | null
   solarMode: boolean
   moonMode: boolean
   // space weather / moon / planet primary panel
@@ -146,6 +147,7 @@ export function Hud(p: HudProps) {
     <TitleCard
       now={p.now}
       satCount={p.satCount}
+      tleAgeDays={p.tleAgeDays}
       subtitle={
         p.solarMode
           ? t('the solar system, live — click any body to orbit it')
