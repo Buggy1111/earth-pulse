@@ -223,7 +223,7 @@ otevře se celá soustava.
 - **Klik na hvězdu** → karta s fakty + **let ke hvězdě**: postaví se
   **procedurální 3D koule** ze skutečné fyziky hvězdy (`starMaterial.ts`
   shader — barva z teploty, granulace, limb darkening, korona; velikost z
-  reálné svítivosti) a u **13 slavných hvězd** se ukáže skutečná fotka
+  reálné svítivosti) a u **28 hvězd** se ukáže skutečná fotka
   z teleskopu (ESO / NASA / CHARA, `npm run fetch-star-photos`).
 
 ### Planety v datech

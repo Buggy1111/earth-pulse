@@ -1,6 +1,6 @@
 # TODO — Earth Pulse nápady na budoucnost
 
-> **Stav 3. 10. 2026:** ✅ 1 Webb+Roman · ✅ 2 Telegram · ✅ 3 Roje · ✅ 4 Deník · ✅ 5 Historie · ✅ 7 Zvuk · ⏳ 6 Hvězdné fotky (čeká na stahování z archivů — viz poznámku níže)
+> **Stav 12. 10. 2026:** ✅ vše hotové — 1 Webb+Roman · 2 Telegram · 3 Roje · 4 Deník · 5 Historie · 6 Hvězdné fotky (28 hvězd) · 7 Zvuk
 
 > Založeno 14. 9. 2026 · nápady z brainstormingu s Izy · seřazeno podle poměru hodnota/obtížnost
 > **Povinnost žádná** — projekt už teď stojí; tohle je volná fifo na vonkajší nápady.
@@ -36,6 +36,8 @@
   workflow jen nasucho. (Cron jede až po mergi do `main`.)
   Návod krok za krokem: `docs/TELEGRAM-ALERTY.md` (+ denní digest `quake-digest.yml`).
 - **(3)(4)(5)(7)** v aplikaci — viz `docs/FUNKCE.md`.
-- **(6) zbývá:** přidat položky do `PHOTOS` ve `scripts/fetch-star-photos.mjs`
-  a spustit `npm run fetch-star-photos` (potřebuje síť; ID obrázků je potřeba
-  ověřit na archivu, ne hádat).
+- **(6) hotovo 12. 10. 2026:** 15 nových hvězd (28 celkem). Další přidáš tak, že v Actions
+  spustíš **Star photos** (najde kandidáty s volnou licencí do `docs/star-photo-candidates.json`),
+  vybereš skutečné snímky, doplníš `PHOTOS` ve `scripts/fetch-star-photos.mjs` + `STAR_PHOTOS`
+  v `src/lib/starLook.ts` a workflow spustíš znovu. Test `scripts/star-photos.test.ts` hlídá,
+  že každá fotka patří skutečné hvězdě z katalogu a má soubor.

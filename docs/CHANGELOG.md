@@ -6,6 +6,19 @@ vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
+## Dokončení a druhé kolo revize (12. 10. 2026)
+
+- **Hvězdné fotky:** +15 hvězd (28 celkem) — Mira (Hubble), Procyon, Mizar a Alcor, Alnitak, Orionův pás, Plejády, Sadr v IC 1318, prstenec ε Eridani z ALMA, Aldebaran, Spica, Castor, Bellatrix, Regulus, Gliese 581. Hledání kandidátů a pečení běží ve workflow **Star photos** (ruční spuštění).
+- **Historie planety:** posunutí posuvníku po konci filmu už film samo nespustí; kamera letí na každou událost jen jednou.
+- **Telegram:** zpráva, kterou Telegram trvale odmítne (4xx), už neblokuje novější alerty; odkaz na mapu je správně escapovaný; EMSC události bez magnitudy se přeskočí; konfigurace bez pravidel se odmítne; denní digest počítá M 2.5+ z obou zdrojů.
+- **L2 dalekohledy:** při posunu času mimo vzorkované okno se Webb a Roman dál pohybují s Zemí (přesný model místo zamrznutí na okraji).
+- **Zvuk:** jeden sdílený AudioContext pro 🔔 i 🎧, odemčený přímo v kliknutí (iOS Safari).
+- **Webb/Roman 3D:** zachované ručně laděné materiály (zlaté zrcadlo), sdílená geometrie; chyba jedné sondy nezastaví zbytek flotily.
+- **Meteorické roje:** dlouhé roje (Jižní Tauridy, Jižní δ Akvaridy) mají správný radiant a štítek „peaked…" po celou sezónu.
+- **Sjednoceno:** `isSameEvent` a `regionOf` v jednom modulu pro aplikaci i skripty.
+- **Drobnosti:** „replay the day" vždy spustí přehrávání od začátku; přepínač událostí ukazuje skutečný stav v režimu historie.
+- **Testy:** end-to-end test Telegram skriptu s podvrženou sítí, kontrola souborů fotek, L2 při posunu času, dlouhé roje.
+
 ## Opravy z revize (3. 10. 2026)
 
 - **Quake alerty:** síťová chyba při odesílání už nepřeskočí uložení stavu už doručených zpráv (žádné duplicitní alerty); denní digest počítá zemětřesení hlášené USGS i EMSC jednou; neúspěšný první běh nevytvoří větev `alert-state` s prázdným stavem (následující běh by přehrál 3 h historie).
