@@ -251,11 +251,20 @@ celkem **74 snímků** (`public/planets/paleo/`, `PangeaView.tsx`):
 - **Pangea (340 Ma) → dnešek** — paleogeografické mapy Scotese/PALEOMAP
   (CC-BY-4.0, `npm run fetch-paleo`), snímek po **5 milionech let** → plynulé
   přehrávání, ne skoky.
-- **Projektovaná budoucnost: dnešek → Pangaea Proxima (+250 My)** — 5 morph
-  fází vygenerovaných **SDF morphem** (`npm run gen-future`); v appce jasně
-  označeno jako „projected".
-- **Play/pauza + scrub posuvník** s letopočtem; start v pauze (uživatel spouští
-  sám). Na telefonech se drží v paměti jen okno ±5 snímků kolem aktuální pozice.
+- **Jednotný vzhled snímků** (`npm run build-drift`, zdroje ve
+  `scripts/paleo-src/`): z map je vymazaná černá kresba dnešních pobřeží a hranic,
+  oceány mají jednu batymetrickou paletu (šelf → hlubina podle vzdálenosti od
+  pobřeží), 2048 px pro desktop, 1024 px (`sd/`) pro telefony.
+- **Projektovaná budoucnost: dnešek → Pangaea Proxima (+250 My)** — 5 fází
+  **SDF morphem** pevnin, s dopočítaným reliéfem a klimatem (zelená pobřeží →
+  suché vnitrozemí superkontinentu); v appce jasně označeno jako předpověď.
+- **Scéna:** měkký terminátor, odlesk slunce jen na vodě, modrý opar u okraje,
+  tenká vrstva mraků, vinětace; glóbus se vejde i na telefon na výšku.
+- **Časová osa:** barevný pás geologických období (barvy ICS — karbon, perm,
+  trias, jura, křída, paleogén, neogén, budoucnost), klikací kapitoly, štítek
+  aktuálního období; karta příběhu „01 / 09" s ‹ › mezi kapitolami.
+- **Play/pauza + scrub posuvník**; start v pauze (uživatel spouští sám). Na
+  telefonech se drží v paměti jen okno ±5 snímků kolem aktuální pozice.
 
 ---
 

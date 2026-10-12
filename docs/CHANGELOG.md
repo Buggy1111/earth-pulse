@@ -6,6 +6,15 @@ vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
+## Luxusní Drift a stanice (12. 10. 2026)
+
+- **ISS a Tiangong:** modely satelitů odrážejí prostředí na oběžné dráze (modrá Země pod nimi, slunce). ISS má lesklé měděné solární panely a kovové moduly. Tiangong dostal modré články se stříbrnou mřížkou, měděnou zadní stranu panelů a bílé izolační fólie na modulech.
+
+- **Čisté mapy:** z paleomap zmizela černá kresba dnešních pobřeží a hranic; oceány mají jednu batymetrickou paletu pro všechny snímky; 2048 px na desktopu.
+- **Budoucnost:** místo dvou plochých barev reliéf a klima (zelená pobřeží, suché vnitrozemí Pangey Proximy).
+- **Scéna:** terminátor, odlesk slunce na oceánech, opar u okraje, mraky, vinětace; glóbus se vejde i na telefon na výšku.
+- **Ovládání:** časová osa s barevnými geologickými obdobími (ICS), klikací kapitoly, karta příběhu s ‹ ›, velké datum a štítek období.
+
 ## Čeština a přehledné rozložení (12. 10. 2026)
 
 - **Čeština:** celé rozhraní je česky i anglicky, přepínač CZ / EN vedle přepínače režimů; volba se pamatuje, český/slovenský prohlížeč startuje česky. Čísla a data podle jazyka, správná česká množná čísla.

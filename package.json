@@ -16,7 +16,7 @@
     "fetch-moons": "node scripts/fetch-moons.mjs",
     "fetch-famous": "node scripts/fetch-famous.mjs",
     "fetch-paleo": "node scripts/fetch-paleo.mjs",
-    "gen-future": "node scripts/gen-future-frames.mjs",
+    "build-drift": "node scripts/build-drift-frames.mjs",
     "fetch-probes": "node scripts/fetch-probes.mjs",
     "fetch-stars": "node scripts/fetch-stars.mjs",
     "fetch-star-photos": "node scripts/fetch-star-photos.mjs",
