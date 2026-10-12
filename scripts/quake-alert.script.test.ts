@@ -29,8 +29,10 @@ function run(telegram: string) {
     code = err.status
     out = err.stdout + err.stderr
   }
-  const sent = (JSON.parse(readFileSync(state, 'utf8')) as { sent: { id: string }[] }).sent.map((s) => s.id)
-  return { code, out, sent }
+  const saved = JSON.parse(readFileSync(state, 'utf8')) as { sent: { id: string }[]; undeliverable?: { quake: { id: string } }[] }
+  const sent = saved.sent.map((s) => s.id)
+  const undeliverable = saved.undeliverable?.map((a) => a.quake.id) ?? []
+  return { code, out, sent, undeliverable }
 }
 
 describe('quake-alert script', () => {
@@ -44,12 +46,14 @@ describe('quake-alert script', () => {
     const r = run('400,200')
     expect(r.out).toContain('skipping undeliverable alert usgs:a')
     expect(r.sent.sort()).toEqual(['usgs:a', 'usgs:b']) // a is recorded so it can't block forever, b delivered
+    expect(r.undeliverable).toEqual(['usgs:a'])
     expect(r.code).toBe(1) // but the run still shows up as failed
   })
 
   it('a network error keeps what was delivered and retries the rest next run', () => {
     const r = run('200,net')
     expect(r.sent).toEqual(['usgs:a'])
+    expect(r.undeliverable).toEqual([])
     expect(r.code).toBe(1)
     expect(r.out).not.toContain('api.telegram.org') // the token-bearing URL is never logged
   })
