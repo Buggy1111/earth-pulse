@@ -6,6 +6,27 @@ vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
+## Dokončení a druhé kolo revize (12. 10. 2026)
+
+- **Hvězdné fotky:** +15 hvězd (28 celkem) — Mira (Hubble), Procyon, Mizar a Alcor, Alnitak, Orionův pás, Plejády, Sadr v IC 1318, prstenec ε Eridani z ALMA, Aldebaran, Spica, Castor, Bellatrix, Regulus, Gliese 581. Hledání kandidátů a pečení běží ve workflow **Star photos** (ruční spuštění).
+- **Historie planety:** posunutí posuvníku po konci filmu už film samo nespustí; kamera letí na každou událost jen jednou.
+- **Telegram:** zpráva, kterou Telegram trvale odmítne (4xx), už neblokuje novější alerty; odkaz na mapu je správně escapovaný; EMSC události bez magnitudy se přeskočí; konfigurace bez pravidel se odmítne; denní digest počítá M 2.5+ z obou zdrojů.
+- **L2 dalekohledy:** při posunu času mimo vzorkované okno se Webb a Roman dál pohybují s Zemí (přesný model místo zamrznutí na okraji).
+- **Zvuk:** jeden sdílený AudioContext pro 🔔 i 🎧, odemčený přímo v kliknutí (iOS Safari).
+- **Webb/Roman 3D:** zachované ručně laděné materiály (zlaté zrcadlo), sdílená geometrie; chyba jedné sondy nezastaví zbytek flotily.
+- **Meteorické roje:** dlouhé roje (Jižní Tauridy, Jižní δ Akvaridy) mají správný radiant a štítek „peaked…" po celou sezónu.
+- **Sjednoceno:** `isSameEvent` a `regionOf` v jednom modulu pro aplikaci i skripty.
+- **Drobnosti:** „replay the day" vždy spustí přehrávání od začátku; přepínač událostí ukazuje skutečný stav v režimu historie.
+- **Testy:** end-to-end test Telegram skriptu s podvrženou sítí, kontrola souborů fotek, L2 při posunu času, dlouhé roje.
+
+## Opravy z revize (3. 10. 2026)
+
+- **Quake alerty:** síťová chyba při odesílání už nepřeskočí uložení stavu už doručených zpráv (žádné duplicitní alerty); denní digest počítá zemětřesení hlášené USGS i EMSC jednou; neúspěšný první běh nevytvoří větev `alert-state` s prázdným stavem (následující běh by přehrál 3 h historie).
+- **Historie planety:** pauza → play pokračuje na zastavené události (dřív jednu přeskočil); tlačítko se vrátí na ▶ hned po poslední události; otevření historie zavře i kartu živé události.
+- **Meteorický panel:** „nad obzorem / ≈N za hodinu" jen u aktivních rojů.
+- **Ambient:** zemětřesení z posledních vteřin se počítá i při minutou zaokrouhleném čase.
+- **L2 dalekohledy:** trajektorie se staví jednou za UTC den a sdílí je strom navigace i 3D vrstva.
+
 ## 🌍 v0.1 — Živá Země (12. 6., 01:44)
 První verze: živá Země na 3D glóbu jako „WOW app z výzkumu". Hned poté skutečné
 README místo Vite boilerplate. *(60ffd8e, 2f38612)*
@@ -277,6 +298,20 @@ infrastruktura:
 
 > Stav: **108 unit testů (15 souborů) + 5 Playwright e2e**, `tsc` + `eslint`
 > čisté, build OK — a nově to samé hlídá CI na každý push.
+
+## 🔭 Season 4 — TODO list odškrtnut (3. 10. 2026)
+Sedm nápadů z `docs/TODO.md`, šest hotových:
+- **Webb + Roman** v L2 — vlastní propagace halo orbity (`lib/l2.ts`), takže
+  fungují bez HORIZONS; procedurální modely; Webb i v `fetch-probes`.
+- **Telegram alerting** — `scripts/quake-alert.mjs`, pravidla v
+  `alerts.config.json` (kruh/bbox + práh, worldwide práh), USGS + EMSC, dedup,
+  GitHub Actions cron s dedupe stavem na orphan větvi.
+- **Meteorické roje** — karta s odpočtem, kvalita oblohy dle Měsíce, radianty v Sky AR.
+- **Deník planety** — 24h digest + replay dne + export textu.
+- **Historie planety** — 29 událostí, posuvník a „film“ s letem kamery.
+- **Ambientní zvuk** — dron, jehož nálada sleduje aktivitu planety.
+- **Nedělá se:** rozšíření hvězdných fotek — vyžaduje stahování z archivů
+  (ESO/NASA/Commons), v sandboxu bez sítě to nešlo; viz `docs/TODO.md`.
 
 ---
 

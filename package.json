@@ -19,7 +19,8 @@
     "gen-future": "node scripts/gen-future-frames.mjs",
     "fetch-probes": "node scripts/fetch-probes.mjs",
     "fetch-stars": "node scripts/fetch-stars.mjs",
-    "fetch-star-photos": "node scripts/fetch-star-photos.mjs"
+    "fetch-star-photos": "node scripts/fetch-star-photos.mjs",
+    "quake-alert": "node scripts/quake-alert.mjs --dry"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

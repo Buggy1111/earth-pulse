@@ -13,7 +13,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
 import { SUNLIT_LAYER } from './helpers'
+import { withL2Probes } from '../../lib/l2'
 import { isValidTraj, PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
+import { TELESCOPE_MODELS } from './telescopeModels'
 import { makeNameSprite } from '../spaceObjects'
 import { isMobileDevice } from '../perf'
 import { ARROW_GEO, ARROW_MAT, disposeMaterial, getGlowTexture } from './helpers'
@@ -247,8 +249,9 @@ export function setupProbes(
     // phones: the decoded GLB fleet (~70–100 MB of VRAM) is what tips an iPhone
     // into an OOM page-reload on entering solar. The lightweight placeholder glint
     // + the comet trail still tell the whole story at a phone's tiny solar scale.
-    if (!isMobileDevice())
-      void loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL)
+    const procedural = TELESCOPE_MODELS[traj.id]
+    if (procedural || !isMobileDevice())
+      void (procedural ? Promise.resolve(procedural()) : loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL))
       .then((model) => {
         if (disposed) return
         const box = new THREE.Box3().setFromObject(model)
@@ -261,7 +264,9 @@ export function setupProbes(
         // the planets) so their real form shows — solar panels, body — keeping only
         // a faint accent floor so the shadowed side still reads its colour.
         const accent = new THREE.Color(color)
-        model.traverse((o) => {
+        // procedural telescopes carry hand-tuned materials (Webb's gold mirror) —
+        // only the generic GLB fleet needs the relighting rewrite below
+        if (!procedural) model.traverse((o) => {
           const mesh = o as THREE.Mesh
           const src = mesh.material as THREE.MeshStandardMaterial | undefined
           if (!src?.emissive) return
@@ -289,14 +294,21 @@ export function setupProbes(
       })
   }
 
+  // L2 telescopes (Webb, Roman) are propagated locally, so they appear even if
+  // the baked HORIZONS snapshot is missing or lacks them
   void fetch(PROBES_URL)
     .then((r) => (r.ok ? (r.json() as Promise<ProbeTraj[]>) : Promise.reject(new Error('no probes'))))
+    .catch(() => [] as ProbeTraj[])
     .then((trajs) => {
       if (disposed) return
-      for (const traj of trajs.filter(isValidTraj)) addCraft(traj)
-    })
-    .catch(() => {
-      // no snapshot → the rest of the solar view is unaffected
+      for (const traj of withL2Probes(trajs.filter(isValidTraj))) {
+        // one bad craft (model factory / trail) must not take the rest of the fleet down
+        try {
+          addCraft(traj)
+        } catch (err) {
+          console.warn(`probe ${traj.id} skipped`, err)
+        }
+      }
     })
 
   return {

@@ -3,6 +3,7 @@ import { GlobeView } from './components/GlobeView'
 import { ArLaunchButton } from './components/ArLaunchButton'
 import { HwAccelHint } from './components/hud/HwAccelHint'
 import { useProbes } from './useProbes'
+import { useHistory } from './useHistory'
 import { ArSky, PangeaView } from './lazyViews'
 import { Hud } from './components/hud/Hud'
 import { LoadingOverlay, ShowHudButton } from './components/hud/controls'
@@ -32,7 +33,7 @@ import { parseView } from './lib/share'
 const initialView = parseView(window.location.hash)
 
 export default function App() {
-  const { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound } =
+  const { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient } =
     useLiveData()
   const probes = useProbes()
   const [selected, setSelected] = useState<Quake | null>(null)
@@ -106,7 +107,13 @@ export default function App() {
     [sats],
   )
 
-  const { timeOffsetH, playing: timelinePlaying, onToggle: onTimelineToggle, onScrub: onTimelineScrub } = useTimeline()
+  const {
+    timeOffsetH,
+    playing: timelinePlaying,
+    onToggle: onTimelineToggle,
+    onScrub: onTimelineScrub,
+    onReplay: onTimelineReplay,
+  } = useTimeline()
   const simNow = now + timeOffsetH * 3_600_000
   const timelineActive = timeOffsetH < 0
   const displayQuakes = useMemo(
@@ -268,6 +275,24 @@ export default function App() {
     setFlyTo((f) => ({ lat: e.lat, lng: e.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
 
+  // 🏛 history mode swaps the live EONET pins for the curated chronology
+  const closeHistory = useCallback(() => setSelectedEvent(null), [])
+  const history = useHistory(onEventClick, closeHistory)
+  const globeEvents = history.open ? history.shown : events
+  const globeLayers = useMemo(
+    () => (history.open && !layers.events ? { ...layers, events: true } : layers),
+    [history.open, layers],
+  )
+  // the HUD toggle shows what's really on the globe; switching events off while the
+  // chronology is up leaves History (otherwise the click would do nothing visible)
+  const onToggleHudLayer = useCallback(
+    (key: keyof LayerState) => {
+      if (key === 'events' && history.open) history.close()
+      else onToggleLayer(key)
+    },
+    [history, onToggleLayer],
+  )
+
   // the quake / event / mission detail cards are Earth-view only — drop them the
   // moment we leave Earth so a card opened before hopping to the Moon, the solar
   // system or Drift doesn't pop back up on return. React's documented "adjust
@@ -280,6 +305,7 @@ export default function App() {
       setSelected(null)
       setSelectedEvent(null)
       setSelectedMission(null)
+      history.close()
     }
   }
 
@@ -311,7 +337,7 @@ export default function App() {
         iss={iss}
         sats={sats}
         kp={weather.kp?.kp ?? null}
-        layers={layers}
+        layers={globeLayers}
         selectedOrbitIds={orbitIds}
         userLoc={userLoc}
         locVersion={locVersion}
@@ -343,7 +369,7 @@ export default function App() {
         onIssClick={onIssClick}
         onSatClick={onSatClick}
         onQuakeClick={setSelected}
-        events={events}
+        events={globeEvents}
         onEventClick={onEventClick}
         gibsLayer={gibsLayer}
         gibsDate={gibsImageryDate}
@@ -391,8 +417,8 @@ export default function App() {
           solarLayers={solarLayers}
           onToggleSolarLayer={toggleSolarLayer}
           probes={probes}
-          layers={layers}
-          onToggleLayer={onToggleLayer}
+          layers={globeLayers}
+          onToggleLayer={onToggleHudLayer}
           orbits={orbits}
           onRemoveOrbit={onRemoveOrbit}
           onClearOrbits={onClearOrbits}
@@ -413,15 +439,20 @@ export default function App() {
           timelinePlaying={timelinePlaying}
           onTimelineScrub={onTimelineScrub}
           onTimelineToggle={onTimelineToggle}
+          onTimelineReplay={onTimelineReplay}
+          history={history}
+          allQuakes={quakes}
           displayQuakes={displayQuakes}
           flashes={timelineActive ? [] : flashes}
           simNow={simNow}
           onFocusQuake={onFocusQuake}
           soundOn={soundOn}
           onToggleSound={toggleSound}
+          ambientOn={ambientOn}
+          onToggleAmbient={toggleAmbient}
           selected={selected}
           onCloseQuake={() => setSelected(null)}
-          events={events}
+          events={history.open ? [] : events}
           onEventClick={onEventClick}
           selectedEvent={selectedEvent}
           onCloseEvent={() => setSelectedEvent(null)}

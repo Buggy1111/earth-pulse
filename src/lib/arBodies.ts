@@ -7,6 +7,7 @@ import { EARTH_RADIUS_KM } from './satellites'
 import { lookAngles, type LookAngles } from './arMath'
 import { subLunarPoint } from './moon'
 import { earthHelio, planetPositions } from './planets'
+import { radiantAt, showerStatus, SHOWERS } from './meteors'
 import { AU_KM, PROBE_INFO, probePosAu, type ProbeTraj } from './probes'
 
 export interface SkyBody extends LookAngles {
@@ -102,6 +103,22 @@ export function skyBodies(
         distanceLabel: `${dist.toFixed(2)} AU`,
       })
     }
+  }
+
+  // ☄️ radiants of showers in season — where the meteors seem to stream from
+  for (const sh of SHOWERS) {
+    if (showerStatus(sh, date) === 'upcoming') continue
+    const r = radiantAt(sh, date)
+    let lng = r.raDeg - gmst
+    lng = (((lng % 360) + 540) % 360) - 180
+    const la = lookAngles(observer, { lat: r.decDeg, lng, altKm: 1e9 })
+    if (la.elevationDeg <= 0) continue
+    out.push({
+      ...la,
+      name: `${sh.name} radiant`,
+      color: '#7dd3fc',
+      distanceLabel: `ZHR ${sh.zhr} · ${sh.speedKms} km/s`,
+    })
   }
 
   out.sort((a, b) => b.elevationDeg - a.elevationDeg)

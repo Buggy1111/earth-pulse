@@ -6,6 +6,9 @@
  */
 
 import type { Quake } from './quakes'
+import { isSameEvent } from './quakeMatch.mjs'
+
+export { isSameEvent }
 
 export const EMSC_WS_URL = 'wss://www.seismicportal.eu/standing_order/websocket'
 
@@ -47,16 +50,6 @@ export function parseEmscEvent(json: string): Quake | null {
   } catch {
     return null
   }
-}
-
-/** Same physical event reported by two agencies? Time + location + magnitude
- * all roughly agree (early magnitude estimates differ by up to ~1). */
-export function isSameEvent(a: Quake, b: Quake): boolean {
-  if (Math.abs(a.time - b.time) > 120_000) return false
-  if (Math.abs(a.mag - b.mag) > 1.2) return false
-  const dLat = a.lat - b.lat
-  const dLng = (((a.lng - b.lng + 540) % 360) - 180) * Math.cos(((a.lat + b.lat) / 2) * (Math.PI / 180))
-  return Math.hypot(dLat, dLng) < 2
 }
 
 /** USGS catalog + EMSC extras that USGS doesn't know about yet, newest first. */

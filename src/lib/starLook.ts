@@ -45,6 +45,21 @@ export const STAR_PHOTOS: Record<string, StarPhoto> = {
   Fomalhaut: { slug: 'fomalhaut', credit: 'NASA/ESA Hubble · public domain · debris disk' },
   Vega: { slug: 'vega', credit: 'NASA/JPL-Caltech · public domain · artist concept' },
   Rigel: { slug: 'rigel', credit: 'NASA/JPL-Caltech · public domain · Witch Head Nebula it lights' },
+  Mira: { slug: 'mira', credit: 'M. Karovska (CfA)/NASA Hubble · public domain · resolved' },
+  Procyon: { slug: 'procyon', credit: 'Giuseppe Donatiello · CC0 · Procyon A & B' },
+  Mizar: { slug: 'mizar', credit: 'Chuck Ayoub · CC0 · Mizar & Alcor' },
+  Alnitak: { slug: 'alnitak', credit: "Giuseppe Donatiello · CC0 · with Orion's Sword" },
+  Alnilam: { slug: 'alnilam', credit: "D. De Martin/DSS · public domain · Orion's Belt" },
+  Mintaka: { slug: 'mintaka', credit: "D. De Martin/DSS · public domain · Orion's Belt" },
+  Alcyone: { slug: 'alcyone', credit: 'NASA/ESA/AURA/Caltech/Palomar · public domain · the Pleiades' },
+  Sadr: { slug: 'sadr', credit: 'Jeff Johnson · CC BY-SA 4.0 · inside IC 1318' },
+  Ran: { slug: 'ran', credit: 'Mark Booth/ALMA · CC BY-SA 4.0 · debris ring' },
+  Aldebaran: { slug: 'aldebaran', credit: 'NASA/ESA/STScI · CC BY-SA 4.0 (crop) · in the Hyades field' },
+  Spica: { slug: 'spica', credit: 'Roberto Mura/DSS (Aladin) · CC BY-SA 4.0' },
+  Castor: { slug: 'castor', credit: 'Roberto Mura/DSS (Aladin) · CC BY-SA 4.0' },
+  Bellatrix: { slug: 'bellatrix', credit: 'Roberto Mura/DSS (Aladin) · CC BY-SA 4.0' },
+  Regulus: { slug: 'regulus', credit: 'Roberto Mura/DSS (Aladin) · CC BY-SA 4.0' },
+  'Gl 581': { slug: 'gl-581', credit: 'ESO/L. Calçada · CC BY 4.0 · artist concept' },
 }
 
 // Per spectral class (O…M): granule valley/peak/rim tints + noise coarseness.

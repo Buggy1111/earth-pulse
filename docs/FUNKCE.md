@@ -32,6 +32,31 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
 - **Zvuk:** volitelný „ping" laděný podle magnitudy.
 - **⏪ Timeline:** posuvník přehraje posledních 24 h jako film (scrub i auto-play).
 
+### Meteorické roje ☄️
+- Karta **Meteor showers** (vpravo nahoře): 12 hlavních ročních rojů (IMO),
+  seřazené *peaking → active → upcoming* s odpočtem k peaku.
+- Rozklik: ZHR, rychlost, mateřské těleso, **kvalita oblohy podle fáze Měsíce**
+  v peaku a — s polohou — **výška radiantu a odhad meteorů/h** u tebe teď.
+- V **Sky AR** svítí radianty rojů v sezóně tam, kde na obloze opravdu jsou.
+
+### Deník planety 📓
+- Dock → *planet diary*: **24 h na jednu kartu** — věta dne, histogram otřesů po
+  hodinách, nejsilnější/nejhlubší/nejrušnější oblast, události (požáry, bouře,
+  sopky) a Kp.
+- ▶ **replay the day** pustí den jako film na globu; **copy** zkopíruje digest
+  jako text.
+
+### Historie planety 🏛
+- Dock → *history*: 29 událostí od Vesuvu (79) po Turecko (2023) — Lisabon 1755,
+  Tambora, Krakatoa, Tunguska, Valdivia 1960 (M 9.5), Tōhoku, Hunga Tonga…
+- Posuvník nebo ▶ **přehraje dějiny**: piny naskakují chronologicky a kamera
+  letí na každou událost; karta má kontext a zdroj.
+
+### Ambientní zvuk 🎧
+- Volitelný dron (Web Audio, bez souborů). Klid = otevřená kvinta a pomalý
+  filtr; velké zemětřesení či geomagnetická bouře = temný, rázující, disonantní.
+  Nálada se plynule posouvá podle aktivity za posledních 6 h + Kp.
+
 ### Satelity 🛰
 - **26 vybraných slavných satelitů** (NASA „Eyes on the Earth" výběr) z
   Celestrak skupiny „active" — anonymní roj 148 nahradila kurátorská sestava:
@@ -168,6 +193,15 @@ otevře se celá soustava.
 - **⏩ Time-warp** — až týden za sekundu: planety kloužou po drahách, měsíce
   víří, zrychlí se i terminátor Země a satelity.
 
+### Teleskopy v L2 🔭
+- **James Webb** a **Nancy Grace Roman** (start 30. 8. 2026) na halo orbitě
+  kolem Sun–Earth L2, ~1,5 mil. km za Zemí. Žádná HORIZONS data nejsou potřeba —
+  `lib/l2.ts` si dráhu spočítá sám (reprezentativní halo: správná velikost,
+  perioda ~6 měsíců, přelet z Země po startu). Pokud HORIZONS Webb doručí, má
+  přednost skutečná efemerida.
+- Modely jsou procedurální (zlatá hexagonální zrcadla + sluneční štít / válec
+  se solárním křídlem).
+
 ### Sondy hlubokého vesmíru 🚀
 - **11 sond živě**: Voyager 1, Voyager 2, New Horizons, Parker Solar Probe,
   Solar Orbiter, BepiColombo, JUICE, Europa Clipper, Psyche, Lucy, Hayabusa2 —
@@ -189,7 +223,7 @@ otevře se celá soustava.
 - **Klik na hvězdu** → karta s fakty + **let ke hvězdě**: postaví se
   **procedurální 3D koule** ze skutečné fyziky hvězdy (`starMaterial.ts`
   shader — barva z teploty, granulace, limb darkening, korona; velikost z
-  reálné svítivosti) a u **13 slavných hvězd** se ukáže skutečná fotka
+  reálné svítivosti) a u **28 hvězd** se ukáže skutečná fotka
   z teleskopu (ESO / NASA / CHARA, `npm run fetch-star-photos`).
 
 ### Planety v datech

@@ -191,6 +191,22 @@ test('solar mode places the deep-space probes from their baked trajectories', as
   )
   // the solar navigator lists the probes (click a name to fly out to the craft)
   await page.waitForFunction(() => /Voyager/.test(document.body.innerText), null, { timeout: 15_000 })
+  // the L2 telescopes are propagated locally, so they're present with or without HORIZONS data
+  await page.waitForFunction(
+    () => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        scene(): { traverse(cb: (o: unknown) => void): void }
+      }
+      const ids = new Set<string>()
+      g.scene().traverse((o) => {
+        const id = (o as { userData?: { probeId?: string } }).userData?.probeId
+        if (id) ids.add(id)
+      })
+      return ids.has('webb') && ids.has('roman')
+    },
+    null,
+    { timeout: 15_000 },
+  )
   // and the real ~8.9k-star sky builds as a Points cloud (shader compiles cleanly)
   await page.waitForFunction(
     () => {
@@ -258,5 +274,50 @@ test.describe('mobile', () => {
     expect(state.hasClose).toBe(true)
     expect(state.hasGate).toBe(true)
     expect(state.hasVideo).toBe(true)
+  })
+})
+
+test('planet diary, history film and meteor showers open from the Earth HUD', async ({ page }) => {
+  // desktop-width HUD: below ~1400px the right-hand panels live in a slide-out drawer
+  await page.setViewportSize({ width: 1500, height: 900 })
+  const errors = await bootGlobe(page)
+  // ☄️ the meteor card always lists the showers in season / next up
+  await expect(page.getByText('Meteor showers')).toBeVisible()
+
+  // 📓 diary: dock button → card with a headline and the replay control
+  await page.getByRole('button', { name: /planet diary/ }).click()
+  await expect(page.getByText(/Planet diary/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /replay the day/ })).toBeVisible()
+
+  // 🏛 history: opens showing the whole chronology, play restarts from Vesuvius
+  await page.getByRole('button', { name: /history of the planet/ }).click()
+  await expect(page.getByLabel('History timeline')).toBeVisible()
+  await page.getByRole('button', { name: /play from the start/ }).click()
+  await expect(page.getByText('AD 79').first()).toBeVisible()
+  await expect(page.getByText(/Vesuvius buries Pompeii/).first()).toBeVisible()
+  // the globe now carries the curated pins instead of the live EONET ones
+  await page.waitForFunction(() => document.body.innerText.includes('Vesuvius'), null, { timeout: 10_000 })
+  expect(errors).toEqual([])
+})
+
+test.describe('phone HUD', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('diary, history and meteors live in the right drawer and fit the screen', async ({ page }) => {
+    const errors = await bootGlobe(page)
+    await page.getByRole('button', { name: /Open live & controls/i }).click()
+    await expect(page.getByText('Meteor showers')).toBeVisible()
+    await page.getByRole('button', { name: /planet diary/ }).click()
+    await expect(page.getByRole('button', { name: /replay the day/ })).toBeVisible()
+    await page.getByRole('button', { name: /history of the planet/ }).click()
+    await expect(page.getByLabel('History timeline')).toBeVisible()
+    // opening history replaces the diary card (one at a time), nothing spills sideways
+    await expect(page.getByRole('button', { name: /replay the day/ })).toHaveCount(0)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(overflow).toBeLessThanOrEqual(0)
+    // the drawer's cards keep their natural height (no squashed dock rows)
+    const dock = await page.getByRole('button', { name: /clean view/ }).boundingBox()
+    expect(dock && dock.height).toBeGreaterThan(20)
+    expect(errors).toEqual([])
   })
 })

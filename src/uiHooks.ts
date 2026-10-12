@@ -2,6 +2,7 @@
  * browser geolocation. Pure React state machines — no globe knowledge. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getAudioContext, unlockAudio } from './lib/audioCtx'
 import { detectWeakGpu, isMobileDevice, sampleFps } from './components/perf'
 import { SOLAR_LAYER_DEFAULTS, type LayerState, type OrbitEntry, type SolarLayerState } from './components/hud/types'
 import { warpedSimMs } from './lib/clock'
@@ -135,7 +136,12 @@ export function useTimeline() {
     setPlaying(false)
     setTimeOffsetH(h)
   }, [])
-  return { timeOffsetH, playing, onToggle, onScrub }
+  /** Always (re)start the day from −24 h — the diary's "replay the day" must never pause. */
+  const onReplay = useCallback(() => {
+    setTimeOffsetH(-24)
+    setPlaying(true)
+  }, [])
+  return { timeOffsetH, playing, onToggle, onScrub, onReplay }
 }
 
 /** ⏩ time-warp anchor: simMs advances `warp`× faster than real time. */
@@ -241,7 +247,6 @@ export function useQuakePing(newQuakes: Quake[], emscFresh: Quake[]) {
   useEffect(() => {
     soundOnRef.current = soundOn
   }, [soundOn])
-  const audioRef = useRef<AudioContext | null>(null)
   // one shared "already pinged" record for BOTH feeds — EMSC announces a quake
   // within a minute and USGS re-announces the same event minutes later under a
   // different id, which used to ping twice. Cross-checked via isSameEvent and
@@ -252,8 +257,7 @@ export function useQuakePing(newQuakes: Quake[], emscFresh: Quake[]) {
     recentPinged.current = recentPinged.current.filter((p) => p.time > cutoff)
     if (recentPinged.current.some((p) => p.id === q.id || isSameEvent(p, q))) return
     recentPinged.current.push(q)
-    audioRef.current ??= new AudioContext()
-    playPing(audioRef.current, q.mag)
+    playPing(getAudioContext(), q.mag)
   }
   useEffect(() => {
     if (newQuakes.length === 0 || !soundOnRef.current) return
@@ -264,14 +268,9 @@ export function useQuakePing(newQuakes: Quake[], emscFresh: Quake[]) {
     for (const q of emscFresh) pingOnce(q)
   }, [emscFresh])
   const toggleSound = useCallback(() => {
-    setSoundOn((on) => {
-      if (!on) {
-        // create/resume the context on the user gesture — autoplay policy
-        audioRef.current ??= new AudioContext()
-        void audioRef.current.resume()
-      }
-      return !on
-    })
+    // create/resume the shared context on the user gesture — autoplay policy
+    if (!soundOnRef.current) unlockAudio()
+    setSoundOn((on) => !on)
   }, [])
   return { soundOn, toggleSound }
 }

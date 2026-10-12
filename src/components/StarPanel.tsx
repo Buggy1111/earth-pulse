@@ -24,7 +24,7 @@ export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => vo
         <figure className="mt-2">
           <img
             src={`stars/cards/${photo.slug}.webp`}
-            alt={`${star.name} — real telescope image`}
+            alt={`${star.name} — ${/concept/i.test(photo.credit) ? "artist's concept" : 'real telescope image'}`}
             loading="lazy"
             className="max-h-40 w-full rounded-lg object-cover"
             onError={(e) => {

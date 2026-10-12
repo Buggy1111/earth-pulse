@@ -17,6 +17,12 @@ export interface EarthEvent {
   magnitude?: number
   magnitudeUnit?: string
   link?: string
+  /** Historic-mode only (lib/history): one line of context + preformatted size. */
+  note?: string
+  magnitudeLabel?: string
+  /** Where the facts come from — defaults to NASA EONET in the card. */
+  source?: string
+  historic?: boolean
 }
 
 /** Icon, colour and friendly label per EONET category id. */
@@ -34,6 +40,8 @@ export const EVENT_META: Record<string, { icon: string; color: string; label: st
   snow: { icon: '❄️', color: '#e0f2fe', label: 'Snow' },
   tempExtremes: { icon: '🌡', color: '#fca5a5', label: 'Temperature extreme' },
   waterColor: { icon: '🟢', color: '#4ade80', label: 'Water colour' },
+  impact: { icon: '☄️', color: '#fcd34d', label: 'Impact' },
+  solarStorm: { icon: '☀️', color: '#fb923c', label: 'Solar storm' },
 }
 
 export function eventMeta(category: string): { icon: string; color: string; label: string } {

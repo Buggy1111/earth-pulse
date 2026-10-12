@@ -137,6 +137,8 @@ export function QuakePanel({
   onFocusQuake,
   soundOn,
   onToggleSound,
+  ambientOn,
+  onToggleAmbient,
 }: {
   quakes: Quake[]
   flashes: Quake[]
@@ -144,6 +146,8 @@ export function QuakePanel({
   onFocusQuake: (quake: Quake) => void
   soundOn: boolean
   onToggleSound: () => void
+  ambientOn: boolean
+  onToggleAmbient: () => void
 }) {
   const stats = quakeStats(quakes)
   const fresh = flashes[flashes.length - 1]
@@ -161,18 +165,31 @@ export function QuakePanel({
   return (
     <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={120}>
       <h2 className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        Earthquakes · last 24 h
-        <button
-          type="button"
-          onClick={onToggleSound}
-          aria-pressed={soundOn}
-          title={soundOn ? 'new-quake sound ping: on' : 'new-quake sound ping: off'}
-          className={`cursor-pointer rounded px-1 text-sm normal-case ${
-            soundOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-300'
-          }`}
-        >
-          {soundOn ? '🔔' : '🔕'}
-        </button>
+        <span>Earthquakes · 24 h</span>
+        <span className="flex gap-1">
+          <button
+            type="button"
+            onClick={onToggleAmbient}
+            aria-pressed={ambientOn}
+            title={ambientOn ? 'ambient planet drone: on — calm when quiet, tense when the Earth shakes' : 'ambient planet drone: off'}
+            className={`cursor-pointer rounded px-1 text-sm normal-case ${
+              ambientOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            🎧
+          </button>
+          <button
+            type="button"
+            onClick={onToggleSound}
+            aria-pressed={soundOn}
+            title={soundOn ? 'new-quake sound ping: on' : 'new-quake sound ping: off'}
+            className={`cursor-pointer rounded px-1 text-sm normal-case ${
+              soundOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            {soundOn ? '🔔' : '🔕'}
+          </button>
+        </span>
       </h2>
       <div className="num readout mt-1 text-3xl font-bold text-amber-300">{stats.count}</div>
       {fresh && (

@@ -184,6 +184,14 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
   )
 }
 
+/** "24 August AD 79" — day, month and year (AD for the ancient ones) of a historic event. */
+function formatHistoricDate(ms: number): string {
+  const d = new Date(ms)
+  const y = d.getUTCFullYear()
+  const year = y < 1000 ? `AD ${y}` : String(y)
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })} ${year}`
+}
+
 /** Detail card for a clicked NASA EONET natural event — the events' answer to
  * QuakeDetail, so a wildfire/storm/volcano reads as richly as an earthquake. */
 export function EventDetail({
@@ -220,13 +228,14 @@ export function EventDetail({
         </button>
       </div>
       <p className="num mt-1.5 text-xs text-slate-400">
-        {event.magnitude
-          ? `${Math.round(event.magnitude).toLocaleString('en-US')} ${event.magnitudeUnit ?? ''} · `
-          : ''}
-        {timeAgo(event.date, now)} · {formatCoords(event.lat, event.lng)}
+        {event.historic
+          ? `${event.magnitudeLabel ? `${event.magnitudeLabel} · ` : ''}${formatHistoricDate(event.date)}`
+          : `${event.magnitude ? `${Math.round(event.magnitude).toLocaleString('en-US')} ${event.magnitudeUnit ?? ''} · ` : ''}${timeAgo(event.date, now)}`}{' '}
+        · {formatCoords(event.lat, event.lng)}
       </p>
+      {event.note && <p className="mt-1.5 text-xs leading-snug text-slate-300">{event.note}</p>}
       <div className="mt-1.5 flex items-center justify-between">
-        <span className="text-[10px] text-amber-300/80">📡 NASA EONET</span>
+        <span className="text-[10px] text-amber-300/80">{event.source ? `📚 ${event.source}` : '📡 NASA EONET'}</span>
         {event.link?.startsWith('https://') && (
           <a
             href={event.link}

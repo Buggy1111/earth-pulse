@@ -44,6 +44,12 @@ public data feeds.
   ☀️ space weather (NOAA SWPC), 🌋 1,215 Holocene volcanoes, 📝 live Wikipedia
   edits, 🎬 a cinematic auto-tour, 🔗 **shareable view links** (camera, orbits
   and layers travel in the URL hash)
+- ☄️ **Meteor showers** with a countdown to each peak, moonlight forecast and
+  radiants in Sky AR · 📓 **Planet diary** — the last 24 h on one card, with a
+  replay · 🏛 **History of the planet** — 29 events from Vesuvius to Turkey 2023,
+  played as a film · 🎧 an optional **ambient drone** that tenses up when the
+  Earth shakes · 🔔 optional **Telegram quake alerts**
+  (`scripts/quake-alert.mjs`, bring your own bot)
 
 ![NASA vital-signs data layer — air temperature painted across the whole planet with the continents outlined in black](docs/air-temperature.png)
 
@@ -67,7 +73,8 @@ Click any body to orbit it. Then grab the **⏩ time-warp** (up to a
 week per second) and watch the system dance — planets slide along their
 orbits, moons whirl, and even Earth's terminator and satellites speed up.
 
-The solar view goes deeper than the planets: **11 deep-space probes** —
+The solar view goes deeper than the planets: **11 deep-space probes** plus the
+**James Webb** and **Roman** telescopes on their halo orbits around L2 —
 Voyager 1 & 2, New Horizons, Parker Solar Probe, Solar Orbiter, BepiColombo,
 JUICE, Europa Clipper, Psyche, Lucy and Hayabusa2 — fly their **real
 trajectories from NASA JPL HORIZONS** (re-baked weekly), each with a 3D model,
@@ -105,6 +112,7 @@ npm run fetch-famous    # 26 famous-satellite TLEs (Celestrak) → public/tle/fa
 npm run fetch-starlink  # ~10.7k Starlink TLEs → public/tle/starlink.txt
 npm run fetch-probes    # deep-space probe trajectories (NASA JPL HORIZONS)
 npm run fetch-volcanoes # Smithsonian GVP volcano snapshot
+npm run quake-alert     # dry-run the Telegram earthquake alerter (see alerts.config.json)
 ```
 
 CI runs lint + build + unit + e2e on every push, and a weekly GitHub Action

@@ -47,7 +47,7 @@ describe('starAppearance', () => {
 describe('STAR_PHOTOS', () => {
   it('every entry has a slug and a credit with a licence', () => {
     for (const [name, p] of Object.entries(STAR_PHOTOS)) {
-      expect(p.slug, name).toMatch(/^[a-z-]+$/)
+      expect(p.slug, name).toMatch(/^[a-z0-9-]+$/)
       expect(p.credit.length, name).toBeGreaterThan(8)
     }
   })
