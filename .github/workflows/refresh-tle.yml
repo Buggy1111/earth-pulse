@@ -1,0 +1,41 @@
+# Refresh short-lived TLE snapshots daily; distant probe trajectories stay weekly.
+name: Refresh satellite TLE snapshots
+
+on:
+  schedule:
+    - cron: '15 5 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: earth-pulse-snapshot-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Refresh Celestrak elements
+        run: |
+          node scripts/fetch-starlink.mjs
+          node scripts/fetch-famous.mjs
+      - name: Commit refreshed elements
+        run: |
+          FILES="public/tle/starlink.txt public/tle/famous.txt"
+          if git diff --quiet -- $FILES; then
+            echo "TLE snapshots unchanged."
+          else
+            git config user.name "data-refresh bot"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add $FILES
+            git commit -m "chore: refresh daily satellite TLE snapshots"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          fi
