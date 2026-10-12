@@ -69,14 +69,16 @@ export function parseEvents(json: RawEonet): EarthEvent[] {
     const pt = [...geom].reverse().find((g) => Array.isArray(g.coordinates) && g.coordinates.length >= 2)
     if (!pt || !pt.coordinates) continue
     const [lng, lat] = pt.coordinates
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue
+    const date = pt.date ? Date.parse(pt.date) : NaN
+    if (!Number.isFinite(date)) continue
     out.push({
       id: e.id,
       title: e.title,
       category: e.categories?.[0]?.id ?? 'manmade',
       lat,
       lng,
-      date: pt.date ? Date.parse(pt.date) : Date.now(),
+      date,
       magnitude: pt.magnitudeValue,
       magnitudeUnit: pt.magnitudeUnit,
       link: e.link,
