@@ -37,13 +37,19 @@ const STARS = {
 }
 const FREE = /^(public domain|pd|cc0|cc by(-sa)? \d)/i
 
-async function search(query) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+async function search(query, attempt = 0) {
   const p = new URLSearchParams({
     action: 'query', format: 'json', generator: 'search', gsrnamespace: '6',
     gsrsearch: `${query} filetype:bitmap`, gsrlimit: '10', prop: 'imageinfo',
     iiprop: 'url|size|mime|extmetadata', iiurlwidth: '480',
   })
   const r = await fetch(`https://commons.wikimedia.org/w/api.php?${p}`, { headers: { 'User-Agent': UA } })
+  if (r.status === 429 && attempt < 4) {
+    await sleep(5000 * 2 ** attempt) // Commons rate-limits bursts — back off and retry
+    return search(query, attempt + 1)
+  }
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
   const pages = Object.values((await r.json()).query?.pages ?? {}).sort((a, b) => a.index - b.index)
   return pages
@@ -69,6 +75,7 @@ const out = {}
 for (const [star, q] of Object.entries(STARS)) {
   try {
     out[star] = await search(q)
+    await sleep(1500) // stay well under Commons' anonymous rate limit
     console.log(`${star}: ${out[star].length} candidates`)
   } catch (err) {
     out[star] = []
