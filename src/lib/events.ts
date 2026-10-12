@@ -42,6 +42,8 @@ export const EVENT_META: Record<string, { icon: string; color: string; label: st
   waterColor: { icon: '🟢', color: '#4ade80', label: 'Water colour' },
   impact: { icon: '☄️', color: '#fcd34d', label: 'Impact' },
   solarStorm: { icon: '☀️', color: '#fb923c', label: 'Solar storm' },
+  nuclear: { icon: '☢️', color: '#a3e635', label: 'Nuclear' },
+  space: { icon: '🚀', color: '#c4b5fd', label: 'Spaceflight' },
 }
 
 export function eventMeta(category: string): { icon: string; color: string; label: string } {

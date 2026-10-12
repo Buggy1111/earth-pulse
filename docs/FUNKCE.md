@@ -47,8 +47,15 @@ Výchozí pohled: živá Země na 3D glóbu, kolem ní celé „sousedství".
   jako text.
 
 ### Historie planety 🏛
-- Dock → *history*: 29 událostí od Vesuvu (79) po Turecko (2023) — Lisabon 1755,
-  Tambora, Krakatoa, Tunguska, Valdivia 1960 (M 9.5), Tōhoku, Hunga Tonga…
+- Dock → *history*: 70 událostí od Vesuvu (79) po Turecko (2023):
+  - **přírodní katastrofy** — Lisabon 1755, Tambora, Krakatoa, Tunguska,
+    Valdivia 1960 (M 9.5), Tchang-šan, Tōhoku, Hunga Tonga…;
+  - **☢️ jaderné** — Trinity, Hirošima, Nagasaki, Car-bomba, Kyštym,
+    Three Mile Island, Černobyl, Fukušima;
+  - **🏭 lidské** — Titanic, Halifax, londýnský smog, Bhópál, Exxon Valdez,
+    Deepwater Horizon, Bejrút;
+  - **🚀 kosmonautika** — Sputnik, Gagarin, Apollo 11, Challenger, Columbia;
+  - **česká stopa** — povodně 1997 (Morava) a 2002 (Praha).
 - Posuvník nebo ▶ **přehraje dějiny**: piny naskakují chronologicky a kamera
   letí na každou událost; karta má kontext a zdroj.
 
