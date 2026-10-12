@@ -18,6 +18,14 @@ describe('history of the planet', () => {
     }
   })
 
+  it('cites a source that fits each event family', () => {
+    const src = (re: RegExp) => HISTORIC_EVENTS.find((e) => re.test(e.title))?.source
+    expect(src(/Titanic/)).not.toMatch(/USGS/)
+    expect(src(/Apollo 11/)).toMatch(/NASA/)
+    expect(src(/Fukushima/)).toMatch(/IAEA/)
+    expect(src(/Krakatoa/)).toMatch(/USGS/)
+  })
+
   it('keeps the year-79 eruption in AD 79, not 1979', () => {
     expect(yearOf(HISTORIC_EVENTS[0])).toBe(79)
     expect(HISTORIC_EVENTS[0].title).toMatch(/Vesuvius/)

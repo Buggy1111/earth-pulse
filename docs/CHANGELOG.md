@@ -6,6 +6,10 @@ vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
+## Bohatší historie planety (12. 10. 2026)
+
+- **Historie planety:** 70 událostí místo 29 — nové kategorie ☢️ jaderné (Hirošima, Nagasaki, Car-bomba, Kyštym, Three Mile Island, Fukušima) a 🚀 kosmonautika (Sputnik, Gagarin, Apollo 11, Challenger, Columbia); průmyslové katastrofy (Titanic, Bhópál, Exxon Valdez, Deepwater Horizon, Bejrút); další zemětřesení, cyklony a povodně včetně českých povodní 1997 a 2002. Vše přeložené do češtiny; přehrávání o něco svižnější.
+
 ## Luxusní Drift a stanice (12. 10. 2026)
 
 - **ISS a Tiangong:** modely satelitů odrážejí prostředí na oběžné dráze (modrá Země pod nimi, slunce). ISS má lesklé měděné solární panely a kovové moduly. Tiangong dostal modré články se stříbrnou mřížkou, měděnou zadní stranu panelů a bílé izolační fólie na modulech.

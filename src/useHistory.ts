@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EarthEvent } from './lib/events'
 import { HISTORIC_EVENTS, historyUpTo } from './lib/history'
 
-const STEP_MS = 3800
+const STEP_MS = 3200
 const N = HISTORIC_EVENTS.length
 
 export function useHistory(onFocus: (e: EarthEvent) => void, onClose: () => void) {
