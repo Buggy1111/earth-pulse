@@ -8,6 +8,7 @@ import type { GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import { eventMeta, type EarthEvent } from '../../lib/events'
 import { escapeHtml, getGlowTexture, tooltip } from './helpers'
+import { locale, t } from '../../lib/i18n'
 
 const GLOW_GROUP = 'event-glows'
 const RING_MIN = 1.6
@@ -197,10 +198,11 @@ export function applyEventsLayer(
     .pointLabel((d) => {
       const e = d as EarthEvent
       const m = eventMeta(e.category)
-      const mag = e.magnitude ? ` · ${Math.round(e.magnitude).toLocaleString('en-US')} ${e.magnitudeUnit ?? ''}` : ''
+      const mag = e.magnitude ? ` · ${Math.round(e.magnitude).toLocaleString(locale())} ${e.magnitudeUnit ?? ''}` : ''
       // both title and label come from the EONET feed → escape both (the label
       // is the raw category id for any category not in our static map)
-      return tooltip(`${m.icon} <b>${escapeHtml(e.title)}</b> · ${escapeHtml(m.label)}${mag}`)
+      const title = e.historic ? t(e.title) : e.title
+      return tooltip(`${m.icon} <b>${escapeHtml(title)}</b> · ${escapeHtml(t(m.label))}${mag}`)
     })
     .onPointClick((d) => onClick(d as EarthEvent))
 

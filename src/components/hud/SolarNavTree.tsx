@@ -10,6 +10,7 @@ import { PLANET_MOONS, PLANETS, planetPositions } from '../../lib/planets'
 import { ACTIVE_SPACECRAFT_COUNT, SOLAR_SYSTEM_SPACECRAFT } from '../../lib/spacecraft'
 import { PROBE_INFO, type ProbeTraj } from '../../lib/probes'
 import { SOLAR_LAYER_LABELS, type SolarLayerState } from './types'
+import { t } from '../../lib/i18n'
 
 /** "Sun: 3 · Moon: 11 · Mars: 8 …" for the spacecraft-count tooltip. */
 const SPACECRAFT_BREAKDOWN = Object.entries(
@@ -101,21 +102,21 @@ export function SolarNavTree({
   return (
     <HudCard className="w-72 px-4 py-3">
       <h2 className="flex items-center justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        🧭 Navigator
+        🧭 {t('Navigator')}
         <button
           type="button"
           onClick={onOverview}
           className="cursor-pointer text-xs text-violet-300 normal-case hover:text-violet-200"
         >
-          ⊙ overview
+          ⊙ {t('overview')}
         </button>
       </h2>
 
       {/* locked-target read-out — the console's “what am I looking at” line */}
       <div className="num mt-1 flex items-baseline justify-between border-b border-white/10 pb-1.5 text-[11px] tracking-wide text-slate-400 uppercase">
         <span>
-          ▸ target{' '}
-          <span className="text-cyan-300">{focus ? (NAME[focus] ?? focus) : 'none'}</span>
+          ▸ {t('target')}{' '}
+          <span className="text-cyan-300">{focus ? t(NAME[focus] ?? focus) : t('none')}</span>
         </span>
         {focus && rangeOf(focus) && rangeOf(focus) !== 'home' && (
           <span className="text-slate-300">{rangeOf(focus)}</span>
@@ -134,7 +135,7 @@ export function SolarNavTree({
                 <button
                   type="button"
                   onClick={() => onNavigate(body.id)}
-                  title={`fly to ${body.name}`}
+                  title={t('fly to {name}', { name: t(body.name) })}
                   className={`flex flex-1 cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition-colors ${
                     active
                       ? 'bg-cyan-400/12 text-cyan-100 shadow-[inset_2px_0_0_#22d3ee]'
@@ -146,7 +147,7 @@ export function SolarNavTree({
                     className="inline-block h-2 w-2 shrink-0 rounded-full"
                     style={{ background: BODY_COLORS[body.id], boxShadow: active ? `0 0 6px ${BODY_COLORS[body.id]}` : undefined }}
                   />
-                  <span className="flex-1 truncate">{body.name}</span>
+                  <span className="flex-1 truncate">{t(body.name)}</span>
                   {r && (
                     <span className={`num text-[11px] ${active ? 'text-cyan-200' : 'text-slate-400'}`}>{r}</span>
                   )}
@@ -156,7 +157,7 @@ export function SolarNavTree({
                     type="button"
                     onClick={() => toggle(body.id)}
                     aria-expanded={open}
-                    title={`${moons.length} moons`}
+                    title={t('{n} moons', { n: moons.length })}
                     className="cursor-pointer rounded px-1 py-0.5 text-[10px] text-slate-400 hover:bg-white/10 hover:text-slate-300"
                   >
                     {moons.length} {open ? '▾' : '▸'}
@@ -171,7 +172,7 @@ export function SolarNavTree({
                       key={m.id}
                       type="button"
                       onClick={() => onNavigate(m.id)}
-                      title={`fly to ${m.name}`}
+                      title={t('fly to {name}', { name: t(m.name) })}
                       className={`ml-4 flex w-[calc(100%-1rem)] cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-[11px] transition-colors ${
                         ma
                           ? 'bg-cyan-400/12 text-cyan-100 shadow-[inset_2px_0_0_#22d3ee]'
@@ -182,7 +183,7 @@ export function SolarNavTree({
                         className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
                         style={{ background: m.color, boxShadow: ma ? `0 0 6px ${m.color}` : undefined }}
                       />
-                      <span className="flex-1 truncate">{m.name}</span>
+                      <span className="flex-1 truncate">{t(m.name)}</span>
                     </button>
                   )
                 })}
@@ -195,7 +196,7 @@ export function SolarNavTree({
       {probes.length > 0 && (
         <div className="mt-2 border-t border-white/10 pt-1.5">
           <div className="px-1.5 pb-1 text-[10px] tracking-wide text-slate-400 uppercase">
-            🛰 Deep-space probes
+            🛰 {t('Deep-space probes')}
           </div>
           {probes.map((pr) => {
             const info = PROBE_INFO[pr.id]
@@ -205,7 +206,7 @@ export function SolarNavTree({
                 key={pr.id}
                 type="button"
                 onClick={() => onNavigate(pr.id)}
-                title={`fly to ${info?.name ?? pr.name}`}
+                title={t('fly to {name}', { name: info?.name ?? pr.name })}
                 className={`flex w-full cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition-colors ${
                   active
                     ? 'bg-cyan-400/12 text-cyan-100 shadow-[inset_2px_0_0_#22d3ee]'
@@ -231,7 +232,7 @@ export function SolarNavTree({
           aria-expanded={filterOpen}
           className="flex w-full cursor-pointer items-center justify-between text-[11px] font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
         >
-          <span>🎚 filter</span>
+          <span>🎚 {t('filter')}</span>
           <span>{filterOpen ? '▾' : '▸'}</span>
         </button>
         {filterOpen && (
@@ -247,7 +248,7 @@ export function SolarNavTree({
                   onChange={() => onToggleSolarLayer(key)}
                   className="accent-cyan-400"
                 />
-                {label}
+                {t(label)}
               </label>
             ))}
           </div>
@@ -259,8 +260,8 @@ export function SolarNavTree({
         className="num mt-2 border-t border-white/10 pt-2 text-[10px] leading-tight text-slate-400"
         title={SPACECRAFT_BREAKDOWN}
       >
-        🛰 <span className="text-slate-300">{ACTIVE_SPACECRAFT_COUNT}</span> active spacecraft
-        exploring the solar system right now
+        🛰 <span className="text-slate-300">{ACTIVE_SPACECRAFT_COUNT}</span>{' '}
+        {t('active spacecraft exploring the solar system right now')}
       </div>
     </HudCard>
   )

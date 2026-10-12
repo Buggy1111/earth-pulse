@@ -1,3 +1,4 @@
+import { t } from './i18n'
 /** Sub-lunar point and lunar phase — low-precision Meeus-style ephemeris,
  * good to ~1° (plenty for placing a moon on the sky and a phase readout). */
 
@@ -131,7 +132,7 @@ export const LUNAR_SITES: LunarSite[] = [
 export const APOLLO_SITES: LunarSite[] = LUNAR_SITES.filter((s) => s.crew)
 
 export function moonPhaseLabel(m: MoonState): string {
-  if (m.illumination < 0.04) return 'new moon'
-  if (m.illumination > 0.96) return 'full moon'
-  return `${m.waxing ? 'waxing' : 'waning'} ${Math.round(m.illumination * 100)} %`
+  if (m.illumination < 0.04) return t('new moon')
+  if (m.illumination > 0.96) return t('full moon')
+  return `${m.waxing ? t('waxing') : t('waning')} ${Math.round(m.illumination * 100)} %`
 }

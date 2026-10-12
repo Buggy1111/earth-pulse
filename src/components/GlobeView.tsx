@@ -25,6 +25,7 @@ import { applyGibsImage } from './globe/gibsLayer'
 import { detectWeakGpu, isMobileDevice } from './perf'
 import { markBoot, CRASH_DEMOTE_AFTER } from '../lib/crashGuard'
 import type { GlobeViewProps } from './globe/globeView.types'
+import { t } from '../lib/i18n'
 
 /** Texture resolution for the day/night globe stack, from the user's quality
  * pick plus the view-mode + device clamps:
@@ -313,7 +314,7 @@ export function GlobeView(props: GlobeViewProps) {
           'display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translateY(-100%)'
         const label = document.createElement('div')
         label.style.cssText = 'font:600 10px sans-serif;color:#bae6fd;text-shadow:0 0 6px #000'
-        label.textContent = 'you are here'
+        label.textContent = t('you are here')
         const pin = document.createElement('div')
         pin.style.cssText = 'font-size:20px;line-height:1;filter:drop-shadow(0 0 6px rgba(56,189,248,.9))'
         pin.textContent = '📍'

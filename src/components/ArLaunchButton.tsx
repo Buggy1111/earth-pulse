@@ -3,6 +3,7 @@
 
 import type React from 'react'
 import { BTN_BASE } from './arButtonStyle'
+import { t } from '../lib/i18n'
 
 function arSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -20,9 +21,9 @@ export function ArLaunchButton({ onOpen }: { onOpen: () => void }): React.ReactE
       type="button"
       onClick={onOpen}
       style={{ ...BTN_BASE, position: 'fixed', right: 12, bottom: 88, padding: '8px 14px', zIndex: 40 }}
-      aria-label="Open sky AR — point your phone at the sky"
+      aria-label={t('Open sky AR — point your phone at the sky')}
     >
-      📡 sky AR
+      📡 {t('sky AR')}
     </button>
   )
 }

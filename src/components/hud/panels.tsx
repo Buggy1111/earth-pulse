@@ -8,6 +8,7 @@ import { quakeStats, type Quake } from '../../lib/quakes'
 import { GIBS_LAYERS, type GibsLayer } from '../../lib/gibs'
 import { kpColor, kpLabel } from '../../lib/spaceWeather'
 import type { SpaceWeather } from '../../hooks'
+import { t, useLang } from '../../lib/i18n'
 
 function toggleFullscreen() {
   if (document.fullscreenElement) void document.exitFullscreen()
@@ -32,8 +33,8 @@ export function TitleCard({
         <button
           type="button"
           onClick={toggleFullscreen}
-          aria-label="Toggle fullscreen"
-          title="fullscreen"
+          aria-label={t('Toggle fullscreen')}
+          title={t('fullscreen')}
           className="cursor-pointer text-sm text-slate-400 hover:text-slate-200"
         >
           ⛶
@@ -42,7 +43,9 @@ export function TitleCard({
       <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
         <span className="live-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
         {subtitle ??
-          `the planet, live — earthquakes · ${satCount > 0 ? `${satCount} satellites` : 'ISS'} · space weather · Wikipedia`}
+          t('the planet, live — earthquakes · {sats} · space weather · Wikipedia', {
+            sats: satCount > 0 ? t('{n} satellites', { n: satCount }) : 'ISS',
+          })}
       </p>
     </HudCard>
   )
@@ -57,11 +60,12 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
   moonLabel: string
   onOpenMoon: () => void
 }) {
+  useLang()
   const { kp, wind } = weather
   return (
     <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={180}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        ☀️ Space weather
+        ☀️ {t('Space weather')}
       </h2>
       {kp ? (
         <p className="mt-1 text-xs text-slate-400">
@@ -72,24 +76,24 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
           <span style={{ color: kpColor(kp.kp) }}>{kpLabel(kp.kp)}</span>
         </p>
       ) : (
-        <p className="mt-1 text-xs text-slate-400">reading magnetometers…</p>
+        <p className="mt-1 text-xs text-slate-400">{t('reading magnetometers…')}</p>
       )}
       {wind && (
         <p className="num mt-0.5 text-xs text-slate-400">
-          solar wind {Math.round(wind.speedKms)} km/s
+          {t('solar wind')} {Math.round(wind.speedKms)} km/s
           {Number.isFinite(wind.densityPerCm3) && <> · {wind.densityPerCm3.toFixed(1)} p/cm³</>}
         </p>
       )}
       <button
         type="button"
         onClick={onOpenMoon}
-        title="open the interactive Moon — Apollo landing sites & live phase"
+        title={t('open the interactive Moon — Apollo landing sites & live phase')}
         className="mt-0.5 block cursor-pointer text-left text-xs text-slate-400 hover:text-sky-300"
       >
-        🌙 moon: {moonLabel} <span className="text-slate-400">· explore ▸</span>
+        🌙 {t('moon:')} {moonLabel} <span className="text-slate-400">· {t('explore')} ▸</span>
       </button>
       <p className="mt-2 text-[10px] text-amber-300/80">
-        📡 NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp
+        📡 {t('NOAA SWPC, refreshed every minute · aurora ovals on the globe scale with Kp')}
       </p>
     </HudCard>
   )
@@ -105,10 +109,10 @@ export function AbovePanel({
   return (
     <HudCard className="hidden w-72 px-4 py-3 sm:block">
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        📡 Above you now
+        📡 {t('Above you now')}
       </h2>
       {overhead.length === 0 ? (
-        <p className="mt-1 text-xs text-slate-400">nothing above 10° right now</p>
+        <p className="mt-1 text-xs text-slate-400">{t('nothing above 10° right now')}</p>
       ) : (
         <ul className="mt-1 flex flex-col gap-0.5">
           {overhead.slice(0, 5).map((s) => (
@@ -116,7 +120,7 @@ export function AbovePanel({
               <button
                 type="button"
                 onClick={() => onPickSat(s.id, s.name)}
-                title="show orbit & fly to it"
+                title={t('show orbit & fly to it')}
                 className="flex w-full cursor-pointer items-baseline justify-between gap-2 text-left text-xs text-slate-300 hover:text-sky-300"
               >
                 <span className="truncate">{s.name}</span>
@@ -155,7 +159,7 @@ export function QuakePanel({
     <button
       type="button"
       onClick={() => onFocusQuake(q)}
-      title="fly there"
+      title={t('fly there')}
       className="block max-w-56 cursor-pointer text-left text-xs text-slate-400 hover:text-slate-200"
     >
       {label}: <span className={accent}>{formatMag(q.mag)}</span> {q.place}
@@ -165,13 +169,17 @@ export function QuakePanel({
   return (
     <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={120}>
       <h2 className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        <span>Earthquakes · 24 h</span>
+        <span>{t('Earthquakes · 24 h')}</span>
         <span className="flex gap-1">
           <button
             type="button"
             onClick={onToggleAmbient}
             aria-pressed={ambientOn}
-            title={ambientOn ? 'ambient planet drone: on — calm when quiet, tense when the Earth shakes' : 'ambient planet drone: off'}
+            title={
+              ambientOn
+                ? t('ambient planet drone: on — calm when quiet, tense when the Earth shakes')
+                : t('ambient planet drone: off')
+            }
             className={`cursor-pointer rounded px-1 text-sm normal-case ${
               ambientOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-300'
             }`}
@@ -182,7 +190,7 @@ export function QuakePanel({
             type="button"
             onClick={onToggleSound}
             aria-pressed={soundOn}
-            title={soundOn ? 'new-quake sound ping: on' : 'new-quake sound ping: off'}
+            title={soundOn ? t('new-quake sound ping: on') : t('new-quake sound ping: off')}
             className={`cursor-pointer rounded px-1 text-sm normal-case ${
               soundOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-300'
             }`}
@@ -198,18 +206,18 @@ export function QuakePanel({
           onClick={() => onFocusQuake(fresh)}
           className="slide-in mt-1 block max-w-56 cursor-pointer text-left text-xs"
         >
-          <span className="mr-1.5 rounded bg-rose-500/20 px-1 font-bold text-rose-300">NEW</span>
+          <span className="mr-1.5 rounded bg-rose-500/20 px-1 font-bold text-rose-300">{t('NEW')}</span>
           <span className="text-slate-200">{formatMag(fresh.mag)}</span>{' '}
           <span className="text-slate-400">{fresh.place}</span>
         </button>
       )}
       {stats.latest && (
-        <div className="mt-1">{row('latest', stats.latest, 'text-slate-200', timeAgo(stats.latest.time, now))}</div>
+        <div className="mt-1">{row(t('latest'), stats.latest, 'text-slate-200', timeAgo(stats.latest.time, now))}</div>
       )}
       {stats.strongest && (
-        <div className="mt-0.5">{row('strongest', stats.strongest, 'text-rose-300')}</div>
+        <div className="mt-0.5">{row(t('strongest'), stats.strongest, 'text-rose-300')}</div>
       )}
-      <p className="mt-2 text-[10px] text-amber-300/80">📡 USGS, refreshed every minute</p>
+      <p className="mt-2 text-[10px] text-amber-300/80">📡 {t('USGS, refreshed every minute')}</p>
     </HudCard>
   )
 }
@@ -242,15 +250,15 @@ export function DataLayerPanel({
   return (
     <HudCard className="w-72 px-4 py-3" delay={200}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        🛰 NASA data layers
+        🛰 {t('NASA data layers')}
       </h2>
       <div className="mt-1.5 flex flex-wrap gap-1">
-        {chip('live', 'live globe', active === null, () => onSelect(null))}
-        {GIBS_LAYERS.map((l) => chip(l.id, l.label, active?.id === l.id, () => onSelect(l)))}
+        {chip('live', t('live globe'), active === null, () => onSelect(null))}
+        {GIBS_LAYERS.map((l) => chip(l.id, t(l.label), active?.id === l.id, () => onSelect(l)))}
       </div>
       {active && (
         <div className="mt-2">
-          <p className="text-[11px] text-slate-400">{active.blurb}</p>
+          <p className="text-[11px] text-slate-400">{t(active.blurb)}</p>
           {active.legend && (
             <div className="mt-1.5">
               <div
@@ -266,7 +274,7 @@ export function DataLayerPanel({
           )}
           {active.monthly ? (
             <p className="mt-1.5 text-[11px] text-slate-300">
-              📅 monthly · <span className="num">{date.slice(0, 7)}</span>
+              📅 {t('monthly')} · <span className="num">{date.slice(0, 7)}</span>
             </p>
           ) : (
             <div className="mt-1.5 flex items-center gap-2">
@@ -276,14 +284,14 @@ export function DataLayerPanel({
                 max={30}
                 value={daysBack}
                 onChange={(e) => onScrubDate(Number(e.target.value))}
-                aria-label="Imagery date, days before now"
+                aria-label={t('Imagery date, days before now')}
                 className="h-1 flex-1 cursor-pointer accent-sky-400"
               />
               <span className="num text-[10px] whitespace-nowrap text-slate-300">{date}</span>
             </div>
           )}
           <p className="mt-1 text-[10px] text-amber-300/80">
-            📡 NASA GIBS{active.monthly ? '' : ' · slide to replay past days'}
+            📡 NASA GIBS{active.monthly ? '' : ` · ${t('slide to replay past days')}`}
           </p>
         </div>
       )}

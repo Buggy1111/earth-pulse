@@ -1,12 +1,14 @@
-/** English formatting for the HUD. */
+/** HUD formatting — wording follows the current language (lib/i18n). */
+
+import { locale, t } from './i18n'
 
 export function timeAgo(ts: number, now: number = Date.now()): string {
   const s = Math.max(0, Math.floor((now - ts) / 1000))
-  if (s < 60) return `${s}s ago`
+  if (s < 60) return t('{s}s ago', { s })
   const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return t('{m}m ago', { m })
   const h = Math.floor(m / 60)
-  return `${h}h ${m % 60}m ago`
+  return t('{h}h {m}m ago', { h, m: m % 60 })
 }
 
 export function formatMag(mag: number): string {
@@ -14,11 +16,11 @@ export function formatMag(mag: number): string {
 }
 
 export function formatKm(km: number): string {
-  return `${Math.round(km).toLocaleString('en-US')} km`
+  return `${Math.round(km).toLocaleString(locale())} km`
 }
 
 export function formatKmh(kmh: number): string {
-  return `${Math.round(kmh).toLocaleString('en-US')} km/h`
+  return `${Math.round(kmh).toLocaleString(locale())} km/h`
 }
 
 /** "2 h 14 min" / "8 min" until a future timestamp. */

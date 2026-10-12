@@ -22,6 +22,7 @@ import { cloneSatModel, preloadSatModels } from './spaceModels'
 import { escapeHtml, tooltip, type OrbitObject, type Trail } from './helpers'
 import { buildSatObject } from './satObject'
 import { buildOrbitLines, configureTrailPaths, satColor } from './orbitRender'
+import { locale, t } from '../../lib/i18n'
 
 export interface SolarAnimEntry {
   mesh: THREE.Mesh
@@ -341,10 +342,10 @@ export function startOrbitEngine(
       const o = d as OrbitObject
       if (o.kind === 'iss') {
         const v = deps.issStateRef.current?.velocityKmh
-        const speed = v ? ` · ${Math.round(v).toLocaleString('en-US')} km/h` : ''
-        return tooltip(`🛰 <b>ISS</b> · ${Math.round(o.altKm)} km${speed} · click to follow`)
+        const speed = v ? ` · ${Math.round(v).toLocaleString(locale())} km/h` : ''
+        return tooltip(`🛰 <b>ISS</b> · ${Math.round(o.altKm)} km${speed} · ${t('click to follow')}`)
       }
-      return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km · click to fly with it`)
+      return tooltip(`🛰 <b>${escapeHtml(o.name)}</b> · ${Math.round(o.altKm)} km · ${t('click to fly with it')}`)
     })
     .onObjectClick((d) => {
       const o = d as OrbitObject

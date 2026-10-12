@@ -12,6 +12,7 @@ import { getGlowTexture, SUN_REFRESH_MS, disposeMaterial } from './helpers'
 import { makeMoonMaterial } from './moonMaterial'
 import { makeNameSprite } from '../spaceObjects'
 import { detectWeakGpu } from '../perf'
+import { t } from '../../lib/i18n'
 
 export interface Sky {
   sunUniform: { value: THREE.Vector3 }
@@ -145,7 +146,7 @@ export function setupSky(globe: GlobeInstance, simNowMs: () => number): Sky {
   moonGlow.scale.set(22, 22, 1)
   moonMesh.add(moonGlow)
   // jmenovka jako mají tělesa v solar view — bez ní je Měsíc anonymní koule
-  const moonLabel = makeNameSprite('Moon', 5 * 1.4, true)
+  const moonLabel = makeNameSprite(t('Moon'), 5 * 1.4, true)
   moonMesh.add(moonLabel)
   globe.scene().add(moonMesh)
 

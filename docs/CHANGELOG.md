@@ -6,6 +6,13 @@ vývojových oblouků; v závorkách časy/hashe commitů.
 
 ---
 
+## Čeština a přehledné rozložení (12. 10. 2026)
+
+- **Čeština:** celé rozhraní je česky i anglicky, přepínač CZ / EN vedle přepínače režimů; volba se pamatuje, český/slovenský prohlížeč startuje česky. Čísla a data podle jazyka, správná česká množná čísla.
+- **Žádné překryvy:** karta zemětřesení / události / sondy už neleží přes meteorický panel — na desktopu nahradí ambientní panely ve sloupci, který se při nedostatku místa posouvá.
+- **Telefon a tablet:** karty se otevírají jako spodní list; otevření karty zavře šuplík, otevřený šuplík list schová. Upozornění na hardwarovou akceleraci se už neodsouvá do toku stránky.
+- **Testy:** e2e na přepnutí do češtiny a na spodní list na telefonu, unit testy konzistence překladů (placeholdery).
+
 ## Dokončení a druhé kolo revize (12. 10. 2026)
 
 - **Hvězdné fotky:** +15 hvězd (28 celkem) — Mira (Hubble), Procyon, Mizar a Alcor, Alnitak, Orionův pás, Plejády, Sadr v IC 1318, prstenec ε Eridani z ALMA, Aldebaran, Spica, Castor, Bellatrix, Regulus, Gliese 581. Hledání kandidátů a pečení běží ve workflow **Star photos** (ruční spuštění).

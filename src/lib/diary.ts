@@ -6,6 +6,7 @@ import { eventMeta, type EarthEvent } from './events'
 import type { Quake } from './quakes'
 import { kpLabel } from './spaceWeather'
 import { regionOf } from './quakeMatch.mjs'
+import { plural, t } from './i18n'
 
 export { regionOf }
 
@@ -95,26 +96,35 @@ export function buildDiary({ quakes, events, kp, windKms, now }: DiaryInput): Di
 
 function headline(count: number, strongest: Quake | null, strongCount: number, kp: number | null): string {
   const storm = kp !== null && kp >= 5
-  if (count === 0) return storm ? `Geomagnetic storm (Kp ${kp.toFixed(0)}) — auroras reach lower latitudes.` : 'A quiet planet — nothing logged yet.'
+  const stormLine = () => t('Geomagnetic storm (Kp {kp}) — auroras reach lower latitudes.', { kp: kp?.toFixed(0) ?? '' })
+  if (count === 0) return storm ? stormLine() : t('A quiet planet — nothing logged yet.')
   const where = strongest ? regionOf(strongest.place) : ''
-  if (strongest && strongest.mag >= 7) return `A major day: M ${strongest.mag.toFixed(1)} near ${where}.`
-  if (strongest && strongest.mag >= 6) return `A strong shake: M ${strongest.mag.toFixed(1)} near ${where}.`
-  if (storm) return `Geomagnetic storm (Kp ${kp.toFixed(0)}) — auroras reach lower latitudes.`
-  if (strongCount > 0) return `${strongCount} quake${strongCount > 1 ? 's' : ''} of M 5+; the biggest was M ${strongest?.mag.toFixed(1)} near ${where}.`
-  return `An ordinary day: ${count} quakes, the biggest M ${strongest?.mag.toFixed(1)} near ${where}.`
+  const mag = strongest?.mag.toFixed(1) ?? ''
+  if (strongest && strongest.mag >= 7) return t('A major day: M {mag} near {where}.', { mag, where })
+  if (strongest && strongest.mag >= 6) return t('A strong shake: M {mag} near {where}.', { mag, where })
+  if (storm) return stormLine()
+  if (strongCount > 0)
+    return t('{n} {quakes} of M 5+; the biggest was M {mag} near {where}.', {
+      n: strongCount,
+      quakes: plural(strongCount, ['quake', 'quakes'], ['otřes', 'otřesy', 'otřesů']),
+      mag,
+      where,
+    })
+  return t('An ordinary day: {n} quakes, the biggest M {mag} near {where}.', { n: count, mag, where })
 }
 
 /** Shareable plain-text version of the diary. */
 export function diaryText(d: Diary, now: number): string {
   const day = new Date(now).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
-  const lines = [`📓 Earth Pulse — planet diary, last 24 h (${day})`, d.headline, '']
-  lines.push(`🌐 ${d.quakeCount} earthquakes, ${d.strongCount} of M 5+`)
-  if (d.strongest) lines.push(`   strongest M ${d.strongest.mag.toFixed(1)} — ${d.strongest.place}`)
-  if (d.deepest && d.deepest.depthKm >= 300) lines.push(`   deepest ${Math.round(d.deepest.depthKm)} km — ${d.deepest.place}`)
-  if (d.busiest) lines.push(`   busiest: ${d.busiest.region} (${d.busiest.count})`)
+  const lines = [`📓 Earth Pulse — ${t('planet diary, last 24 h')} (${day})`, d.headline, '']
+  lines.push(`🌐 ${t('{n} earthquakes, {m} of M 5+', { n: d.quakeCount, m: d.strongCount })}`)
+  if (d.strongest) lines.push(`   ${t('strongest')} M ${d.strongest.mag.toFixed(1)} — ${d.strongest.place}`)
+  if (d.deepest && d.deepest.depthKm >= 300) lines.push(`   ${t('deepest')} ${Math.round(d.deepest.depthKm)} km — ${d.deepest.place}`)
+  if (d.busiest) lines.push(`   ${t('busiest')}: ${d.busiest.region} (${d.busiest.count})`)
   if (d.eventGroups.length)
-    lines.push(`🔥 ${d.eventGroups.map((g) => `${g.count} ${g.label.toLowerCase()}`).join(' · ')}`)
-  if (d.kp !== null) lines.push(`☀️ Kp ${d.kp.toFixed(1)} (${kpLabel(d.kp)})${d.windKms ? ` · solar wind ${Math.round(d.windKms)} km/s` : ''}`)
+    lines.push(`🔥 ${d.eventGroups.map((g) => `${g.count} ${t(g.label).toLowerCase()}`).join(' · ')}`)
+  if (d.kp !== null)
+    lines.push(`☀️ Kp ${d.kp.toFixed(1)} (${kpLabel(d.kp)})${d.windKms ? ` · ${t('solar wind')} ${Math.round(d.windKms)} km/s` : ''}`)
   return lines.join('\n')
 }
 

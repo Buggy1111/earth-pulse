@@ -291,6 +291,16 @@ právě letí (`ArSky.tsx`, `arScene.ts`, matematika v `lib/arMath.ts`):
 - **Plynulost ve sluneční soustavě** — těžká SGP4 propagace satelitů se v solar
   módu přeskočí; pohyb planet/měsíců + terminátor běží **každý frame** (eco
   půlí jen drahou SGP4, ne zbytek scény).
+- **Čeština / angličtina** — přepínač **CZ / EN** vedle přepínače režimů;
+  volba se pamatuje (`earth-pulse-lang`), český prohlížeč startuje česky.
+  Přeložené je celé rozhraní (panely, štítky ve scéně, data, čísla, množná
+  čísla); anglicky zůstávají jen živá data z API (názvy událostí USGS/EONET),
+  názvy zemí na glóbu a latinské názvy souhvězdí.
+- **Rozložení bez překryvů** — na velkém desktopu má každá strana jeden
+  sloupec, který se při nedostatku místa posouvá; otevřená karta (zemětřesení,
+  událost, sonda, historie, deník) nahradí ambientní panely (Wikipedie, meteory)
+  místo aby přes ně ležela. Na tabletu a telefonu se karta otevře jako spodní
+  list a nikdy neleží pod otevřeným šuplíkem (otevření karty šuplík zavře).
 - **Mobilní layout** — kompaktní HUD, Wiki ticker skrytý na telefonech.
 - HUD tlačítka mají `aria-pressed` / `aria-label`; ovládání je myš/dotyk +
   panely (žádné povinné klávesové zkratky).
@@ -309,4 +319,5 @@ právě letí (`ArSky.tsx`, `arScene.ts`, matematika v `lib/arMath.ts`):
 | Sledovat ISS | tlačítko 🛰 (po načtení ISS) |
 | Orbit satelitu | klik na satelit |
 | Timeline zemětřesení | ▶/⏸ + posuvník v panelu |
+| Jazyk | tlačítko CZ / EN vedle přepínače režimů |
 | Vrstvy / nastavení | panel nastavení (přepínače vrstev, správa orbit, poloha) |

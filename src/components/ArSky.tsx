@@ -20,6 +20,7 @@ import { ArCalibrate } from './ArCalibrate'
 import { useArCalibration } from './useArCalibration'
 import type { Marker } from './arTypes'
 import { BTN_BASE } from './arButtonStyle'
+import { t } from '../lib/i18n'
 
 interface OrientPermission {
   requestPermission?: () => Promise<'granted' | 'denied'>
@@ -369,11 +370,15 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         <span>
           📡{' '}
           {started
-            ? `${markers.filter((m) => m.kind === 'named').length} named · ${markers.filter((m) => m.kind === 'starlink').length} Starlink · facing ${compass}`
-            : 'sky AR'}
+            ? t('{named} named · {starlink} Starlink · facing {dir}', {
+                named: markers.filter((m) => m.kind === 'named').length,
+                starlink: markers.filter((m) => m.kind === 'starlink').length,
+                dir: compass,
+              })
+            : t('sky AR')}
         </span>
-        <button type="button" onClick={onClose} style={{ ...BTN_BASE, padding: '6px 12px' }} aria-label="Close sky AR">
-          ✕ close
+        <button type="button" onClick={onClose} style={{ ...BTN_BASE, padding: '6px 12px' }} aria-label={t('Close sky AR')}>
+          ✕ {t('close')}
         </button>
       </div>
 
@@ -391,16 +396,16 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
           <div style={{ fontSize: 40 }} aria-hidden>📡</div>
           {!userLoc ? (
             <>
-              <p style={{ maxWidth: 320, opacity: 0.8 }}>Sky AR needs your location to know which satellites are above you.</p>
+              <p style={{ maxWidth: 320, opacity: 0.8 }}>{t('Sky AR needs your location to know which satellites are above you.')}</p>
               <button type="button" onClick={onLocate} style={{ ...BTN_BASE, padding: '10px 20px', fontSize: 15 }}>
-                📍 use my location
+                📍 {t('use my location')}
               </button>
             </>
           ) : (
             <>
-              <p style={{ maxWidth: 320, opacity: 0.8 }}>Point your phone at the sky and pan around to find satellites passing overhead. Experimental — tilt/compass are best-effort.</p>
+              <p style={{ maxWidth: 320, opacity: 0.8 }}>{t('Point your phone at the sky and pan around to find satellites passing overhead. Experimental — tilt/compass are best-effort.')}</p>
               <button type="button" onClick={start} style={{ ...BTN_BASE, padding: '10px 20px', fontSize: 15 }}>
-                ▶ start
+                ▶ {t('start')}
               </button>
             </>
           )}
@@ -410,7 +415,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
       {/* hint when the device has no motion sensors (e.g. desktop) */}
       {started && userLoc && !hasMotion && markers.length === 0 && (
         <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center', color: '#94a3b8', font: '500 12px system-ui' }}>
-          waiting for motion sensors — on desktop there are none, try it on your phone
+          {t('waiting for motion sensors — on desktop there are none, try it on your phone')}
         </div>
       )}
 

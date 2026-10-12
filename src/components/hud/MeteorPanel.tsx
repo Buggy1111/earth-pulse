@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react'
 import { HudCard } from './HudCard'
 import { subLunarPoint } from '../../lib/moon'
+import { locale, t, useLang } from '../../lib/i18n'
 import {
   expectedRate,
   outlook,
@@ -54,33 +55,33 @@ function Row({
       >
         <span className={hot ? 'font-semibold text-cyan-200' : 'text-slate-200'}>
           {hot && <span className="live-dot mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-cyan-300 align-middle" />}
-          {s.name}
+          {t(s.name)}
         </span>
         <span className={`num shrink-0 ${hot ? 'text-cyan-300' : 'text-slate-400'}`}>{peakLabel(o)}</span>
       </button>
       {open && (
         <div className="mt-0.5 mb-1 ml-1 border-l border-white/10 pl-2 text-[11px] leading-snug text-slate-400">
-          <p className="text-slate-300">{s.blurb}</p>
+          <p className="text-slate-300">{t(s.blurb)}</p>
           <p className="mt-0.5">
-            ZHR <span className="num text-slate-200">{s.zhr}</span> · {s.speedKms} km/s · from {s.parent}
+            ZHR <span className="num text-slate-200">{s.zhr}</span> · {s.speedKms} km/s · {t('from')} {s.parent}
           </p>
           <p>
-            peak ~{o.peak.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} ·{' '}
-            <span className={q.cls}>{q.text}</span>
+            {t('peak')} ~{o.peak.toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' })} ·{' '}
+            <span className={q.cls}>{t(q.text)}</span>
           </p>
           <p>
-            radiant RA {(r.raDeg / 15).toFixed(1)}h, Dec {r.decDeg >= 0 ? '+' : ''}
+            {t('radiant')} RA {(r.raDeg / 15).toFixed(1)}h, Dec {r.decDeg >= 0 ? '+' : ''}
             {r.decDeg.toFixed(0)}°
             {elev !== null &&
               o.status !== 'upcoming' &&
               (elev > 0 ? (
                 <>
                   {' '}
-                  — <span className="num text-slate-200">{Math.round(elev)}°</span> up now, ≈
+                  — <span className="num text-slate-200">{Math.round(elev)}°</span> {t('up now')}, ≈
                   <span className="num text-slate-200"> {expectedRate(s.zhr, elev)}</span>/h
                 </>
               ) : (
-                <> — below your horizon now</>
+                <> — {t('below your horizon now')}</>
               ))}
           </p>
         </div>
@@ -96,17 +97,18 @@ export function MeteorPanel({
   now: number
   userLoc: { lat: number; lng: number } | null
 }) {
+  const lang = useLang()
   const [openId, setOpenId] = useState<string | null>(null)
   // showers move on a scale of days — recompute per hour, not per frame
   const hour = Math.floor(now / 3_600_000)
   const list = useMemo(() => outlook(new Date(hour * 3_600_000)).slice(0, 4), [hour])
   return (
     <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-3.5" delay={240}>
-      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">☄️ Meteor showers</h2>
+      <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">☄️ {t('Meteor showers')}</h2>
       <ul className="mt-1.5 space-y-0.5">
         {list.map((o) => (
           <Row
-            key={o.shower.id}
+            key={`${o.shower.id}-${lang}`}
             o={o}
             now={now}
             userLoc={userLoc}
