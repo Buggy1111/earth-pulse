@@ -24,6 +24,7 @@ import { makeTrailOrbit, type SolarTrail } from './solarTrails'
 import type { SolarAnimEntry } from './orbitEngine'
 import type { SolarTextureKit } from './solarTextures'
 import { radialRingUVs } from './solarTextures'
+import { t } from '../../lib/i18n'
 
 // each planet's orbit (and its moons') glows in the planet's own hue — Mars red,
 // Neptune blue, Saturn pale gold… so the whole system reads as colour-coded
@@ -93,7 +94,7 @@ export function buildPlanets(
     pole.rotation.x = Math.PI / 2
     pole.add(mesh)
     tilt.add(pole)
-    const planetLabel = makeNameSprite(p.name, p.displayRadius, true)
+    const planetLabel = makeNameSprite(t(p.name), p.displayRadius, true)
     planetLabel.userData.solarLayer = 'labels'
     system.add(planetLabel)
 
@@ -214,7 +215,7 @@ export function buildPlanets(
       moonMesh.userData.displayRadius = rMoon
       if (m.texture) loadTex(moonMesh, `planets/moons/${m.id}.webp`, m.tint)
       if (m.irregular) upgradeMoonMesh(moonMesh, m.id, rMoon)
-      const label = makeNameSprite(m.name, rMoon * 1.4, true)
+      const label = makeNameSprite(t(m.name), rMoon * 1.4, true)
       moonMesh.add(label)
       decor.push(label)
       const rScene = p.displayRadius * ((m.aKkm * 1_000) / (p.diameterKm / 2))

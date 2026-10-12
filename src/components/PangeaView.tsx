@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { makeAtmosphereMaterial } from './globe/planetEffects'
+import { t } from '../lib/i18n'
 
 // past frames live every 10 Myr from 0 (today) to 340 Mya (public/planets/paleo);
 // the future is one reprojected frame at −250 Myr (Pangaea Proxima)
@@ -228,10 +229,10 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
   const milestone = nearestMilestone(ma)
   const label =
     Math.abs(ma) < 1
-      ? 'today'
+      ? t('today')
       : ma > 0
-        ? `${Math.round(ma)} million years ago`
-        : `${Math.round(-ma)} million years from now`
+        ? t('{n} million years ago', { n: Math.round(ma) })
+        : t('{n} million years from now', { n: Math.round(-ma) })
 
   return (
     <div className="fixed inset-0 z-50 h-dvh w-dvw bg-[#01030a]">
@@ -239,13 +240,13 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
 
       {/* title + date (centred; sits below the back button row on phones) */}
       <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top,0px)_+_3.25rem)] flex flex-col items-center gap-0.5 px-4 text-center sm:top-4 sm:gap-1">
-        <span className="vf-eyebrow">◂ continental drift ▸</span>
+        <span className="vf-eyebrow">◂ {t('continental drift')} ▸</span>
         <h1 className="font-[var(--font-display)] text-base tracking-wide text-slate-100 sm:text-lg">
-          {milestone.title}
+          {t(milestone.title)}
         </h1>
         <p className="font-[var(--font-mono)] text-xl text-amber-300 sm:text-2xl">{label}</p>
         {/* on phones the caption text lives here (the side card is desktop-only) */}
-        <p className="mt-1 max-w-md text-xs text-slate-300 sm:hidden">{milestone.text}</p>
+        <p className="mt-1 max-w-md text-xs text-slate-300 sm:hidden">{t(milestone.text)}</p>
       </div>
       <button
         type="button"
@@ -257,8 +258,8 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         }}
         className="hud pointer-events-auto px-3 py-2 text-xs text-slate-200 sm:px-2.5 sm:py-1.5"
       >
-        <span className="sm:hidden">← Earth</span>
-        <span className="hidden sm:inline">← back to Earth</span>
+        <span className="sm:hidden">← {t('Earth')}</span>
+        <span className="hidden sm:inline">← {t('back to Earth')}</span>
       </button>
 
       {/* caption card — desktop only (top-right); phones show the text in the header */}
@@ -267,13 +268,13 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         className="hud pointer-events-none top-20 right-4 hidden w-72 px-4 py-3 sm:block"
       >
         <h2 className="text-xs font-semibold tracking-wide text-amber-300 uppercase">
-          {milestone.title}
+          {t(milestone.title)}
         </h2>
-        <p className="mt-1 text-xs text-slate-300">{milestone.text}</p>
+        <p className="mt-1 text-xs text-slate-300">{t(milestone.text)}</p>
         <p className="mt-2 text-[10px] text-slate-500">
           {ma < 0
-            ? 'Future = projected concept · Pangaea Proxima, Wikimedia Commons · CC-BY-SA 4.0'
-            : 'Maps © Scotese et al., PALEOMAP (Zenodo) · CC-BY-4.0'}
+            ? t('Future = projected concept · Pangaea Proxima, Wikimedia Commons · CC-BY-SA 4.0')
+            : t('Maps © Scotese et al., PALEOMAP (Zenodo) · CC-BY-4.0')}
         </p>
       </div>
       {/* compact attribution for phones (bottom, above the scrubber) */}
@@ -282,8 +283,8 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         className="pointer-events-none absolute inset-x-0 px-4 text-center text-[10px] text-slate-500 sm:hidden"
       >
         {ma < 0
-          ? 'Pangaea Proxima · Wikimedia · CC-BY-SA 4.0 — projected'
-          : 'Maps © Scotese, PALEOMAP · CC-BY-4.0'}
+          ? t('Pangaea Proxima · Wikimedia · CC-BY-SA 4.0 — projected')
+          : t('Maps © Scotese, PALEOMAP · CC-BY-4.0')}
       </p>
 
       {/* timeline scrubber: Pangaea (340 Ma) → today → projected future (+250 My) */}
@@ -298,7 +299,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
             setPlaying((p) => !p)
           }}
           className="shrink-0 text-lg text-slate-200"
-          aria-label={playing ? 'Pause' : 'Play'}
+          aria-label={playing ? t('Pause') : t('Play')}
         >
           {playing ? '⏸' : '▶'}
         </button>
@@ -310,7 +311,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
           {MILESTONES.map((m) => (
             <span
               key={m.ma}
-              title={m.title}
+              title={t(m.title)}
               style={{ left: `${(((MAX_MA - m.ma) / (MAX_MA - FUTURE_MA)) * 100).toFixed(2)}%` }}
               className={`pointer-events-none absolute -top-1.5 h-1 w-1 -translate-x-1/2 rounded-full ${
                 m.ma === 0 ? 'bg-cyan-300 shadow-[0_0_6px_#67e8f9]' : 'bg-amber-300/50'
@@ -322,7 +323,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
             min={0}
             max={MAX_MA - FUTURE_MA}
             step={1}
-            aria-label="Geological time"
+            aria-label={t('Geological time')}
             // slider left = oldest (Pangaea), right = projected future → invert
             value={MAX_MA - ma}
             onChange={(e) => {
@@ -333,7 +334,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
           />
         </div>
         <span className="hidden shrink-0 font-[var(--font-mono)] text-[10px] text-slate-500 sm:inline">
-          +250 My
+          {t('+250 My')}
         </span>
       </div>
     </div>

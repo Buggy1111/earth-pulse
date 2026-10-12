@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { HudCard } from './HudCard'
 import { formatCoords } from '../../lib/format'
 import { LAYER_LABELS, type LayerState, type OrbitEntry } from './types'
+import { t } from '../../lib/i18n'
 
 /** Console section heading — a cyan tick echoes the viewport corner brackets so
  * the panel reads as one instrument, not a stack of unrelated controls. */
@@ -85,7 +86,7 @@ export function SettingsPanel({
           aria-expanded={open}
           className="flex w-full cursor-pointer items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase hover:text-slate-200"
         >
-          ⚙ customize
+          ⚙ {t('customize')}
           <span className="text-slate-400">{open ? '▾' : '▸'}</span>
         </button>
       </HudCard>
@@ -98,11 +99,11 @@ export function SettingsPanel({
           // level it's a true top-level overlay on every layout.
           <aside className="hud slide-in pointer-events-auto fixed top-3 bottom-3 left-3 z-40 flex w-72 flex-col px-4 py-3 safe-pt safe-pb safe-pl sm:top-6 sm:bottom-6 sm:left-6">
           <div className="flex items-center justify-between gap-3 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-            ⚙ customize
+            ⚙ {t('customize')}
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close customize panel"
+              aria-label={t('Close customize panel')}
               className="cursor-pointer rounded px-1 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
             >
               ✕
@@ -115,7 +116,7 @@ export function SettingsPanel({
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="🔭 find a satellite…"
+                placeholder={t('🔭 find a satellite…')}
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-400 focus:border-cyan-400/50 focus:outline-none"
               />
               {matches.length > 0 && (
@@ -140,7 +141,7 @@ export function SettingsPanel({
 
             {/* LAYERS — what's drawn on the globe */}
             <section className="flex flex-col gap-1.5">
-              <SectionLabel>layers</SectionLabel>
+              <SectionLabel>{t('layers')}</SectionLabel>
               <div className="flex flex-col gap-1">
                 {LAYER_LABELS.map(({ key, label }) => (
                   <label
@@ -153,7 +154,7 @@ export function SettingsPanel({
                       onChange={() => onToggleLayer(key)}
                       className="accent-cyan-400"
                     />
-                    {label}
+                    {t(label)}
                   </label>
                 ))}
               </div>
@@ -161,13 +162,13 @@ export function SettingsPanel({
 
             {/* RENDER & VIEW — how it draws and behaves */}
             <section className="flex flex-col gap-2 border-t border-cyan-400/15 pt-3">
-              <SectionLabel>render &amp; view</SectionLabel>
+              <SectionLabel>{t('render & view')}</SectionLabel>
               <div>
-                <span className="mb-1.5 block text-xs text-slate-300">🌍 texture quality</span>
+                <span className="mb-1.5 block text-xs text-slate-300">🌍 {t('texture quality')}</span>
                 <div
                   className="flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5"
                   role="group"
-                  aria-label="Texture quality"
+                  aria-label={t('Texture quality')}
                 >
                   {(['2k', '4k', '8k'] as const).map((q) => {
                     const disabled = mobile && q === '8k'
@@ -181,12 +182,12 @@ export function SettingsPanel({
                         onClick={() => onSetQuality(q)}
                         title={
                           q === '2k'
-                            ? 'Fast: 2K textures + simpler satellites + half-rate propagation — for weak GPUs'
+                            ? t('Fast: 2K textures + simpler satellites + half-rate propagation — for weak GPUs')
                             : q === '4k'
-                              ? 'Balanced: crisp 4K textures at full detail'
+                              ? t('Balanced: crisp 4K textures at full detail')
                               : disabled
-                                ? '8K is desktop-only — too much GPU memory for a phone'
-                                : 'Ultra: full 8K detail (~0.5 GB of GPU memory)'
+                                ? t('8K is desktop-only — too much GPU memory for a phone')
+                                : t('Ultra: full 8K detail (~0.5 GB of GPU memory)')
                         }
                         className={`flex-1 rounded-md py-1 text-[11px] font-semibold tracking-wider uppercase transition-all ${
                           active
@@ -200,12 +201,14 @@ export function SettingsPanel({
                   })}
                 </div>
                 {mobile && (
-                  <p className="mt-1 text-[10px] text-slate-400">8K is desktop-only — too heavy for a phone</p>
+                  <p className="mt-1 text-[10px] text-slate-400">{t('8K is desktop-only — too heavy for a phone')}</p>
                 )}
               </div>
               <label
                 className="flex cursor-pointer items-center gap-2 text-xs text-slate-300 hover:text-slate-100"
-                title="Earth spins on its axis while the Sun stays put (the textbook view). Off = the Sun travels around a fixed Earth. Most visible when you speed up time."
+                title={t(
+                  'Earth spins on its axis while the Sun stays put (the textbook view). Off = the Sun travels around a fixed Earth. Most visible when you speed up time.',
+                )}
               >
                 <input
                   type="checkbox"
@@ -213,11 +216,13 @@ export function SettingsPanel({
                   onChange={onToggleEarthSpin}
                   className="accent-cyan-400"
                 />
-                🌍 Earth spins (Sun fixed)
+                🌍 {t('Earth spins (Sun fixed)')}
               </label>
               <label
                 className="flex cursor-pointer items-center gap-2 text-xs text-slate-300 hover:text-slate-100"
-                title="After ~75 s without interaction, hide the HUD and run a looping cinematic tour. Move the mouse or tap to resume."
+                title={t(
+                  'After ~75 s without interaction, hide the HUD and run a looping cinematic tour. Move the mouse or tap to resume.',
+                )}
               >
                 <input
                   type="checkbox"
@@ -225,26 +230,26 @@ export function SettingsPanel({
                   onChange={onToggleKiosk}
                   className="accent-cyan-400"
                 />
-                📺 auto tour when idle
+                📺 {t('auto tour when idle')}
               </label>
             </section>
 
             {/* ORBITS — the satellites you're tracking */}
             <section className="border-t border-cyan-400/15 pt-3">
               <div className="flex items-baseline justify-between">
-                <SectionLabel>orbits shown ({orbits.length})</SectionLabel>
+                <SectionLabel>{t('orbits shown ({n})', { n: orbits.length })}</SectionLabel>
                 {orbits.length > 1 && (
                   <button
                     type="button"
                     onClick={onClearOrbits}
                     className="cursor-pointer text-[10px] text-slate-400 hover:text-rose-300"
                   >
-                    clear all
+                    {t('clear all')}
                   </button>
                 )}
               </div>
               {orbits.length === 0 ? (
-                <p className="mt-1.5 text-[11px] text-slate-400">click a satellite to draw its orbit</p>
+                <p className="mt-1.5 text-[11px] text-slate-400">{t('click a satellite to draw its orbit')}</p>
               ) : (
                 <ul className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto">
                   {orbits.map((o) => (
@@ -253,7 +258,7 @@ export function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => onRemoveOrbit(o.id)}
-                        aria-label={`Remove orbit of ${o.name}`}
+                        aria-label={t('Remove orbit of {name}', { name: o.name })}
                         className="cursor-pointer px-1 text-slate-400 hover:text-rose-300"
                       >
                         ✕
@@ -266,14 +271,14 @@ export function SettingsPanel({
 
             {/* LOCATE & SHARE */}
             <section className="flex flex-col gap-1.5 border-t border-cyan-400/15 pt-3">
-              <SectionLabel>locate &amp; share</SectionLabel>
+              <SectionLabel>{t('locate & share')}</SectionLabel>
               <button
                 type="button"
                 onClick={onLocate}
                 disabled={locating}
                 className="cursor-pointer text-left text-xs text-cyan-300 hover:text-cyan-200 disabled:text-slate-400"
               >
-                📍 {locating ? 'locating…' : userLoc ? 'fly to my location' : 'where am I?'}
+                📍 {locating ? t('locating…') : userLoc ? t('fly to my location') : t('where am I?')}
               </button>
               {userLoc && (
                 <p className="num text-[11px] text-slate-400">{formatCoords(userLoc.lat, userLoc.lng)}</p>
@@ -281,10 +286,10 @@ export function SettingsPanel({
               <button
                 type="button"
                 onClick={copyLink}
-                title="share this exact view — camera, orbits and layers travel in the link"
+                title={t('share this exact view — camera, orbits and layers travel in the link')}
                 className="cursor-pointer text-left text-xs text-cyan-300 hover:text-cyan-200"
               >
-                🔗 {copied ? 'link copied!' : 'copy view link'}
+                🔗 {copied ? t('link copied!') : t('copy view link')}
               </button>
             </section>
           </div>

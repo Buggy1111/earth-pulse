@@ -5,6 +5,7 @@
  * unmounts with the rest of the HUD in clean view. */
 
 import { formatLocalClock } from '../../lib/format'
+import { t } from '../../lib/i18n'
 
 const MODE_LABEL: Record<'earth' | 'moon' | 'solar' | 'drift', string> = {
   earth: 'earth orbit',
@@ -37,12 +38,12 @@ export function ViewportFrame({
           actually hid it. Shown only on the ≥1024px desktop layout. */}
       <div className="vf-status">
         <span className="vf-online" />
-        <b>systems nominal</b>
+        <b>{t('systems nominal')}</b>
         <span className="sep">/</span>
-        <span>{MODE_LABEL[mode]}</span>
+        <span>{t(MODE_LABEL[mode])}</span>
         <span className="sep">/</span>
         <span>
-          tracking <b>{satCount > 0 ? satCount : '—'}</b> objects
+          {t('tracking')} <b>{satCount > 0 ? satCount : '—'}</b> {t('objects')}
         </span>
         <span className="sep">/</span>
         <span className="num" style={{ letterSpacing: '0.18em' }}>

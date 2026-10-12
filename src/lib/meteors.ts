@@ -1,3 +1,4 @@
+import { locale, t } from './i18n'
 /** Annual meteor showers: when they peak, where the radiant sits and how good
  * the sky will be. Pure functions over a small hand-curated table.
  *
@@ -159,11 +160,11 @@ export function outlook(from: Date): ShowerOutlook[] {
 
 /** "peaks in 12 d" / "peaking now" / "peaked 2 d ago". */
 export function peakLabel(o: ShowerOutlook): string {
-  if (o.status === 'peaking') return 'peaking now'
+  if (o.status === 'peaking') return t('peaking now')
   const d = Math.round(o.daysToPeak)
-  if (d < 0) return `peaked ${-d} d ago`
-  if (d === 0) return 'peaks today'
-  if (d === 1) return 'peaks tomorrow'
-  if (d < 60) return `peaks in ${d} d`
-  return `peaks ${o.peak.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}`
+  if (d < 0) return t('peaked {d} d ago', { d: -d })
+  if (d === 0) return t('peaks today')
+  if (d === 1) return t('peaks tomorrow')
+  if (d < 60) return t('peaks in {d} d', { d })
+  return t('peaks {date}', { date: o.peak.toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' }) })
 }

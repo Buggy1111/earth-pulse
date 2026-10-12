@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { LoaderGlobe } from './LoaderGlobe'
+import { setLang, t, useLang } from '../../lib/i18n'
 
 /** Persistent world switcher — always visible in every mode, so you never get
  * stranded: jump straight Earth ↔ Moon ↔ Solar without backing out first. */
@@ -24,10 +25,10 @@ export function ModeSwitcher({
     label: string
     go: () => void
   }[] = [
-    { id: 'earth', icon: '🌍', label: 'Earth', go: onEarth },
-    { id: 'moon', icon: '🌙', label: 'Moon', go: onMoon },
-    { id: 'solar', icon: '🪐', label: 'Solar', go: onSolar },
-    { id: 'drift', icon: '🗺', label: 'Drift', go: onDrift },
+    { id: 'earth', icon: '🌍', label: t('Earth'), go: onEarth },
+    { id: 'moon', icon: '🌙', label: t('Moon'), go: onMoon },
+    { id: 'solar', icon: '🪐', label: t('Solar'), go: onSolar },
+    { id: 'drift', icon: '🗺', label: t('Drift'), go: onDrift },
   ]
   return (
     <div className="mode-switch pointer-events-auto text-xs font-medium tracking-wide">
@@ -48,6 +49,23 @@ export function ModeSwitcher({
         )
       })}
     </div>
+  )
+}
+
+/** CZ / EN switch next to the world switcher — always reachable, one tap. */
+export function LangToggle() {
+  const lang = useLang()
+  const next = lang === 'cs' ? 'en' : 'cs'
+  return (
+    <button
+      type="button"
+      onClick={() => setLang(next)}
+      aria-label={lang === 'cs' ? 'Switch to English' : 'Přepnout do češtiny'}
+      title={lang === 'cs' ? 'English' : 'Čeština'}
+      className="mode-switch pointer-events-auto cursor-pointer px-2.5 py-1.5 font-[var(--font-mono)] text-[11px] font-semibold tracking-wider text-amber-200 hover:text-amber-100"
+    >
+      {lang === 'cs' ? 'EN' : 'CZ'}
+    </button>
   )
 }
 
@@ -124,7 +142,7 @@ export function SideDrawer({
         <button
           type="button"
           onClick={onToggle}
-          aria-label={`Open ${title}`}
+          aria-label={`${t('Open')} ${title}`}
           style={{
             background: scanline,
             borderColor: `${accent}66`,
@@ -176,7 +194,7 @@ export function SideDrawer({
           <button
             type="button"
             onClick={onToggle}
-            aria-label={`Close ${title}`}
+            aria-label={`${t('Close')} ${title}`}
             className="cursor-pointer rounded px-1.5 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
           >
             ✕
@@ -196,8 +214,8 @@ export function ShowHudButton({ onShow }: { onShow: () => void }) {
     <button
       type="button"
       onClick={onShow}
-      title="show interface (H)"
-      aria-label="Show interface"
+      title={t('show interface (H)')}
+      aria-label={t('Show interface')}
       className="hud pointer-events-auto fixed top-4 right-4 z-20 cursor-pointer px-3 py-1.5 safe-pt safe-pr text-sm text-slate-300 hover:text-slate-100"
     >
       👁
@@ -241,14 +259,14 @@ export function EarthDock({
   onHistory: () => void
 }) {
   const actions: DockAction[] = [
-    { icon: '🎬', label: 'cinematic tour', activeLabel: 'touring — drag to stop', active: tourOn, activeColor: 'text-amber-300', onToggle: onTour },
+    { icon: '🎬', label: t('cinematic tour'), activeLabel: t('touring — drag to stop'), active: tourOn, activeColor: 'text-amber-300', onToggle: onTour },
   ]
   if (showFollow)
-    actions.push({ icon: '🛰', label: 'follow ISS', activeLabel: 'following — drag to stop', active: followIss, activeColor: 'text-sky-300', onToggle: onFollow })
-  actions.push({ icon: '📓', label: 'planet diary (24 h)', activeLabel: 'planet diary — open', active: diaryOpen, activeColor: 'text-amber-300', onToggle: onDiary })
-  actions.push({ icon: '🏛', label: 'history of the planet', activeLabel: 'history — open', active: historyOpen, activeColor: 'text-amber-300', onToggle: onHistory })
-  actions.push({ icon: '⌖', label: 'reset view', activeLabel: 'reset view', active: false, activeColor: '', onToggle: onResetView })
-  actions.push({ icon: '👁', label: 'clean view (H)', activeLabel: 'clean view (H)', active: false, activeColor: '', onToggle: onHideHud })
+    actions.push({ icon: '🛰', label: t('follow ISS'), activeLabel: t('following — drag to stop'), active: followIss, activeColor: 'text-sky-300', onToggle: onFollow })
+  actions.push({ icon: '📓', label: t('planet diary (24 h)'), activeLabel: t('planet diary — open'), active: diaryOpen, activeColor: 'text-amber-300', onToggle: onDiary })
+  actions.push({ icon: '🏛', label: t('history of the planet'), activeLabel: t('history — open'), active: historyOpen, activeColor: 'text-amber-300', onToggle: onHistory })
+  actions.push({ icon: '⌖', label: t('reset view'), activeLabel: t('reset view'), active: false, activeColor: '', onToggle: onResetView })
+  actions.push({ icon: '👁', label: t('clean view (H)'), activeLabel: t('clean view (H)'), active: false, activeColor: '', onToggle: onHideHud })
   return <ModeDock actions={actions} />
 }
 
@@ -258,7 +276,7 @@ export function ModeDock({ actions }: { actions: DockAction[] }) {
     <div className="hud pointer-events-auto flex w-72 flex-col overflow-hidden">
       {actions.map((a, i) => (
         <button
-          key={a.label}
+          key={a.icon}
           type="button"
           onClick={a.onToggle}
           aria-pressed={a.active}
@@ -293,8 +311,8 @@ export function TimelinePanel({
       <button
         type="button"
         onClick={onTogglePlay}
-        aria-label={playing ? 'Pause replay' : 'Replay last 24 h'}
-        title="replay the last 24 h of earthquakes"
+        aria-label={playing ? t('Pause replay') : t('Replay last 24 h')}
+        title={t('replay the last 24 h of earthquakes')}
         className="cursor-pointer text-sm text-sky-300 hover:text-sky-200"
       >
         {playing ? '⏸' : '▶'}
@@ -306,11 +324,11 @@ export function TimelinePanel({
         step={0.25}
         value={offsetH}
         onChange={(e) => onScrub(Number(e.target.value))}
-        aria-label="Earthquake timeline, hours before now"
+        aria-label={t('Earthquake timeline, hours before now')}
         className="h-1 flex-1 cursor-pointer accent-amber-400"
       />
       <span className={`num w-14 text-xs ${live ? 'text-emerald-300' : 'text-amber-300'}`}>
-        {live ? '● LIVE' : `−${Math.abs(offsetH).toFixed(1)} h`}
+        {live ? t('● LIVE') : `−${Math.abs(offsetH).toFixed(1)} h`}
       </span>
     </div>
   )
@@ -338,10 +356,10 @@ export function LoadingOverlay({ done = false }: { done?: boolean }) {
   // a short boot log that types itself in, line by line — the staggered delay
   // is set per row so it reads like a console coming online
   const boot: [string, string][] = [
-    ['satellite catalogue · linked', 'ok'],
-    ['USGS seismic feed · live', 'ok'],
-    ['NOAA space weather · online', 'ok'],
-    ['NASA imagery layers · ready', 'ok'],
+    [t('satellite catalogue · linked'), 'ok'],
+    [t('USGS seismic feed · live'), 'ok'],
+    [t('NOAA space weather · online'), 'ok'],
+    [t('NASA imagery layers · ready'), 'ok'],
   ]
   return (
     <div
@@ -360,7 +378,7 @@ export function LoadingOverlay({ done = false }: { done?: boolean }) {
       <div className="relative flex flex-col items-center gap-4">
         <div className="flex flex-col items-center gap-1.5">
           <h1 className="ep-wordmark text-2xl font-semibold tracking-[0.38em] sm:text-3xl">EARTH PULSE</h1>
-          <p className="ep-subtitle">orbital telemetry console</p>
+          <p className="ep-subtitle">{t('orbital telemetry console')}</p>
         </div>
 
         <div className="ep-boot">
@@ -370,7 +388,7 @@ export function LoadingOverlay({ done = false }: { done?: boolean }) {
             </p>
           ))}
           <p style={{ '--d': `${0.2 + boot.length * 0.22}s` } as CSSProperties}>
-            <span className="arrow">▸</span> rendering globe<span className="ep-dots" />
+            <span className="arrow">▸</span> {t('rendering globe')}<span className="ep-dots" />
           </p>
         </div>
 

@@ -11,7 +11,7 @@ import {
   TitleCard,
 } from './panels'
 import { EventDetail, EventsPanel, IssPanel, MissionCard, QuakeDetail, WikiPanel } from './panelsLive'
-import { EarthDock, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
+import { EarthDock, LangToggle, ModeSwitcher, SideDrawer, TimelinePanel } from './controls'
 import { HudCard } from './HudCard'
 import { DiaryPanel } from './DiaryPanel'
 import { HistoryPanel } from './HistoryPanel'
@@ -26,6 +26,7 @@ import type { StarPick } from '../../lib/stars'
 import { TimeWarp } from './TimeWarp'
 import { ViewportFrame } from './ViewportFrame'
 import type { LayerState, OrbitEntry, SolarLayerState } from './types'
+import { t, useLang } from '../../lib/i18n'
 
 interface HudProps {
   mode: 'earth' | 'moon' | 'solar' | 'drift'
@@ -139,6 +140,7 @@ interface HudProps {
 }
 
 export function Hud(p: HudProps) {
+  useLang() // re-render every panel when the language switches
   const [diaryOpen, setDiaryOpen] = useState(false)
   const titleEl = (
     <TitleCard
@@ -146,9 +148,9 @@ export function Hud(p: HudProps) {
       satCount={p.satCount}
       subtitle={
         p.solarMode
-          ? 'the solar system, live — click any body to orbit it'
+          ? t('the solar system, live — click any body to orbit it')
           : p.moonMode
-            ? 'orbiting the Moon — drag to orbit, scroll to zoom'
+            ? t('orbiting the Moon — drag to orbit, scroll to zoom')
             : undefined
       }
     />
@@ -330,6 +332,9 @@ export function Hud(p: HudProps) {
       />
     ) : null
   const issEl = p.mode === 'earth' ? <IssPanel iss={p.iss} pass={p.issPass} now={p.now} /> : null
+  const detailOpen = Boolean(quakeDetailEl || eventDetailEl || missionEl)
+  const focusOpen = detailOpen || Boolean(historyEl || diaryEl)
+  const sheetOpen = detailOpen || Boolean(historyEl)
 
   return (
     <>
@@ -340,46 +345,55 @@ export function Hud(p: HudProps) {
           side drawer is open (the 90vw drawer would otherwise sit under it) */}
       <div
         className={`pointer-events-none fixed top-3 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 safe-pt transition-opacity duration-200 sm:top-4 ${
-          !p.isDesktop && p.drawer ? 'opacity-0' : 'opacity-100'
+          !p.isDesktop && p.drawer ? 'invisible opacity-0' : 'opacity-100'
         }`}
       >
-        <span className="vf-eyebrow hidden sm:block">◂ orbital telemetry console ▸</span>
-        <ModeSwitcher
-          mode={p.mode}
-          onEarth={p.onEarth}
-          onMoon={p.onMoon}
-          onSolar={p.onSolar}
-          onDrift={p.onDrift}
-        />
+        <span className="vf-eyebrow hidden sm:block">◂ {t('orbital telemetry console')} ▸</span>
+        <div className="flex items-center gap-1.5">
+          <ModeSwitcher
+            mode={p.mode}
+            onEarth={p.onEarth}
+            onMoon={p.onMoon}
+            onSolar={p.onSolar}
+            onDrift={p.onDrift}
+          />
+          <LangToggle />
+        </div>
       </div>
 
       {p.isDesktop ? (
         <div className="pointer-events-none fixed inset-0">
-          {/* top & bottom anchored independently → a tall panel never shoves
-              the other off-screen */}
-          <div className="pointer-events-none absolute inset-x-6 top-6 flex items-start justify-between gap-4">
-            <div className="flex flex-col items-start gap-3">
-              {titleEl}
-              {primaryEl}
-              {timeWarpEl}
-              {settingsEl}
-              <div className="hide-short">{aboveEl}</div>
-            </div>
-            <div>{topRightEl}</div>
-          </div>
-          <div className="pointer-events-none absolute inset-x-6 bottom-6 flex items-end justify-between gap-4">
-            <div className="flex flex-col items-start gap-3">
+          {/* each side is ONE full-height column: a top group and a bottom group
+              pushed apart by mt-auto. When they'd meet, the column scrolls instead
+              of letting panels slide over each other. */}
+          <div className="hud-column pointer-events-none absolute top-6 bottom-6 left-6 flex flex-col items-start gap-3 overflow-y-auto">
+            {titleEl}
+            {primaryEl}
+            {timeWarpEl}
+            {settingsEl}
+            <div className="hide-short">{aboveEl}</div>
+            <div className="mt-auto flex flex-col items-start gap-3">
               {timelineEl}
               {quakeEl}
               <div className="hide-short">{eventsEl}</div>
               <div className="hide-short">{dataLayerEl}</div>
             </div>
-            <div className="flex flex-col items-end gap-3">
-              {quakeDetailEl}
-              {eventDetailEl}
-              {missionEl}
-              {diaryEl}
-              {historyEl}
+          </div>
+          <div className="hud-column pointer-events-none absolute top-6 right-6 bottom-6 flex flex-col items-end gap-3 overflow-y-auto">
+            {/* what you opened always sits on top; the ambient feeds (Wikipedia,
+                meteors) step aside while a card is open instead of colliding */}
+            {focusOpen ? (
+              <>
+                {quakeDetailEl}
+                {eventDetailEl}
+                {missionEl}
+                {historyEl}
+                {diaryEl}
+              </>
+            ) : (
+              topRightEl
+            )}
+            <div className="mt-auto flex flex-col items-end gap-3">
               {dockEl}
               {issEl}
             </div>
@@ -387,7 +401,7 @@ export function Hud(p: HudProps) {
         </div>
       ) : (
         <>
-          <SideDrawer side="left" open={p.drawer === 'left'} onToggle={p.onToggleLeft} icon="📊" title="data">
+          <SideDrawer side="left" open={p.drawer === 'left'} onToggle={p.onToggleLeft} icon="📊" title={t('data')}>
             {titleEl}
             {primaryEl}
             {timeWarpEl}
@@ -403,22 +417,32 @@ export function Hud(p: HudProps) {
             open={p.drawer === 'right'}
             onToggle={p.onToggleRight}
             icon="🛰"
-            title="live & controls"
+            title={t('live & controls')}
           >
             {diaryEl}
-            {historyEl}
             {dockEl}
             {issEl}
             {topRightEl}
-            {quakeDetailEl}
-            {eventDetailEl}
-            {missionEl}
           </SideDrawer>
+          {/* phones & tablets: the card you tapped (and the history film's
+              controls) come up as a bottom sheet over the globe — the pin stays
+              visible above it; it steps aside while a drawer is open */}
+          {sheetOpen && !p.drawer && (
+            <div
+              className="hud-column pointer-events-auto fixed inset-x-2 bottom-2 z-40 mx-auto flex max-h-[52vh] max-w-md flex-col gap-2 overflow-y-auto safe-pb [&>*]:w-full [&>*]:shrink-0"
+              data-testid="bottom-sheet"
+            >
+              {historyEl}
+              {quakeDetailEl}
+              {eventDetailEl}
+              {missionEl}
+            </div>
+          )}
         </>
       )}
 
       <p className="pointer-events-none fixed bottom-1 left-1/2 -translate-x-1/2 safe-pb text-center text-[10px] text-slate-400">
-        Earth Pulse · open source · no API keys · zoom imagery © Esri &amp; contributors · textures ©
+        Earth Pulse · {t('open source · no API keys · zoom imagery © Esri & contributors · textures ©')}
         Solar System Scope (CC BY)
       </p>
     </>

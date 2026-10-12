@@ -531,3 +531,12 @@ body {
     display: none;
   }
 }
+
+/* HUD columns scroll instead of overlapping when a short screen can't fit them —
+   but without a visible scrollbar cutting through the glass panels */
+.hud-column {
+  scrollbar-width: none;
+}
+.hud-column::-webkit-scrollbar {
+  display: none;
+}

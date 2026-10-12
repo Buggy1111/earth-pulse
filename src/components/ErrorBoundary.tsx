@@ -4,6 +4,7 @@
  * reload into a fresh WebGL context instead of staring at the void. */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { t } from '../lib/i18n'
 
 interface Props {
   children: ReactNode
@@ -69,11 +70,12 @@ export class ErrorBoundary extends Component<Props, State> {
           🛰️
         </div>
         <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 600 }}>
-          Lost signal
+          {t('Lost signal')}
         </h1>
         <p style={{ margin: 0, maxWidth: '28rem', opacity: 0.75, lineHeight: 1.5 }}>
-          The globe hit an unexpected error and had to stop. This can happen on
-          mobile when the GPU runs out of room. Reload to pick the signal back up.
+          {t(
+            'The globe hit an unexpected error and had to stop. This can happen on mobile when the GPU runs out of room. Reload to pick the signal back up.',
+          )}
         </p>
         <button
           type="button"
@@ -90,7 +92,7 @@ export class ErrorBoundary extends Component<Props, State> {
             cursor: 'pointer',
           }}
         >
-          Reload
+          {t('Reload')}
         </button>
       </div>
     )

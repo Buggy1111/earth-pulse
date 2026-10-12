@@ -28,11 +28,14 @@ import { moonPhaseLabel, subLunarPoint } from './lib/moon'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove, type IssPass } from './lib/satellites'
 import { parseView } from './lib/share'
+import { useLang } from './lib/i18n'
 
 // shared link? restore camera/orbits/layers from the URL hash
 const initialView = parseView(window.location.hash)
 
 export default function App() {
+  // the whole tree re-renders on a CZ/EN switch, so every label follows it
+  const lang = useLang()
   const { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient } =
     useLiveData()
   const probes = useProbes()
@@ -158,7 +161,8 @@ export default function App() {
 
   // moon phase for the HUD, recomputed per minute
   const moonState = useMemo(() => subLunarPoint(new Date(minuteNow * 60_000)), [minuteNow])
-  const moonLabel = useMemo(() => moonPhaseLabel(moonState), [moonState])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- lang: the label is translated
+  const moonLabel = useMemo(() => moonPhaseLabel(moonState), [moonState, lang])
 
   const solarSimNow = warpedSimMs(solarTime, now)
 
@@ -307,6 +311,16 @@ export default function App() {
       setSelectedMission(null)
       history.close()
     }
+  }
+
+  // phones/tablets: a tapped card (or the history film) comes up as a bottom
+  // sheet — close an open drawer the moment it appears so the two never stack
+  const sheetOpen =
+    !roomyHud && !awayFromEarth && Boolean(selected || selectedEvent || selectedMission || history.open)
+  const [wasSheetOpen, setWasSheetOpen] = useState(sheetOpen)
+  if (sheetOpen !== wasSheetOpen) {
+    setWasSheetOpen(sheetOpen)
+    if (sheetOpen) setDrawer(null)
   }
 
   // NASA GIBS data layer + playback date (days back from now)
@@ -483,7 +497,10 @@ export default function App() {
       )}
 
       {/* 📡 sky AR: launch button (mobile only, self-hides on unsupported) + overlay */}
-      {!hudOff && !arMode && !driftMode && <ArLaunchButton onOpen={() => setArMode(true)} />}
+      {/* hidden while a drawer or the bottom sheet is up — it would sit on their content */}
+      {!hudOff && !arMode && !driftMode && !drawer && !sheetOpen && (
+        <ArLaunchButton onOpen={() => setArMode(true)} />
+      )}
       {arMode && (
         <Suspense fallback={null}>
           <ArSky sats={sats} userLoc={userLoc} probes={probes} onLocate={onLocate} onClose={() => setArMode(false)} />

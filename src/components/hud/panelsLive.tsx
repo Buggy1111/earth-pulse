@@ -10,6 +10,7 @@ import type { Quake } from '../../lib/quakes'
 import { eventCounts, eventMeta, type EarthEvent } from '../../lib/events'
 import { SAT_MISSIONS } from '../../lib/missions'
 import type { WikiEdit } from '../../lib/wiki'
+import { getLang, locale, t, useLang } from '../../lib/i18n'
 
 export function MissionCard({ name, onClose }: { name: string; onClose: () => void }) {
   const m = SAT_MISSIONS[name]
@@ -21,19 +22,19 @@ export function MissionCard({ name, onClose }: { name: string; onClose: () => vo
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('Close')}
           className="cursor-pointer rounded px-1 text-xs text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
         </button>
       </div>
       <p className="mt-1 text-xs font-medium" style={{ color: m.color }}>
-        {m.measures}
+        {t(m.measures)}
       </p>
       <p className="mt-1.5 text-xs text-slate-400">🏛 {m.agency}</p>
-      <p className="mt-0.5 text-xs text-slate-400">🚀 launched {m.launched}</p>
-      <p className="mt-0.5 text-xs text-slate-400">🛰 {m.orbit}</p>
-      <p className="mt-1.5 text-xs text-slate-300">✨ {m.fact}</p>
+      <p className="mt-0.5 text-xs text-slate-400">🚀 {t('launched {date}', { date: m.launched })}</p>
+      <p className="mt-0.5 text-xs text-slate-400">🛰 {t(m.orbit)}</p>
+      <p className="mt-1.5 text-xs text-slate-300">✨ {t(m.fact)}</p>
     </HudCard>
   )
 }
@@ -52,13 +53,13 @@ export function EventsPanel({
   return (
     <HudCard className="w-72 px-4 py-3" delay={160}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        Live on Earth · {events.length}
+        {t('Live on Earth')} · {events.length}
       </h2>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
         {counts.map(({ category, count }) => {
           const m = eventMeta(category)
           return (
-            <span key={category} className="num text-xs text-slate-300" title={m.label}>
+            <span key={category} className="num text-xs text-slate-300" title={t(m.label)}>
               {m.icon} {count}
             </span>
           )
@@ -67,12 +68,12 @@ export function EventsPanel({
       <button
         type="button"
         onClick={() => onEventClick(latest)}
-        title="fly there"
+        title={t('fly there')}
         className="mt-1 block max-w-60 cursor-pointer text-left text-xs text-slate-400 hover:text-slate-200"
       >
-        latest: {lm.icon} <span className="text-slate-200">{latest.title}</span>
+        {t('latest:')} {lm.icon} <span className="text-slate-200">{latest.title}</span>
       </button>
-      <p className="mt-2 text-[10px] text-amber-300/80">📡 NASA EONET, live natural events</p>
+      <p className="mt-2 text-[10px] text-amber-300/80">📡 {t('NASA EONET, live natural events')}</p>
     </HudCard>
   )
 }
@@ -89,28 +90,28 @@ export function IssPanel({
   return (
     <HudCard className="w-72 px-4 py-3 sm:px-5 sm:py-4" delay={240}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        🛰 ISS right now
+        🛰 {t('ISS right now')}
       </h2>
       {iss ? (
         <>
           <div className="num readout mt-1 text-xl font-bold text-sky-300">{formatKmh(iss.velocityKmh)}</div>
           <p className="num mt-0.5 text-xs text-slate-400">
-            {formatKm(iss.altitudeKm)} above {formatCoords(iss.lat, iss.lng)} ·{' '}
-            {iss.visibility === 'daylight' ? 'in sunlight' : 'in shadow'}
+            {t('{alt} above {pos}', { alt: formatKm(iss.altitudeKm), pos: formatCoords(iss.lat, iss.lng) })} ·{' '}
+            {iss.visibility === 'daylight' ? t('in sunlight') : t('in shadow')}
           </p>
         </>
       ) : (
-        <p className="mt-1 text-xs text-slate-400">acquiring signal…</p>
+        <p className="mt-1 text-xs text-slate-400">{t('acquiring signal…')}</p>
       )}
       {pass && (
         <p className="mt-1.5 text-xs text-emerald-300">
           {pass.startMs <= now ? (
-            <>✨ over your location right now!</>
+            <>✨ {t('over your location right now!')}</>
           ) : (
             <>
-              over your location in{' '}
+              {t('over your location in')}{' '}
               <span className="num font-semibold">{formatCountdown(pass.startMs - now)}</span>
-              <span className="num text-slate-400"> · max {Math.round(pass.maxElevationDeg)}°</span>
+              <span className="num text-slate-400"> · {t('max')} {Math.round(pass.maxElevationDeg)}°</span>
             </>
           )}
         </p>
@@ -126,16 +127,17 @@ export const WikiPanel = memo(function WikiPanel({
   edits: WikiEdit[]
   totalSeen: number
 }) {
+  useLang()
   return (
     <HudCard className="hidden w-72 px-5 py-4 md:block" delay={360}>
-      <h2 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-slate-400 uppercase">
-        Wikipedia, live
+      <h2 className="flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+        {t('Wikipedia, live')}
         <span className="num text-[10px] font-normal text-slate-400 normal-case">
-          {totalSeen} edits while you watch
+          {t('{n} edits while you watch', { n: totalSeen })}
         </span>
       </h2>
       <ul className="mt-2 flex flex-col gap-1.5">
-        {edits.length === 0 && <li className="text-xs text-slate-400">listening…</li>}
+        {edits.length === 0 && <li className="text-xs text-slate-400">{t('listening…')}</li>}
         {edits.map((e, i) => (
           <li key={`${e.url}-${i}`} className={i === 0 ? 'slide-in' : ''}>
             <a
@@ -167,14 +169,14 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
           <div className="num readout text-2xl font-bold text-amber-300">{formatMag(quake.mag)}</div>
           <p className="mt-0.5 max-w-64 text-sm text-slate-200">{quake.place}</p>
           <p className="num mt-1 text-xs text-slate-400">
-            depth {quake.depthKm.toFixed(0)} km · {timeAgo(quake.time, now)} ·{' '}
+            {t('depth {km} km', { km: quake.depthKm.toFixed(0) })} · {timeAgo(quake.time, now)} ·{' '}
             {formatCoords(quake.lat, quake.lng)}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('Close')}
           className="cursor-pointer rounded-lg px-2 py-1 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
@@ -188,8 +190,9 @@ export function QuakeDetail({ quake, now, onClose }: { quake: Quake; now: number
 function formatHistoricDate(ms: number): string {
   const d = new Date(ms)
   const y = d.getUTCFullYear()
-  const year = y < 1000 ? `AD ${y}` : String(y)
-  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })} ${year}`
+  const cs = getLang() === 'cs'
+  const year = y < 1000 ? (cs ? `${y} n. l.` : `AD ${y}`) : String(y)
+  return `${d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' })} ${year}`
 }
 
 /** Detail card for a clicked NASA EONET natural event — the events' answer to
@@ -213,15 +216,17 @@ export function EventDetail({
               {m.icon}
             </span>
             <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: m.color }}>
-              {m.label}
+              {t(m.label)}
             </span>
           </div>
-          <h2 className="mt-1.5 max-w-60 text-sm font-semibold text-slate-100">{event.title}</h2>
+          <h2 className="mt-1.5 max-w-60 text-sm font-semibold text-slate-100">
+            {event.historic ? t(event.title) : event.title}
+          </h2>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('Close')}
           className="cursor-pointer rounded-lg px-2 py-1 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
         >
           ✕
@@ -229,13 +234,13 @@ export function EventDetail({
       </div>
       <p className="num mt-1.5 text-xs text-slate-400">
         {event.historic
-          ? `${event.magnitudeLabel ? `${event.magnitudeLabel} · ` : ''}${formatHistoricDate(event.date)}`
-          : `${event.magnitude ? `${Math.round(event.magnitude).toLocaleString('en-US')} ${event.magnitudeUnit ?? ''} · ` : ''}${timeAgo(event.date, now)}`}{' '}
+          ? `${event.magnitudeLabel ? `${t(event.magnitudeLabel)} · ` : ''}${formatHistoricDate(event.date)}`
+          : `${event.magnitude ? `${Math.round(event.magnitude).toLocaleString(locale())} ${event.magnitudeUnit ?? ''} · ` : ''}${timeAgo(event.date, now)}`}{' '}
         · {formatCoords(event.lat, event.lng)}
       </p>
-      {event.note && <p className="mt-1.5 text-xs leading-snug text-slate-300">{event.note}</p>}
+      {event.note && <p className="mt-1.5 text-xs leading-snug text-slate-300">{t(event.note)}</p>}
       <div className="mt-1.5 flex items-center justify-between">
-        <span className="text-[10px] text-amber-300/80">{event.source ? `📚 ${event.source}` : '📡 NASA EONET'}</span>
+        <span className="text-[10px] text-amber-300/80">{event.source ? `📚 ${t(event.source)}` : '📡 NASA EONET'}</span>
         {event.link?.startsWith('https://') && (
           <a
             href={event.link}
@@ -243,7 +248,7 @@ export function EventDetail({
             rel="noreferrer"
             className="text-[11px] text-cyan-300 hover:text-cyan-200"
           >
-            source ↗
+            {t('source')} ↗
           </a>
         )}
       </div>

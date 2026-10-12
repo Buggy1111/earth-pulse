@@ -1,3 +1,4 @@
+import { locale, t } from '../../lib/i18n'
 /** Shared time-warp control — speeds the simulated clock so the Moon, the
  * day/night terminator and the satellites visibly move. At live (×1) the Moon
  * drifts only ~14°/h (real lunar rate), so it looks frozen; warp lets you watch
@@ -29,7 +30,7 @@ export function TimeWarp({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1">
-        <span className="mr-1 text-[10px] tracking-wide text-slate-400 uppercase">⏩ time</span>
+        <span className="mr-1 text-[10px] tracking-wide text-slate-400 uppercase">⏩ {t('time')}</span>
         {WARPS.map((w) => (
           <button
             key={w.factor}
@@ -41,14 +42,14 @@ export function TimeWarp({
                 : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
             }`}
           >
-            {w.label}
+            {w.factor === 1 ? t('live') : w.label}
           </button>
         ))}
       </div>
       {warped && (
         <p className="num text-xs text-amber-300">
           ⏱{' '}
-          {new Date(now).toLocaleString('en-GB', {
+          {new Date(now).toLocaleString(locale(), {
             day: 'numeric',
             month: 'short',
             year: 'numeric',
@@ -60,7 +61,7 @@ export function TimeWarp({
             onClick={onWarpReset}
             className="cursor-pointer text-slate-400 underline hover:text-slate-300"
           >
-            back to now
+            {t('back to now')}
           </button>
         </p>
       )}

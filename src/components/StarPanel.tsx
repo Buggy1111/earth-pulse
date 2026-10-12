@@ -4,6 +4,7 @@
 import { spectralDesc, STAR_FACTS, type StarPick } from '../lib/stars'
 import { STAR_PHOTOS } from '../lib/starLook'
 import { HudCard } from './hud/HudCard'
+import { t } from '../lib/i18n'
 
 export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => void }) {
   const left = star.distLy > 0 ? new Date().getUTCFullYear() - Math.round(star.distLy) : 0
@@ -24,7 +25,7 @@ export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => vo
         <figure className="mt-2">
           <img
             src={`stars/cards/${photo.slug}.webp`}
-            alt={`${star.name} — ${/concept/i.test(photo.credit) ? "artist's concept" : 'real telescope image'}`}
+            alt={`${star.name} — ${/concept/i.test(photo.credit) ? t("artist's concept") : t('real telescope image')}`}
             loading="lazy"
             className="max-h-40 w-full rounded-lg object-cover"
             onError={(e) => {
@@ -36,15 +37,15 @@ export function StarPanel({ star, onClose }: { star: StarPick; onClose: () => vo
       )}
       {star.distLy > 0 && (
         <p className="num mt-1 text-xs text-emerald-300">
-          {star.distLy} light-years away · the light you see left it in {left}
+          {t('{ly} light-years away · the light you see left it in {year}', { ly: star.distLy, year: left })}
         </p>
       )}
       <p className="mt-1.5 text-xs text-slate-300">
-        {spectralDesc(star.spect)}
+        {t(spectralDesc(star.spect))}
         {star.spect.trim() ? ` (${star.spect.trim()})` : ''}
-        {star.mag ? ` · magnitude ${star.mag}` : ''}
+        {star.mag ? ` · ${t('magnitude')} ${star.mag}` : ''}
       </p>
-      {STAR_FACTS[star.name] && <p className="mt-1 text-xs text-slate-400">✨ {STAR_FACTS[star.name]}</p>}
+      {STAR_FACTS[star.name] && <p className="mt-1 text-xs text-slate-400">✨ {t(STAR_FACTS[star.name])}</p>}
     </HudCard>
   )
 }

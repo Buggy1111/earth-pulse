@@ -28,6 +28,7 @@ import { makeTrailOrbit, updateSolarTrails, type SolarTrail } from './solarTrail
 import { createSolarTextureKit } from './solarTextures'
 import { buildPlanets, orbitColor } from './solarPlanets'
 import type { SolarAnimEntry } from './orbitEngine'
+import { t } from '../../lib/i18n'
 
 // SUNLIT_LAYER bydlí v helpers.ts; re-export drží stabilní veřejné API modulu
 export { SUNLIT_LAYER } from './helpers'
@@ -108,7 +109,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
   )
   earthProxy.userData.planetId = 'earth'
   earthProxy.userData.displayRadius = EARTH_DISPLAY
-  const earthLabel = makeNameSprite('Earth · you are here', EARTH_DISPLAY * 2.2, true)
+  const earthLabel = makeNameSprite(t('Earth · you are here'), EARTH_DISPLAY * 2.2, true)
   earthLabel.userData.solarLayer = 'labels'
   earthProxy.add(earthLabel)
   group.add(earthProxy)
@@ -133,7 +134,7 @@ export function ensureSolarSystem(globe: GlobeInstance, deps: SolarDeps): THREE.
     mesh.userData.moonId = earthMoonDef.id
     mesh.userData.displayRadius = rMoon
     loadTex(mesh, `planets/moons/${earthMoonDef.id}.webp`)
-    const label = makeNameSprite(earthMoonDef.name, rMoon * 1.4, true)
+    const label = makeNameSprite(t(earthMoonDef.name), rMoon * 1.4, true)
     mesh.add(label)
     earthMoonGroup.add(mesh)
     earthMoonMesh = mesh

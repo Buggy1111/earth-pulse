@@ -309,15 +309,55 @@ test.describe('phone HUD', () => {
     await expect(page.getByText('Meteor showers')).toBeVisible()
     await page.getByRole('button', { name: /planet diary/ }).click()
     await expect(page.getByRole('button', { name: /replay the day/ })).toBeVisible()
-    await page.getByRole('button', { name: /history of the planet/ }).click()
-    await expect(page.getByLabel('History timeline')).toBeVisible()
-    // opening history replaces the diary card (one at a time), nothing spills sideways
-    await expect(page.getByRole('button', { name: /replay the day/ })).toHaveCount(0)
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
-    expect(overflow).toBeLessThanOrEqual(0)
     // the drawer's cards keep their natural height (no squashed dock rows)
     const dock = await page.getByRole('button', { name: /clean view/ }).boundingBox()
     expect(dock && dock.height).toBeGreaterThan(20)
+    await page.getByRole('button', { name: /history of the planet/ }).click()
+    // history opens as the bottom sheet (the drawer steps aside) and replaces the diary
+    await expect(page.getByTestId('bottom-sheet').getByLabel('History timeline')).toBeVisible()
+    await page.getByRole('button', { name: /Open live & controls/i }).click()
+    await expect(page.getByRole('button', { name: /replay the day/ })).toHaveCount(0)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(overflow).toBeLessThanOrEqual(0)
+    expect(errors).toEqual([])
+  })
+})
+
+test('the whole HUD switches to Czech and remembers it', async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 900 })
+  const errors = await bootGlobe(page)
+  await expect(page.getByText('Meteor showers')).toBeVisible()
+  await page.getByRole('button', { name: 'Přepnout do češtiny' }).click()
+  await expect(page.getByText('Meteorické roje')).toBeVisible()
+  await expect(page.getByRole('button', { name: /historie planety/ })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.lang)).toBe('cs')
+  // remembered across a reload
+  await page.reload()
+  await page.waitForFunction(() => Boolean((window as Record<string, unknown>).__earthPulseGlobe), null, { timeout: 30_000 })
+  await expect(page.getByText('Meteorické roje')).toBeVisible()
+  await page.getByRole('button', { name: 'Switch to English' }).click()
+  await expect(page.getByText('Meteor showers')).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test.describe('phone layout', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('a tapped card comes up as a bottom sheet and never under an open drawer', async ({ page }) => {
+    const errors = await bootGlobe(page)
+    await page.getByRole('button', { name: /Open live & controls/i }).click()
+    await page.getByRole('button', { name: /history of the planet/ }).click()
+    // the history film opens as a bottom sheet over the globe and the drawer closes
+    const sheet = page.getByTestId('bottom-sheet')
+    await expect(sheet).toBeVisible()
+    await expect(sheet.getByLabel('History timeline')).toBeVisible()
+    await page.getByRole('button', { name: /play from the start/ }).click()
+    await expect(sheet.getByText(/Vesuvius buries Pompeii/).first()).toBeVisible()
+    // opening a drawer hides the sheet (no stacking); closing it brings it back
+    await page.getByRole('button', { name: /Open data/i }).click()
+    await expect(sheet).toHaveCount(0)
+    await page.getByRole('button', { name: /Close data/i }).click()
+    await expect(page.getByTestId('bottom-sheet')).toBeVisible()
     expect(errors).toEqual([])
   })
 })

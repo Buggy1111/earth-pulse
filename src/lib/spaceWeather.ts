@@ -1,3 +1,4 @@
+import { t } from './i18n'
 /** NOAA SWPC space weather: planetary Kp index + solar wind speed.
  *
  * Both endpoints send `Access-Control-Allow-Origin: *`, so the browser reads
@@ -67,9 +68,9 @@ export function kpColor(kp: number): string {
 }
 
 export function kpLabel(kp: number): string {
-  if (kp >= 7) return 'strong storm'
-  if (kp >= 6) return 'storm'
-  if (kp >= 5) return 'minor storm'
-  if (kp >= 4) return 'active'
-  return 'quiet'
+  if (kp >= 7) return t('strong storm')
+  if (kp >= 6) return t('storm')
+  if (kp >= 5) return t('minor storm')
+  if (kp >= 4) return t('active')
+  return t('quiet')
 }
