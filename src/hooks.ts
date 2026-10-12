@@ -3,7 +3,7 @@ import { EMSC_WS_URL, parseEmscEvent } from './lib/emsc'
 import { EONET_URL, parseEvents, type EarthEvent } from './lib/events'
 import { parseIss, ISS_URL, type IssState } from './lib/iss'
 import { diffNewQuakes, parseQuakes, USGS_FEED_URL, type Quake, type UsgsFeed } from './lib/quakes'
-import { parseTle, toTrackedSats, TLE_LOCAL_URL, type TrackedSat } from './lib/satellites'
+import { oldestTleAgeDays, parseTle, toTrackedSats, TLE_LOCAL_URL, type TrackedSat } from './lib/satellites'
 import {
   KP_URL,
   parseKp,
@@ -150,14 +150,19 @@ export function useEmsc(maxAgeMs = 3_600_000): { quakes: Quake[]; fresh: Quake[]
 
 /** Parsed TLE element sets, loaded once. Propagation itself runs inside
  * GlobeView's 1 Hz engine — React only sees this single load. */
-export function useTleSats(): TrackedSat[] {
+export function useTleSats(): { sats: TrackedSat[]; tleAgeDays: number | null } {
   const [sats, setSats] = useState<TrackedSat[]>([])
+  const [tleAgeDays, setTleAgeDays] = useState<number | null>(null)
   useEffect(() => {
     let cancelled = false
     void fetch(TLE_LOCAL_URL)
       .then((r) => r.text())
       .then((text) => {
-        if (!cancelled) setSats(toTrackedSats(parseTle(text)))
+        if (!cancelled) {
+          const sets = parseTle(text)
+          setSats(toTrackedSats(sets))
+          setTleAgeDays(oldestTleAgeDays(sets, Date.now()))
+        }
       })
       .catch(() => {
         // no TLE snapshot — globe simply shows no satellites
@@ -166,7 +171,7 @@ export function useTleSats(): TrackedSat[] {
       cancelled = true
     }
   }, [])
-  return sats
+  return { sats, tleAgeDays }
 }
 
 /** NASA EONET natural events (wildfires, storms, volcanoes…), refreshed slowly. */
