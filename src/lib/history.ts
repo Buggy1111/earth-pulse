@@ -103,6 +103,16 @@ function utcMs(year: number, month = 1, day = 1): number {
   return d.getTime()
 }
 
+// the curated card cites who the figures come from — per event family, so a
+// Titanic or an Apollo card doesn't claim USGS as its source
+const SOURCE: Record<string, string> = {
+  nuclear: 'curated · IAEA / historical records',
+  manmade: 'curated · historical records',
+  space: 'curated · NASA / Roscosmos records',
+  impact: 'curated · NASA / historical records',
+}
+const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
+
 /** The chronology, oldest first. */
 export const HISTORIC_EVENTS: EarthEvent[] = H.map((h) => ({
   id: `hist-${h.year}-${h.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
@@ -113,7 +123,7 @@ export const HISTORIC_EVENTS: EarthEvent[] = H.map((h) => ({
   date: utcMs(h.year, h.month, h.day),
   magnitudeLabel: h.size,
   note: h.note,
-  source: 'curated · USGS / Smithsonian GVP / NOAA',
+  source: SOURCE[h.category] ?? DEFAULT_SOURCE,
   historic: true,
 })).sort((a, b) => a.date - b.date)
 
