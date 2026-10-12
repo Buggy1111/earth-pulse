@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isSameEvent, mergeQuakes, parseEmscEvent } from './emsc'
+import { parseEvents } from './events'
 import {
   glowOpacity,
   glowScale,
@@ -161,5 +162,29 @@ describe('EMSC live stream', () => {
     const merged = mergeQuakes(usgs, [dup, fresh])
     expect(merged.map((q) => q.id)).toEqual(['emsc:fresh', 'us1'])
     expect(mergeQuakes(usgs, [dup])).toBe(usgs) // čistý duplikát = beze změny
+  })
+})
+
+
+describe('external feed validation', () => {
+  it('rejects EMSC updates without a real magnitude or valid coordinates', () => {
+    const event = (mag: number | null, coordinates: number[]) => JSON.stringify({
+      action: 'create', data: { properties: { unid: 'test', mag, time: '2026-10-12T12:00:00Z' }, geometry: { coordinates } },
+    })
+    expect(parseEmscEvent(event(null, [15, 50]))).toBeNull()
+    expect(parseEmscEvent(event(4.2, [15, 95]))).toBeNull()
+    expect(parseEmscEvent(event(4.2, [15, 50]))?.mag).toBe(4.2)
+  })
+
+  it('drops EONET events with invalid dates or impossible latitudes', () => {
+    const item = (id: string, date: string, coordinates: number[]) => ({
+      id, title: id, categories: [{ id: 'wildfires' }], geometry: [{ date, coordinates }],
+    })
+    const events = parseEvents({ events: [
+      item('good', '2026-10-12T12:00:00Z', [15, 50]),
+      item('bad-date', 'not-a-date', [15, 50]),
+      item('bad-coordinates', '2026-10-12T12:00:00Z', [15, 95]),
+    ] })
+    expect(events.map((event) => event.id)).toEqual(['good'])
   })
 })
