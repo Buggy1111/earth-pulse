@@ -140,25 +140,27 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     scene.background = starTex
 
     // lazily-loaded frame textures (null until fetched), with a placeholder.
-    // Phones keep only a ±5 frame window decoded — a full playback used to pin
-    // all 69 past frames (~200 MB with mips) until unmount, real pressure on
-    // iOS memory budgets; re-entering a frame reloads instantly from SW cache.
-    const KEEP_RADIUS = 5
+    // Only a rolling window around the playhead stays decoded — a full playback
+    // used to pin every frame until unmount (69 × 2048² with mips ≈ 0.8 GB on
+    // desktop, ~200 MB of 1024² on phones); re-entering a frame reloads
+    // instantly from the SW cache.
+    const KEEP_RADIUS = mobile ? 5 : 8
     const dir = mobile ? 'planets/paleo/sd/' : 'planets/paleo/'
+    // bump when the frame artwork is regenerated: the service worker caches
+    // these CacheFirst for 30 days, so unchanged URLs would keep old frames
+    const REV = '?r=2'
     const textures: (THREE.Texture | null)[] = FRAMES.map(() => null)
     const blank = new THREE.DataTexture(new Uint8Array([10, 16, 30, 255]), 1, 1)
     blank.needsUpdate = true
     const getTex = (i: number): THREE.Texture => {
-      if (mobile) {
-        for (let j = 0; j < textures.length; j++) {
-          if (textures[j] && Math.abs(j - i) > KEEP_RADIUS) {
-            textures[j]?.dispose()
-            textures[j] = null
-          }
+      for (let j = 0; j < textures.length; j++) {
+        if (textures[j] && Math.abs(j - i) > KEEP_RADIUS) {
+          textures[j]?.dispose()
+          textures[j] = null
         }
       }
       if (textures[i]) return textures[i] as THREE.Texture
-      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp`)
+      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp${REV}`)
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       textures[i] = t
@@ -170,7 +172,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const getFutureTex = (k: number): THREE.Texture => {
       if (k <= 0) return getTex(0)
       if (futureTex[k]) return futureTex[k] as THREE.Texture
-      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp`)
+      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp${REV}`)
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       futureTex[k] = t

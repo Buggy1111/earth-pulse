@@ -214,6 +214,14 @@ function boxProjectUvs(geo: THREE.BufferGeometry, tile: number) {
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
 }
 
+/** True when this (shared) material was already finished — glTF reuses one
+ * material across many primitives, and prepare() visits it once per mesh. */
+function once(m: THREE.Material) {
+  if (m.userData.epFinished) return true
+  m.userData.epFinished = true
+  return false
+}
+
 function tiangongFinish(mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial, modelSize: number) {
   let m = mat
   const tex = tiangongTextures()
@@ -228,6 +236,7 @@ function tiangongFinish(mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial, model
   if (wing && !m.name.startsWith('solar_gold')) {
     m = m.clone()
     m.name = 'solar_blue.wing'
+    m.userData = {}
     mesh.material = m
   }
   const n = m.name
@@ -245,6 +254,7 @@ function tiangongFinish(mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial, model
       mesh.geometry = flatGeo
     }
     boxProjectUvs(mesh.geometry, local(modelSize * 0.09))
+    if (once(m)) return
     m.map = tex.cells
     m.color.set('#ffffff')
     m.metalness = 0.2
@@ -261,12 +271,14 @@ function tiangongFinish(mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial, model
     m.polygonOffsetUnits = -2
   } else if (n.startsWith('skin_out') || n.startsWith('skin_inner') || n === 'Material.003') {
     boxProjectUvs(mesh.geometry, local(modelSize * 0.16))
+    if (once(m)) return
     m.map = tex.mli
-    m.color.multiplyScalar(0.88)
     m.metalness = 0.15
     m.roughness = 0.45
     m.envMapIntensity = 0.6
     m.emissive.setRGB(0.1, 0.1, 0.1)
+  } else if (once(m)) {
+    return
   } else if (n.startsWith('solar_gold')) {
     // the wings' backing sheet (largest surface in the model): a warm copper
     // kapton tone, satin — mirror-metal here turned whole wings white
@@ -307,6 +319,13 @@ function prepare(scene: THREE.Object3D, tint?: string, file?: string): THREE.Gro
     for (const mat of mats) {
       const m = mat as THREE.MeshStandardMaterial
       if (!m.color) continue
+      // a material shared by many primitives is styled on its first visit only
+      // (re-running the generic pass would undo the per-model finish below);
+      // Tiangong still needs its per-mesh UVs / wing split
+      if (m.userData.epFinished) {
+        if (file === 'tiangong.glb') tiangongFinish(mesh, m, maxDim)
+        continue
+      }
       if (env && 'envMap' in m) {
         m.envMap = env
         m.envMapIntensity = 0.8
