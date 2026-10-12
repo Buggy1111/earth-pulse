@@ -8,6 +8,8 @@ import {
   orbitTrack,
   orbitTrail,
   parseTle,
+  tleEpochMs,
+  oldestTleAgeDays,
   propagateSats,
   satsAbove,
   toTrackedSats,
@@ -160,5 +162,16 @@ describe('satsAbove (co letí nade mnou)', () => {
     expect(above).toHaveLength(1)
     expect(above[0].elevationDeg).toBeGreaterThan(85)
     expect(satsAbove(sats, { lat: -pos.lat, lng: pos.lng + 180 }, t)).toHaveLength(0)
+  })
+})
+
+describe('TLE freshness', () => {
+  it('parses the fractional day of the two-digit epoch', () => {
+    expect(tleEpochMs('1 25544U 98067A   26285.50000000  .00005771')).toBe(Date.UTC(2026, 9, 12, 12))
+    expect(tleEpochMs('invalid')).toBeNull()
+  })
+  it('warns based on the oldest orbital element', () => {
+    const sets = parseTle('ISS\n1 25544U 98067A   26285.50000000  .00005771  00000+0  11345-3 0  9992\n2 25544  51.6314  81.3064 0006731 252.4466 107.5787 15.48833724589888')
+    expect(oldestTleAgeDays(sets, Date.UTC(2026, 9, 16, 12))).toBeCloseTo(4)
   })
 })
