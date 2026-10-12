@@ -1,0 +1,33 @@
+# Finds and bakes real star photos (public archives need network the dev
+# sandbox doesn't have). Manual: Actions → Star photos → Run workflow.
+name: Star photos
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [claude/relaxed-planck-f4u13q] # TEMPORARY — removed before merge
+    paths: [scripts/fetch-star-photos.mjs, scripts/find-star-photo-candidates.mjs]
+
+permissions:
+  contents: write
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Find candidates (Wikimedia Commons, free licences only)
+        run: node scripts/find-star-photo-candidates.mjs
+      - name: Bake configured photos
+        run: node scripts/fetch-star-photos.mjs 2>&1 | tee docs/star-photo-fetch.log || true
+      - name: Commit results
+        run: |
+          git config user.name "star-photos bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/star-photo-candidates.json docs/star-photo-fetch.log public/stars/cards
+          git diff --cached --quiet || git commit -m "🌟 chore: star photo candidates + baked cards"
+          git push
