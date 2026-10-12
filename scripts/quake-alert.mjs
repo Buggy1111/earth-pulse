@@ -31,6 +31,7 @@ const token = process.env.TELEGRAM_BOT_TOKEN
 const chatId = process.env.TELEGRAM_CHAT_ID
 const baseline = flag('--baseline')
 const digest = flag('--digest')
+const retryUndeliverable = flag('--retry-undeliverable')
 const dry = !baseline && (flag('--dry') || !token || !chatId)
 
 async function readJson(path, fallback) {
@@ -119,11 +120,15 @@ if (digest) {
 }
 
 const state = await readJson(statePath, { sent: [] })
-const alerts = selectAlerts(quakes, config, state, now)
+const pending = state.undeliverable ?? []
+const alerts = retryUndeliverable ? pending : selectAlerts(quakes, config, state, now).filter((a) =>
+  !pending.some((p) => p.quake.id === a.quake.id),
+)
 console.log(`${quakes.length} events checked, ${alerts.length} to alert${dry ? ' (dry run)' : ''}`)
 
 const delivered = []
 const skipped = []
+const stillPending = []
 if (baseline) delivered.push(...alerts)
 for (const alert of baseline ? [] : alerts) {
   const text = formatMessage(alert)
@@ -137,12 +142,21 @@ for (const alert of baseline ? [] : alerts) {
     // a message Telegram rejects for good must not block the newer alerts behind it
     console.error(`skipping undeliverable alert ${alert.quake.id}`)
     skipped.push(alert)
+    stillPending.push(alert)
     continue
   }
   delivered.push(alert)
 }
 
 if (baseline) console.log('baseline recorded — no messages sent')
-if (!dry) await writeFile(statePath, JSON.stringify(nextState(state, [...delivered, ...skipped], now)))
+if (!dry) {
+  const next = nextState(state, [...delivered, ...skipped], now)
+  // Permanent Telegram rejections are retained for inspection and explicit
+  // replay; they are not automatically retried on the regular cron schedule.
+  next.undeliverable = retryUndeliverable
+    ? [...pending.filter((p) => !alerts.some((a) => a.quake.id === p.quake.id)), ...stillPending]
+    : [...pending, ...stillPending.filter((a) => !pending.some((p) => p.quake.id === a.quake.id))]
+  await writeFile(statePath, JSON.stringify(next))
+}
 if (!dry && delivered.length + skipped.length < alerts.length) process.exit(1) // the rest retries next run
 if (skipped.length) process.exit(1) // surface permanent failures in the Actions run
