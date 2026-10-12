@@ -1149,18 +1149,6 @@
       "page": "https://commons.wikimedia.org/wiki/File:The_Celestial_Zoo_infographic_wikimedia.png"
     },
     {
-      "title": "OrionCC.jpg",
-      "licence": "CC BY-SA 3.0",
-      "artist": "Till Credner",
-      "credit": "Own work: AlltheSky.com",
-      "description": "Photography of the constellation Orion.",
-      "width": 451,
-      "height": 640,
-      "mime": "image/jpeg",
-      "thumb": "https://upload.wikimedia.org/wikipedia/commons/f/f5/OrionCC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-      "page": "https://commons.wikimedia.org/wiki/File:OrionCC.jpg"
-    },
-    {
       "title": "Sirius and Orion over Odense Harbour at night.jpg",
       "licence": "CC BY-SA 4.0",
       "artist": "Askeuhd",
@@ -1171,6 +1159,18 @@
       "mime": "image/jpeg",
       "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Sirius_and_Orion_over_Odense_Harbour_at_night.jpg/500px-Sirius_and_Orion_over_Odense_Harbour_at_night.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
       "page": "https://commons.wikimedia.org/wiki/File:Sirius_and_Orion_over_Odense_Harbour_at_night.jpg"
+    },
+    {
+      "title": "OrionCC.jpg",
+      "licence": "CC BY-SA 3.0",
+      "artist": "Till Credner",
+      "credit": "Own work: AlltheSky.com",
+      "description": "Photography of the constellation Orion.",
+      "width": 451,
+      "height": 640,
+      "mime": "image/jpeg",
+      "thumb": "https://upload.wikimedia.org/wikipedia/commons/f/f5/OrionCC.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "page": "https://commons.wikimedia.org/wiki/File:OrionCC.jpg"
     }
   ],
   "Bellatrix": [
@@ -1235,16 +1235,16 @@
       "page": "https://commons.wikimedia.org/wiki/File:OrionCC.jpg"
     },
     {
-      "title": "The Celestial Zoo infographic wikimedia.png",
+      "title": "Sirius and Orion over Odense Harbour at night.jpg",
       "licence": "CC BY-SA 4.0",
-      "artist": "Pablo Carlos Budassi",
+      "artist": "Askeuhd",
       "credit": "Own work",
-      "description": "Infographic listing 210 notable astronomical objects marked on a central logarithmic map of the observable universe. A small view and some distinguishing features are included for each astronomical object. The color tags are gray for moons,",
-      "width": 4800,
-      "height": 3200,
-      "mime": "image/png",
-      "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/The_Celestial_Zoo_infographic_wikimedia.png/500px-The_Celestial_Zoo_infographic_wikimedia.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-      "page": "https://commons.wikimedia.org/wiki/File:The_Celestial_Zoo_infographic_wikimedia.png"
+      "description": "Sirius and Orion over Odense Harbour at night",
+      "width": 4032,
+      "height": 3024,
+      "mime": "image/jpeg",
+      "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Sirius_and_Orion_over_Odense_Harbour_at_night.jpg/500px-Sirius_and_Orion_over_Odense_Harbour_at_night.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "page": "https://commons.wikimedia.org/wiki/File:Sirius_and_Orion_over_Odense_Harbour_at_night.jpg"
     }
   ],
   "Rasalhague": [
@@ -1445,16 +1445,16 @@
       "page": "https://commons.wikimedia.org/wiki/File:Behjat_Sadr_tombe.jpg"
     },
     {
-      "title": "Imam Musa Sadr in his House in Sour (cropped).jpg",
+      "title": "Imam Musa Sadr (6).jpg",
       "licence": "Public domain",
-      "artist": "Unknown authorUnknown author",
-      "credit": "http://www.imam-sadr.com/نگارخانه/نمایش-نگارخانه/tabid/131/ArticleId/5143/امام-موسی-صدر.aspx",
+      "artist": "Mostafa Chamran",
+      "credit": "http://www.imam-sadr.com/نگارخانه/نمایش-نگارخانه/tabid/131/ArticleId/16003/امام-موسی-صدر-.aspx",
       "description": "Musa al-Sadr",
-      "width": 605,
-      "height": 401,
+      "width": 540,
+      "height": 820,
       "mime": "image/jpeg",
-      "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Imam_Musa_Sadr_in_his_House_in_Sour_%28cropped%29.jpg/500px-Imam_Musa_Sadr_in_his_House_in_Sour_%28cropped%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-      "page": "https://commons.wikimedia.org/wiki/File:Imam_Musa_Sadr_in_his_House_in_Sour_(cropped).jpg"
+      "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Imam_Musa_Sadr_%286%29.jpg/500px-Imam_Musa_Sadr_%286%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "page": "https://commons.wikimedia.org/wiki/File:Imam_Musa_Sadr_(6).jpg"
     }
   ],
   "Acrux": [
