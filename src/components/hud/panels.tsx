@@ -18,10 +18,12 @@ function toggleFullscreen() {
 export function TitleCard({
   now,
   satCount,
+  tleAgeDays,
   subtitle,
 }: {
   now: number
   satCount: number
+  tleAgeDays: number | null
   /** Mode-specific hint; defaults to the Earth overview line. */
   subtitle?: string
 }) {
@@ -47,6 +49,11 @@ export function TitleCard({
             sats: satCount > 0 ? t('{n} satellites', { n: satCount }) : 'ISS',
           })}
       </p>
+      {tleAgeDays !== null && tleAgeDays > 3 && (
+        <p className="mt-1 text-[11px] text-amber-300" role="status">
+          🛰 TLE data {Math.floor(tleAgeDays)} days old — satellite positions may be inaccurate
+        </p>
+      )}
     </HudCard>
   )
 }

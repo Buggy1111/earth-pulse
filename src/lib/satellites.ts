@@ -35,6 +35,25 @@ export function parseTle(text: string): TleSet[] {
   return out
 }
 
+/** Age of the source orbital elements (not how long the app has been open). */
+export function tleEpochMs(line1: string): number | null {
+  if (!line1.startsWith('1 ') || line1.length < 32) return null
+  const yy = Number(line1.slice(18, 20))
+  const day = Number(line1.slice(20, 32))
+  if (!Number.isInteger(yy) || !Number.isFinite(day) || day < 1 || day >= 367) return null
+  const year = yy < 57 ? 2000 + yy : 1900 + yy
+  const daysInYear = Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)
+  if (day > daysInYear / 86_400_000 + 1) return null
+  return Date.UTC(year, 0, 1) + (day - 1) * 86_400_000
+}
+
+/** The oldest usable TLE in a set controls the data-quality warning. */
+export function oldestTleAgeDays(sets: TleSet[], nowMs: number): number | null {
+  const epochs = sets.map((s) => tleEpochMs(s.line1))
+  if (epochs.length === 0 || epochs.some((ms) => ms === null)) return null
+  return Math.max(0, (nowMs - Math.min(...(epochs as number[]))) / 86_400_000)
+}
+
 export interface TrackedSat {
   /** NORAD catalog number — the ONLY unique key (names repeat: 8× "SL-8 R/B"…). */
   id: string

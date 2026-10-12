@@ -36,7 +36,7 @@ const initialView = parseView(window.location.hash)
 export default function App() {
   // the whole tree re-renders on a CZ/EN switch, so every label follows it
   const lang = useLang()
-  const { quakes, flashes, iss, sats, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient } =
+  const { quakes, flashes, iss, sats, tleAgeDays, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient } =
     useLiveData()
   const probes = useProbes()
   const [selected, setSelected] = useState<Quake | null>(null)
@@ -410,6 +410,7 @@ export default function App() {
           onDrift={goDrift}
           now={now}
           satCount={sats.length}
+          tleAgeDays={tleAgeDays}
           solarMode={solarMode}
           moonMode={moonMode}
           weather={weather}
