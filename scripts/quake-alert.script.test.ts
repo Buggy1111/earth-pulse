@@ -9,19 +9,22 @@ import { describe, expect, it } from 'vitest'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-function run(telegram: string) {
+function run(telegram: string, replay = false) {
   const dir = mkdtempSync(join(tmpdir(), 'quake-'))
   const config = join(dir, 'config.json')
   const state = join(dir, 'state.json')
   writeFileSync(config, JSON.stringify({ worldwideMinMagnitude: 6.5, regions: [] }))
-  writeFileSync(state, JSON.stringify({ sent: [] }))
+  writeFileSync(state, JSON.stringify(replay ? {
+    sent: [{ id: 'usgs:a', time: Date.now() - 30 * 60000, lat: 35.6, lng: 139.7, mag: 7.1 }],
+    undeliverable: [{ quake: { id: 'usgs:a', lat: 35.6, lng: 139.7, mag: 7.1, depthKm: 10, place: 'Tokyo', time: Date.now() - 30 * 60000, src: 'USGS' }, rules: ['Worldwide'] }],
+  } : { sent: [] }))
   let code = 0
   let out: string
   try {
     out = execFileSync(
       process.execPath,
       ['--import', join(root, 'scripts/test-fixtures/mock-fetch.mjs'), join(root, 'scripts/quake-alert.mjs'),
-        '--config', config, '--state', state],
+        '--config', config, '--state', state, ...(replay ? ['--retry-undeliverable'] : [])],
       { env: { ...process.env, TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: 'c', MOCK_TELEGRAM: telegram }, encoding: 'utf8', stdio: 'pipe' },
     )
   } catch (e) {
@@ -48,6 +51,14 @@ describe('quake-alert script', () => {
     expect(r.sent.sort()).toEqual(['usgs:a', 'usgs:b']) // a is recorded so it can't block forever, b delivered
     expect(r.undeliverable).toEqual(['usgs:a'])
     expect(r.code).toBe(1) // but the run still shows up as failed
+  })
+
+  it('explicit replay drains successful dead letters without sending current events', () => {
+    const r = run('200', true)
+    expect(r.code).toBe(0)
+    expect(r.undeliverable).toEqual([])
+    expect(r.sent).toContain('usgs:a')
+    expect(r.sent).not.toContain('usgs:b')
   })
 
   it('a network error keeps what was delivered and retries the rest next run', () => {
