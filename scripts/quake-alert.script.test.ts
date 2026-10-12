@@ -61,6 +61,13 @@ describe('quake-alert script', () => {
     expect(r.sent).not.toContain('usgs:b')
   })
 
+  it('bot authentication errors preserve alerts for retry instead of dead-lettering', () => {
+    const r = run('401')
+    expect(r.code).toBe(1)
+    expect(r.sent).toEqual([])
+    expect(r.undeliverable).toEqual([])
+  })
+
   it('a network error keeps what was delivered and retries the rest next run', () => {
     const r = run('200,net')
     expect(r.sent).toEqual(['usgs:a'])
