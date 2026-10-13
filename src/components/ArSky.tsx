@@ -49,6 +49,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   const [model3D, setModel3D] = useState(false) // real 3D models loaded → drop the dots
   const orient = useRef({ heading: 0, pitch: 45, live: false })
   const [started, setStarted] = useState(false)
+  const startedRef = useRef(false) // synchronous guard for visibility events between React commits
   const [camDenied, setCamDenied] = useState(false)
   const [markers, setMarkers] = useState<Marker[]>([])
   const [heading, setHeading] = useState(0)
@@ -86,6 +87,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     slAzEl.current = [] // do not show satellite positions from a previous AR session
     slNames.current = []
     setCamDenied(false)
+    startedRef.current = true
     setStarted(true)
     // iOS: the Motion & Orientation prompt MUST be requested inside the user
     // gesture and BEFORE any await — the camera await below would consume the
@@ -165,6 +167,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     closedRef.current = false // StrictMode re-runs the effect on the same instance
     return () => {
       closedRef.current = true
+      startedRef.current = false
       sessionRef.current++
       slWorker.current?.terminate()
       slWorker.current = null
@@ -177,9 +180,9 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   // background. Explicitly release the tracks to avoid a stuck privacy LED or
   // an unavailable camera on reopening AR.
   useEffect(() => {
-    if (!started) return
     const onVisibility = (): void => {
-      if (document.visibilityState !== 'hidden') return
+      if (document.visibilityState !== 'hidden' || !startedRef.current) return
+      startedRef.current = false
       sessionRef.current++
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
@@ -192,7 +195,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [started])
+  }, [])
 
   // the 3D layer: a transparent WebGL canvas over the camera that draws the real
   // Starlink model where each satellite is. Built once started; kept in sync via
