@@ -361,3 +361,47 @@ test.describe('phone layout', () => {
     expect(errors).toEqual([])
   })
 })
+
+test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', async ({ page }) => {
+  test.setTimeout(150_000)
+  const errors = await bootGlobe(page)
+  const switchMode = async (key: string) => {
+    await page.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), key)
+  }
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await switchMode('3')
+    await page.waitForFunction(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as
+        | { scene(): { traverse(cb: (o: unknown) => void): void } }
+        | undefined
+      if (!g) return false
+      let count = 0
+      g.scene().traverse((o) => {
+        if ((o as { userData?: { probeId?: string } }).userData?.probeId) count++
+      })
+      return count >= 2
+    }, null, { timeout: 20_000 })
+    await switchMode('4')
+    await page.waitForFunction(
+      () => !(window as Record<string, unknown>).__earthPulseGlobe,
+      null, { timeout: 20_000 },
+    )
+    await switchMode('1')
+    await page.waitForFunction(
+      () => Boolean((window as Record<string, unknown>).__earthPulseGlobe),
+      null, { timeout: 20_000 },
+    )
+    const remainingProbes = await page.evaluate(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        scene(): { traverse(cb: (o: unknown) => void): void }
+      }
+      let count = 0
+      g.scene().traverse((o) => {
+        if ((o as { userData?: { probeId?: string } }).userData?.probeId) count++
+      })
+      return count
+    })
+    expect(remainingProbes).toBe(0)
+  }
+  expect(errors).toEqual([])
+})
