@@ -29,10 +29,12 @@ describe('history of the planet', () => {
   it('links selected historical events to their verified primary sources', () => {
     const byTitle = (title: string) => HISTORIC_EVENTS.find((e) => e.title === title)
     expect(byTitle('Apollo 11 launch')?.link).toBe('https://www.nasa.gov/history/apollo-11-mission-overview/')
-    expect(byTitle('Great Chilean earthquake')?.link).toBe('https://pubs.usgs.gov/circ/c1187/')
+    expect(byTitle('Great Chilean earthquake')?.link).toBe('https://earthquake.usgs.gov/earthquakes/eventpage/official19600522191120_30')
     expect(byTitle('Galveston hurricane')?.link).toBe('https://www.nhc.noaa.gov/outreach/history/index.php')
     expect(byTitle('Chernobyl disaster')?.link).toContain('iaea.org/newscenter/')
     expect(byTitle('Fukushima Daiichi')?.link).toContain('Pub1710-ReportByTheDG-Web.pdf')
+    expect(byTitle('Mount Tambora')?.link).toContain('volcano.cfm?vn=264040')
+    expect(byTitle('Krakatoa')?.link).toContain('volcano.cfm?vn=262000')
     expect(byTitle('Apollo 11 launch')?.source).toContain('NASA')
     expect(byTitle('Great Chilean earthquake')?.source).toContain('USGS')
   })
