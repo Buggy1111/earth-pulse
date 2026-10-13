@@ -39,6 +39,15 @@ describe('history of the planet', () => {
     expect(byTitle('Great Chilean earthquake')?.source).toContain('USGS')
   })
 
+  it('marks disputed casualty estimates and cites event-specific references', () => {
+    const haiti = HISTORIC_EVENTS.find((e) => e.title === 'Haiti earthquake')
+    const floods = HISTORIC_EVENTS.find((e) => e.title === 'China floods')
+    expect(haiti?.note).toMatch(/estimates vary widely/)
+    expect(haiti?.link).toContain('usp000h60h')
+    expect(floods?.note).toMatch(/estimates differ sharply/)
+    expect(floods?.link).toContain('central-china-flood-1931')
+  })
+
   it('keeps the year-79 eruption in AD 79, not 1979', () => {
     expect(yearOf(HISTORIC_EVENTS[0])).toBe(79)
     expect(HISTORIC_EVENTS[0].title).toMatch(/Vesuvius/)
