@@ -1,4 +1,3 @@
-import { isMobileDevice } from '../perf'
 /** One-time globe scene setup: create the globe.gl instance, wire the sky,
  * surface and pointer feature modules, handle resize, and return the cleanup.
  * Split out of GlobeView so the component stays a thin React-wiring root. */
@@ -6,7 +5,7 @@ import { isMobileDevice } from '../perf'
 import Globe, { type GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { LayerState } from '../hud/types'
-import { globeIsSoftware } from '../perf'
+import { globeIsSoftware, isMobileDevice } from '../perf'
 import { warpedSimMs } from '../../lib/clock'
 import { HOME_VIEW } from './helpers'
 import { stopEventsAnim } from './eventsLayer'
