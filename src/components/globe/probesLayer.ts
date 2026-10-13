@@ -336,7 +336,10 @@ export function setupProbes(
     .catch(() => [] as ProbeTraj[])
     .then((trajs) => {
       if (disposed) return
-      for (const traj of withL2Probes(trajs.filter(isValidTraj))) {
+      // A successful HTTP response can still contain an error object instead
+      // of an array. Keep the locally generated L2 craft in that case.
+      const validTrajs = Array.isArray(trajs) ? trajs.filter(isValidTraj) : []
+      for (const traj of withL2Probes(validTrajs)) {
         // one bad craft (model factory / trail) must not take the rest of the fleet down
         try {
           addCraft(traj)
