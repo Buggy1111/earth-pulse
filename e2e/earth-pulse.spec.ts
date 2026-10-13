@@ -445,6 +445,42 @@ test.describe('phone layout', () => {
   })
 })
 
+
+test('desktop Earth, Solar and Pangea transitions do not reload the page', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(() => {
+    const w = window as Window & { __epDocumentBoots?: number }
+    const count = Number(sessionStorage.getItem('__epE2eDocumentBoots') || 0) + 1
+    sessionStorage.setItem('__epE2eDocumentBoots', String(count))
+    w.__epDocumentBoots = count
+  })
+  const errors = await bootGlobe(page)
+  expect(await page.evaluate(() => (window as Window & { __epDocumentBoots?: number }).__epDocumentBoots)).toBe(1)
+  for (let i = 0; i < 2; i++) {
+    await page.keyboard.press('3')
+    await page.waitForFunction(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as
+        | { scene(): { traverse(cb: (o: unknown) => void): void } }
+        | undefined
+      if (!g) return false
+      let count = 0
+      g.scene().traverse((o) => {
+        if ((o as { userData?: { probeId?: string } }).userData?.probeId) count++
+      })
+      return count >= 2
+    }, null, { timeout: 20_000 })
+    await page.keyboard.press('4')
+    await page.keyboard.press('1')
+    await page.waitForFunction(() =>
+      Boolean((window as Record<string, unknown>).__earthPulseGlobe),
+      null, { timeout: 20_000 },
+    )
+    expect(await page.evaluate(() => sessionStorage.getItem('__epE2eDocumentBoots'))).toBe('1')
+  }
+  expect(errors).toEqual([])
+})
+
 test.describe('mobile WebGL context lifecycle', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
