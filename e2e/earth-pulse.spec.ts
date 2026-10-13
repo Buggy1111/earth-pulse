@@ -385,11 +385,26 @@ test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', 
       })
       return count >= 2
     }, null, { timeout: 20_000 })
+    // Keep a reference to the outgoing WebGL context: the phone path must
+    // explicitly lose it before Pangea allocates its own renderer.
+    await page.evaluate(() => {
+      const globe = (window as Record<string, unknown>).__earthPulseGlobe as {
+        renderer(): { getContext(): WebGLRenderingContext }
+      }
+      ;(window as Record<string, unknown>).__outgoingEarthContext = globe.renderer().getContext()
+    })
     await switchMode('4')
     await page.waitForFunction(
       () => !(window as Record<string, unknown>).__earthPulseGlobe,
       null, { timeout: 20_000 },
     )
+    await page.waitForFunction(() => {
+      const context = (window as Record<string, unknown>).__outgoingEarthContext as WebGLRenderingContext
+      return context.isContextLost()
+    }, null, { timeout: 10_000 })
+    await page.evaluate(() => {
+      delete (window as Record<string, unknown>).__outgoingEarthContext
+    })
     await switchMode('1')
     await page.waitForFunction(
       () => Boolean((window as Record<string, unknown>).__earthPulseGlobe),
