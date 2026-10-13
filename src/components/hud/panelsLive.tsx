@@ -42,19 +42,25 @@ export function MissionCard({ name, onClose }: { name: string; onClose: () => vo
 export function EventsPanel({
   events,
   onEventClick,
+  updatedAt,
+  now,
 }: {
   events: EarthEvent[]
   onEventClick: (e: EarthEvent) => void
+  updatedAt: number | null
+  now: number
 }) {
-  if (events.length === 0) return null
+  const stale = updatedAt === null || now - updatedAt > 30 * 60_000
+  if (events.length === 0 && !stale) return null
   const counts = eventCounts(events)
   const latest = events[0]
-  const lm = eventMeta(latest.category)
+  const lm = latest ? eventMeta(latest.category) : null
   return (
     <HudCard className="w-72 px-4 py-3" delay={160}>
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         {t('Live on Earth')} · {events.length}
       </h2>
+      {stale && <p className="mt-1 text-[11px] text-amber-300" role="status">⚠️ NASA EONET feed unavailable or over 30 min old</p>}
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
         {counts.map(({ category, count }) => {
           const m = eventMeta(category)
@@ -65,14 +71,14 @@ export function EventsPanel({
           )
         })}
       </div>
-      <button
+      {latest && lm && <button
         type="button"
         onClick={() => onEventClick(latest)}
         title={t('fly there')}
         className="mt-1 block max-w-60 cursor-pointer text-left text-xs text-slate-400 hover:text-slate-200"
       >
         {t('latest:')} {lm.icon} <span className="text-slate-200">{latest.title}</span>
-      </button>
+      </button>}
       <p className="mt-2 text-[10px] text-amber-300/80">📡 {t('NASA EONET, live natural events')}</p>
     </HudCard>
   )
