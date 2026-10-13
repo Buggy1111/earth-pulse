@@ -31,8 +31,8 @@ import { t } from '../lib/i18n'
  * pick plus the view-mode + device clamps:
  *  - strong desktop → exactly the picked tier (2K/4K/8K), in EVERY view — it
  *    keeps best quality even in solar (you can fly back to Earth there).
- *  - mobile, Earth view → the pick, capped to 4K (8K OOMs a phone).
- *  - mobile OR weak desktop GPU (Intel UHD…), solar/Moon view → 2K — the Earth
+ *  - mobile, all views → conservative 2K until physical-device memory testing.
+ *  - weak desktop GPU (Intel UHD…), solar/Moon view → 2K — the Earth
  *    is a distant dot there, so dropping it frees the memory the solar system
  *    needs (≈0.5 GB at 8K) instead of pinning it for an invisible dot.
  * Mobile is decided by the device, so 8K can never reach a phone. */
@@ -47,7 +47,7 @@ function pickTextureRes(
   if (crashDemoted) return '2k'
   if (isMobileDevice()) {
     if (solarMode || moonMode) return '2k'
-    return quality === '2k' ? '2k' : '4k'
+    return '2k' // temporary iOS/mobile stability cap until device memory testing
   }
   if ((solarMode || moonMode) && detectWeakGpu()) return '2k'
   return quality
