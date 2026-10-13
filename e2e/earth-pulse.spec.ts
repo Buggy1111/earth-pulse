@@ -344,11 +344,11 @@ test.describe('mobile', () => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
         document.dispatchEvent(new Event('visibilitychange'))
       })
-      await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
       await page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
         document.dispatchEvent(new Event('visibilitychange'))
       })
+      await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
       expect(await page.evaluate(() => (window as unknown as { __arCamera: { stops: number } }).__arCamera.stops)).toBe(cycle)
     }
     await page.getByRole('button', { name: /close sky ar/i }).click()
