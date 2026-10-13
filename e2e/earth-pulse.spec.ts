@@ -253,6 +253,19 @@ test('solar mode places the deep-space probes from their baked trajectories', as
 test.describe('mobile', () => {
   test.use({ hasTouch: true, isMobile: true })
 
+  test('Sky AR can be repeatedly opened and closed without retaining camera elements', async ({ page }) => {
+    const errors = await bootGlobe(page)
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('button', { name: /open sky ar/i }).click()
+      await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
+      await expect(page.locator('video')).toHaveCount(1)
+      await page.getByRole('button', { name: /close sky ar/i }).click()
+      await expect(page.locator('video')).toHaveCount(0)
+      await expect(page.getByRole('button', { name: /open sky ar/i })).toBeVisible()
+    }
+    expect(errors).toEqual([])
+  })
+
   test('the Sky AR overlay opens with its controls and the camera element', async ({ page }) => {
     await bootGlobe(page)
     await page.evaluate(() => {
