@@ -5,7 +5,7 @@
 import Globe, { type GlobeInstance } from 'globe.gl'
 import * as THREE from 'three'
 import type { LayerState } from '../hud/types'
-import { globeIsSoftware } from '../perf'
+import { globeIsSoftware, isMobileDevice } from '../perf'
 import { warpedSimMs } from '../../lib/clock'
 import { HOME_VIEW } from './helpers'
 import { stopEventsAnim } from './eventsLayer'
@@ -65,7 +65,10 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   deps.userInteractedRef.current = !!fromLink
   globe.controls().autoRotate = !fromLink
   globe.controls().autoRotateSpeed = 0.45
-  globe.renderer().setPixelRatio(deps.ecoRef.current ? 1 : Math.min(window.devicePixelRatio, 2))
+  // Apply the mobile 1× DPR cap before first scene/texture allocations, not
+  // only in GlobeView's later quality effect. Safari can exhaust GPU memory
+  // during the initial 2× framebuffer allocation when reopening Earth/AR.
+  globe.renderer().setPixelRatio(deps.ecoRef.current || isMobileDevice() ? 1 : Math.min(window.devicePixelRatio, 2))
   // solar-system bodies live on SUNLIT_LAYER (lit only by the Sun's light)
   ;(globe.camera() as THREE.PerspectiveCamera).layers.enable(SUNLIT_LAYER)
 
