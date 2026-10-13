@@ -272,7 +272,7 @@ export default function App() {
     setFlyTo((f) => ({ lat: q.lat, lng: q.lng, v: (f?.v ?? 0) + 1 }))
   }, [])
 
-  const events = useEvents()
+  const { events, updatedAt: eonetUpdatedAt } = useEvents()
   const [selectedEvent, setSelectedEvent] = useState<EarthEvent | null>(null)
   const onEventClick = useCallback((e: EarthEvent) => {
     setSelectedEvent(e)
@@ -468,6 +468,7 @@ export default function App() {
           selected={selected}
           onCloseQuake={() => setSelected(null)}
           events={history.open ? [] : events}
+          eonetUpdatedAt={eonetUpdatedAt}
           onEventClick={onEventClick}
           selectedEvent={selectedEvent}
           onCloseEvent={() => setSelectedEvent(null)}
