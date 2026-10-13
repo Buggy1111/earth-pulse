@@ -162,7 +162,7 @@ export function Hud(p: HudProps) {
   )
   const primaryEl =
     p.mode === 'earth' ? (
-      <SpaceWeatherPanel weather={p.weather} moonLabel={p.moonLabel} onOpenMoon={p.onMoonEnter} />
+      <SpaceWeatherPanel now={p.now} weather={p.weather} moonLabel={p.moonLabel} onOpenMoon={p.onMoonEnter} />
     ) : p.mode === 'moon' ? (
       <MoonPanel moon={p.moonState} picked={p.apolloSite} onBack={p.onMoonExit} />
     ) : p.pickedStar ? (
