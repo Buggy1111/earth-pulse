@@ -24,8 +24,8 @@ interface Hist {
 
 const H: Hist[] = [
   { year: 79, month: 8, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Pompeii and Herculaneum vanish under ash and pyroclastic flows, preserving a Roman city almost intact.' },
-  { year: 1556, month: 1, day: 23, title: 'Shaanxi earthquake', category: 'earthquakes', lat: 34.5, lng: 109.7, size: '~M 8', note: 'The deadliest earthquake on record — about 830,000 died, many in collapsing cave dwellings.' },
-  { year: 1755, month: 11, day: 1, title: 'Great Lisbon earthquake', category: 'earthquakes', lat: 36.0, lng: -10.0, size: '~M 8.5–9', note: 'Quake, tsunami and fire destroy Lisbon on All Saints\' Day, shaking European thought for a generation.' },
+  { year: 1556, month: 1, day: 23, title: 'Shaanxi earthquake', category: 'earthquakes', lat: 34.5, lng: 109.7, size: 'estimated Mw ~7.5–8.5', note: 'No instrumental measurement exists. Historical intensity estimates suggest M 8.25–8.5, while a 2020 fault-length study suggests Mw ~7.5 and at most Mw 8.0. The often-cited ~830,000 deaths include later famine and disease.' },
+  { year: 1755, month: 11, day: 1, title: 'Great Lisbon earthquake', category: 'earthquakes', lat: 36.0, lng: -10.0, size: 'estimated Mw 8.5–9', note: 'Magnitude inferred from historical shaking and tsunami records, not seismometers. Earthquake, tsunami and fires devastated Lisbon on All Saints\' Day.' },
   { year: 1783, month: 6, day: 8, title: 'Laki fissure eruption', category: 'volcanoes', lat: 64.07, lng: -18.23, size: '15 km³ lava', note: 'Iceland\'s haze famine killed about a fifth of its people and chilled the Northern Hemisphere.' },
   { year: 1815, month: 4, day: 10, title: 'Mount Tambora', category: 'volcanoes', lat: -8.25, lng: 118.0, size: 'VEI 7', note: 'The largest eruption in recorded history — and 1816, the "Year Without a Summer".' },
   { year: 1859, month: 9, day: 1, title: 'Carrington Event', category: 'solarStorm', lat: 51.24, lng: -0.17, size: 'G5 storm', note: 'The most intense solar storm on record: auroras over the tropics and telegraph wires sparking.' },
@@ -116,6 +116,8 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 // Verified event-specific primary sources. Other entries retain their existing
 // category attribution until a source covering their particular claims is checked.
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
+  'Shaanxi earthquake': { source: 'JGR Solid Earth · historical & paleoseismic study', link: 'https://doi.org/10.1029/2019JB017848' },
+  'Great Lisbon earthquake': { source: 'USGS · tsunami modelling of the 1755 Lisbon earthquake', link: 'https://pubs.usgs.gov/publication/70036556' },
   'Haiti earthquake': { source: 'USGS · 2010 Haiti earthquake impact', link: 'https://earthquake.usgs.gov/earthquakes/eventpage/usp000h60h/impact' },
   'China floods': { source: 'DisasterHistory · Central China Flood 1931', link: 'https://disasterhistory.org/central-china-flood-1931' },
   'Chernobyl disaster': { source: 'IAEA · Chernobyl accident', link: 'https://www.iaea.org/newscenter/news/twenty-years-after-the-chernobyl-accident' },
