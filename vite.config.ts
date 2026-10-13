@@ -46,15 +46,32 @@ export default defineConfig({
         navigateFallback: 'index.html',
         runtimeCaching: [
           {
-            // 3D models, Draco decoder assets and Earth textures — cache-first,
-            // they're large and rarely change
-            urlPattern: /\/(models|draco)\/.*|\.(?:glb|jpg|jpeg|webp)$/i,
+            // Draco and 3D models change rarely. Keep their cache separate
+            // from the frequently updated artwork so one cannot evict the other.
+            urlPattern: /\\/(models|draco)\\/.*|\\.(?:glb)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'ep-assets-v2',
-              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              // only cache real successes — never an opaque/errored model response
-              // (that's what left old installs showing fallback primitives)
+              cacheName: 'ep-models-v3',
+              expiration: {
+                maxEntries: 35,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // Refresh imagery in the background so corrected paleomaps and
+            // textures do not remain stale for an entire month.
+            urlPattern: /\\.(?:jpg|jpeg|webp)$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'ep-images-v3',
+              expiration: {
+                maxEntries: 40,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+                purgeOnQuotaError: true,
+              },
               cacheableResponse: { statuses: [200] },
             },
           },
