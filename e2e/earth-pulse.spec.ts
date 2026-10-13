@@ -361,3 +361,88 @@ test.describe('phone layout', () => {
     expect(errors).toEqual([])
   })
 })
+
+test.describe('mobile WebGL context lifecycle', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', async ({ page }) => {
+  test.setTimeout(150_000)
+  const errors = await bootGlobe(page)
+  const switchMode = async (key: string) => {
+    await page.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), key)
+  }
+  const resourceSamples: { geometries: number; textures: number }[] = []
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await switchMode('3')
+    await page.waitForFunction(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as
+        | { scene(): { traverse(cb: (o: unknown) => void): void } }
+        | undefined
+      if (!g) return false
+      let count = 0
+      g.scene().traverse((o) => {
+        if ((o as { userData?: { probeId?: string } }).userData?.probeId) count++
+      })
+      return count >= 2
+    }, null, { timeout: 20_000 })
+    // Keep a reference to the outgoing WebGL context: the phone path must
+    // explicitly lose it before Pangea allocates its own renderer.
+    await page.evaluate(() => {
+      const globe = (window as Record<string, unknown>).__earthPulseGlobe as {
+        renderer(): { getContext(): WebGLRenderingContext }
+      }
+      ;(window as Record<string, unknown>).__outgoingEarthContext = globe.renderer().getContext()
+    })
+    await switchMode('4')
+    await page.waitForFunction(
+      () => !(window as Record<string, unknown>).__earthPulseGlobe,
+      null, { timeout: 20_000 },
+    )
+    await page.waitForFunction(() => {
+      const context = (window as Record<string, unknown>).__outgoingEarthContext as WebGLRenderingContext
+      return context.isContextLost()
+    }, null, { timeout: 10_000 })
+    await page.evaluate(() => {
+      delete (window as Record<string, unknown>).__outgoingEarthContext
+    })
+    await switchMode('1')
+    await page.waitForFunction(
+      () => Boolean((window as Record<string, unknown>).__earthPulseGlobe),
+      null, { timeout: 20_000 },
+    )
+    const remainingProbes = await page.evaluate(() => {
+      const g = (window as Record<string, unknown>).__earthPulseGlobe as {
+        scene(): { traverse(cb: (o: unknown) => void): void }
+      }
+      let count = 0
+      g.scene().traverse((o) => {
+        if ((o as { userData?: { probeId?: string } }).userData?.probeId) count++
+      })
+      return count
+    })
+    expect(remainingProbes).toBe(0)
+    // After returning to Earth, resources should not accumulate each cycle.
+    resourceSamples.push(await page.evaluate(() => {
+      const globe = (window as Record<string, unknown>).__earthPulseGlobe as {
+        renderer(): { info: { memory: { geometries: number; textures: number } } }
+      }
+      const { geometries, textures } = globe.renderer().info.memory
+      return { geometries, textures }
+    }))
+  }
+  // Every return creates a NEW renderer, with its own asynchronously loaded
+  // scene. Renderer-local counts sampled at different load phases cannot prove
+  // a cross-context GPU leak, so record them for diagnosis instead of imposing
+  // an arbitrary +20 threshold that falsely fails healthy re-entries.
+  await test.info().attach('webgl-resources.json', {
+    body: JSON.stringify(resourceSamples, null, 2),
+    contentType: 'application/json',
+  })
+  for (const sample of resourceSamples) {
+    expect(sample.geometries).toBeGreaterThan(0)
+    expect(sample.textures).toBeGreaterThan(0)
+  }
+  expect(errors).toEqual([])
+})
+
+})
