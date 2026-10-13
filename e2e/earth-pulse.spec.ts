@@ -362,6 +362,9 @@ test.describe('phone layout', () => {
   })
 })
 
+test.describe('mobile WebGL context lifecycle', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
 test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', async ({ page }) => {
   test.setTimeout(150_000)
   const errors = await bootGlobe(page)
@@ -417,4 +420,6 @@ test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', 
   expect(resourceSamples[2].geometries).toBeLessThanOrEqual(resourceSamples[0].geometries + 20)
   expect(resourceSamples[2].textures).toBeLessThanOrEqual(resourceSamples[0].textures + 20)
   expect(errors).toEqual([])
+})
+
 })
