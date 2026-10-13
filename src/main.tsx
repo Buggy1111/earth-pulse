@@ -4,6 +4,9 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
+import { installDiagnostics } from './lib/diagnostics.ts'
+
+installDiagnostics()
 
 // Service worker for installable/offline PWA. Updates are prepared in the
 // background but NOT activated mid-session: with `immediate: true` the new SW

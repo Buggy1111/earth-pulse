@@ -5,6 +5,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { t } from '../lib/i18n'
+import { recordDiagnostic } from '../lib/diagnostics'
 
 interface Props {
   children: ReactNode
@@ -22,6 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    recordDiagnostic('react-error-boundary', error.message)
     // surfaced in the console for debugging; the card is what the user sees
     console.error('Earth Pulse crashed:', error, info.componentStack)
   }

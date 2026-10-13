@@ -28,6 +28,7 @@ import { moonPhaseLabel, subLunarPoint } from './lib/moon'
 import type { Quake } from './lib/quakes'
 import { isIss, nextPass, satsAbove, type IssPass } from './lib/satellites'
 import { parseView } from './lib/share'
+import { recordDiagnostic } from './lib/diagnostics'
 import { useLang } from './lib/i18n'
 
 // shared link? restore camera/orbits/layers from the URL hash
@@ -79,6 +80,9 @@ export default function App() {
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; v: number } | null>(null)
   // 📡 sky AR overlay: point the phone at the sky to spot overhead satellites
   const [arMode, setArMode] = useState(false)
+  useEffect(() => {
+    recordDiagnostic('view', arMode ? 'sky-ar' : driftMode ? 'drift' : mode)
+  }, [arMode, driftMode, mode])
   const { quality, setQuality, eco, mobile } = useQuality(ready)
   // 🎚 solar-view layer filter (persisted) — the view got crowded: planets,
   // ellipses, 11 probes with trails, 8.9k stars, constellations
