@@ -291,6 +291,40 @@ test.describe('mobile', () => {
     expect(errors).toEqual([])
   })
 
+  test('Sky AR releases its camera and offers restart after backgrounding', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation'])
+    await context.setGeolocation({ latitude: 50.1, longitude: 14.4 })
+    await page.addInitScript(() => {
+      const media = navigator.mediaDevices
+      if (media) {
+        Object.defineProperty(media, 'getUserMedia', {
+          configurable: true,
+          value: async () => ({
+            getTracks: () => [{ stop: () => {}, readyState: 'live' }],
+          }),
+        })
+      }
+    })
+    const errors = await bootGlobe(page)
+    await page.getByRole('button', { name: /open sky ar/i }).click()
+    const locate = page.getByRole('button', { name: /use my location/i })
+    if (await locate.isVisible()) await locate.click()
+    await page.getByRole('button', { name: /start/i }).click()
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+    // Simulate tab background by overriding visibilityState in the test only.
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await expect(page.getByRole('button', { name: /start/i })).toBeVisible()
+    await page.getByRole('button', { name: /close sky ar/i }).click()
+    expect(errors).toEqual([])
+  })
+
   test('the Sky AR overlay opens with its controls and the camera element', async ({ page }) => {
     await bootGlobe(page)
     await page.evaluate(() => {
