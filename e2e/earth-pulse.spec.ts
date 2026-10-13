@@ -340,6 +340,8 @@ test.describe('mobile', () => {
         (window as unknown as { __arCamera?: { starts: number } }).__arCamera?.starts === expected,
         cycle,
       )
+      // Allow React's post-commit visibility listener to attach after start().
+      await page.waitForTimeout(150)
       await page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
         document.dispatchEvent(new Event('visibilitychange'))
