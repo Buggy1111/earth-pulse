@@ -26,6 +26,15 @@ describe('history of the planet', () => {
     expect(src(/Krakatoa/)).toMatch(/USGS/)
   })
 
+  it('links selected historical events to their verified primary sources', () => {
+    const byTitle = (title: string) => HISTORIC_EVENTS.find((e) => e.title === title)
+    expect(byTitle('Apollo 11 launch')?.link).toBe('https://www.nasa.gov/history/apollo-11-mission-overview/')
+    expect(byTitle('Great Chilean earthquake')?.link).toMatch(/^https:\/\/www\.usgs\.gov\//)
+    expect(byTitle('Galveston hurricane')?.link).toMatch(/^https:\/\/www\.weather\.gov\//)
+    expect(byTitle('Apollo 11 launch')?.source).toContain('NASA')
+    expect(byTitle('Great Chilean earthquake')?.source).toContain('USGS')
+  })
+
   it('keeps the year-79 eruption in AD 79, not 1979', () => {
     expect(yearOf(HISTORIC_EVENTS[0])).toBe(79)
     expect(HISTORIC_EVENTS[0].title).toMatch(/Vesuvius/)
