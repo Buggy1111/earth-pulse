@@ -20,6 +20,7 @@ export interface QuakeFeed {
   newQuakes: Quake[]
   /** New quakes still within their flash window — bright rings on the globe. */
   flashes: Quake[]
+  updatedAt: number | null
 }
 
 /** USGS quakes, refreshed every `intervalMs`, with new-quake detection.
@@ -28,6 +29,7 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
   const [quakes, setQuakes] = useState<Quake[]>([])
   const [newQuakes, setNewQuakes] = useState<Quake[]>([])
   const [flashes, setFlashes] = useState<Quake[]>([])
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -38,7 +40,9 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
     const tick = async () => {
       try {
         const resp = await fetch(USGS_FEED_URL)
+        if (!resp.ok) throw new Error(`USGS HTTP ${resp.status}`)
         const data = (await resp.json()) as UsgsFeed
+        if (!data || !Array.isArray(data.features)) throw new Error('Invalid USGS feed')
         // keep object identity for unchanged events so the globe reuses their
         // sprites; rebuild the map so events aging out of the 24h window drop
         const keep = new Map<string, Quake>()
@@ -56,6 +60,7 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
         for (const q of parsed) seenIds.add(q.id)
         if (cancelled) return
         setQuakes(parsed)
+        setUpdatedAt(Date.now())
         if (fresh.length > 0) {
           setNewQuakes(fresh)
           setFlashes((list) => [...list, ...fresh])
@@ -78,7 +83,7 @@ export function useQuakes(intervalMs = 60_000, flashMs = 15_000): QuakeFeed {
       for (const t of flashTimers) clearTimeout(t)
     }
   }, [intervalMs, flashMs])
-  return { quakes, newQuakes, flashes }
+  return { quakes, newQuakes, flashes, updatedAt }
 }
 
 /** EMSC SeismicPortal WebSocket — quakes within ~a minute of the shaking,
