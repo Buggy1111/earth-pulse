@@ -340,11 +340,10 @@ export default function App() {
 
   return (
     <>
-      {/* On phones/tablets the Drift view runs its OWN WebGL context — keeping the
-          main globe's context alive too exhausts mobile GPU memory and crashes the
-          tab. So unmount the main globe while drifting on small screens (desktop
-          has the memory to keep both). It re-inits on exit. */}
-      {(isDesktop || !driftMode) && (
+      {/* Sky AR opens its own WebGL renderer over the live camera. Unmount the
+          globe while AR is open to avoid two expensive GPU contexts on iOS.
+          Drift also needs an exclusive context on smaller devices. */}
+      {!arMode && (isDesktop || !driftMode) && (
         <GlobeView
           quakes={displayQuakes}
         flashes={timelineActive ? [] : flashes}
