@@ -350,7 +350,7 @@ test.describe('mobile', () => {
       )
       // Camera track shutdown happens synchronously, but React commits the
       // restart gate asynchronously. Verify both before faking foreground.
-      await expect(page.locator('button').filter({ hasText: /^▶\\s*\\S+/ })).toBeVisible()
+      await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
       await page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
         document.dispatchEvent(new Event('visibilitychange'))
