@@ -205,6 +205,10 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
       // free the model clones' GPU buffers now, not at GC's leisure — repeated
       // AR open/close on a phone otherwise stacks dead contexts + buffers
       disposeArModel(scene)
+      scene.clear()
+      pool.length = 0
+      sats.length = 0
+      litMats.length = 0
       renderer.dispose()
       renderer.forceContextLoss()
     },
