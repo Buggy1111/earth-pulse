@@ -15,6 +15,7 @@ import { setupSurface } from './surface'
 import { SUNLIT_LAYER } from './helpers'
 import type { StarlinkLayer } from './starlinkLayer'
 import type { GlobeViewProps } from './globeView.types'
+import { recordDiagnostic } from '../../lib/diagnostics'
 
 export interface SceneSetupDeps {
   /** Latest props, mirrored for non-React consumers (event listeners). */
@@ -112,6 +113,15 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   window.addEventListener('resize', onResize)
 
   deps.globeRef.current = globe
+  const canvas = globe.renderer().domElement
+  const onContextLost = (event: Event) => {
+    event.preventDefault()
+    recordDiagnostic('webgl-context-lost', 'globe')
+  }
+  const onContextRestored = () => recordDiagnostic('webgl-context-restored', 'globe')
+  canvas.addEventListener('webglcontextlost', onContextLost)
+  canvas.addEventListener('webglcontextrestored', onContextRestored)
+  recordDiagnostic('globe-mounted')
   // e2e hook: headless tests steer the camera through this handle
   ;(window as unknown as Record<string, unknown>).__earthPulseGlobe = globe
   // if WebGL fell back to the CPU (hardware acceleration off / GPU blocklisted)
@@ -119,6 +129,9 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   // never a probe (a probe can fail on iOS's context cap and misreport a good GPU).
   if (globeIsSoftware(globe)) deps.cb.current.onSoftwareRenderer?.()
   return () => {
+    recordDiagnostic('globe-unmounted')
+    canvas.removeEventListener('webglcontextlost', onContextLost)
+    canvas.removeEventListener('webglcontextrestored', onContextRestored)
     deps.globeRef.current = null
     stopEventsAnim()
     disposePointer()

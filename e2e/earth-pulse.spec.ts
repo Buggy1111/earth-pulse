@@ -251,16 +251,19 @@ test('solar mode places the deep-space probes from their baked trajectories', as
 // Sky AR is phone/tablet only (touch-primary), so emulate a touch device —
 // otherwise the launch button is correctly hidden and there's nothing to open.
 test.describe('mobile', () => {
-  test.use({ hasTouch: true, isMobile: true })
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
 
   test('Sky AR can be repeatedly opened and closed without retaining camera elements', async ({ page }) => {
+    test.setTimeout(150_000) // three mobile WebGL teardown/rebuild cycles on SwiftShader
     const errors = await bootGlobe(page)
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: /open sky ar/i }).click()
       await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
       await expect(page.locator('video')).toHaveCount(1)
+      await page.waitForFunction(() => !(window as Record<string, unknown>).__earthPulseGlobe)
       await page.getByRole('button', { name: /close sky ar/i }).click()
       await expect(page.locator('video')).toHaveCount(0)
+      await page.waitForFunction(() => Boolean((window as Record<string, unknown>).__earthPulseGlobe))
       await expect(page.getByRole('button', { name: /open sky ar/i })).toBeVisible()
     }
     expect(errors).toEqual([])
@@ -289,8 +292,17 @@ test.describe('mobile', () => {
     await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
     await page.locator('button').filter({ hasText: /^▶\s*\S+/ }).click()
     await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
+    await page.waitForFunction(() => {
+      const events = (window as unknown as { __earthPulseDiagnostics: () => { event: string }[] }).__earthPulseDiagnostics()
+      return events.some((entry) => entry.event === 'sky-ar-renderer-mounted')
+    })
     await page.getByRole('button', { name: /close sky ar/i }).click()
     await expect(page.locator('video')).toHaveCount(0)
+    const events = await page.evaluate(() =>
+      (window as unknown as { __earthPulseDiagnostics: () => { event: string }[] }).__earthPulseDiagnostics(),
+    )
+    expect(events.some((entry) => entry.event === 'sky-ar-renderer-unmounted')).toBe(true)
+    expect(events.filter((entry) => entry.event === 'boot')).toHaveLength(1)
     expect(errors).toEqual([])
   })
 

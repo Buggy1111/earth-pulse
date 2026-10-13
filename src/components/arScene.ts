@@ -8,6 +8,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { recordDiagnostic } from '../lib/diagnostics'
 
 const RAD = Math.PI / 180
 const RADIUS = 100 // distance the models sit at; only the direction matters
@@ -65,6 +66,14 @@ export function disposeArModel(root: THREE.Object3D): void {
 
 export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): ArScene {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
+  const onContextLost = (event: Event) => {
+    event.preventDefault()
+    recordDiagnostic('webgl-context-lost', 'sky-ar')
+  }
+  const onContextRestored = () => recordDiagnostic('webgl-context-restored', 'sky-ar')
+  canvas.addEventListener('webglcontextlost', onContextLost)
+  canvas.addEventListener('webglcontextrestored', onContextRestored)
+  recordDiagnostic('sky-ar-renderer-mounted')
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 1000)
@@ -205,6 +214,9 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
     dispose() {
       if (disposed) return // cleanup must be safe if React invokes it repeatedly
       disposed = true
+      recordDiagnostic('sky-ar-renderer-unmounted')
+      canvas.removeEventListener('webglcontextlost', onContextLost)
+      canvas.removeEventListener('webglcontextrestored', onContextRestored)
       cancelAnimationFrame(raf)
       // free the model clones' GPU buffers now, not at GC's leisure — repeated
       // AR open/close on a phone otherwise stacks dead contexts + buffers
