@@ -58,7 +58,19 @@ function loadModel(file: string): Promise<THREE.Object3D> {
     p = gltfLoader.loadAsync(`models/probes/${file}`).then((g) => g.scene)
     modelCache.set(file, p)
   }
-  return p.then((s) => s.clone(true))
+  return p.then((source) => {
+    const instance = source.clone(true)
+    // Object3D.clone shares geometry/material objects by default. The probe
+    // layer disposes instance resources on exit, so each clone must own them.
+    instance.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+      mesh.geometry = mesh.geometry.clone()
+      if (Array.isArray(mesh.material)) mesh.material = mesh.material.map((m) => m.clone())
+      else if (mesh.material) mesh.material = mesh.material.clone()
+    })
+    return instance
+  })
 }
 
 export interface ProbesLayer {
@@ -285,7 +297,15 @@ export function setupProbes(
           mesh.material = m
         })
         const ph = body.getObjectByName('ph')
-        if (ph) body.remove(ph)
+        if (ph) {
+          body.remove(ph)
+          ph.traverse((o) => {
+            const mesh = o as THREE.Mesh
+            if (!mesh.isMesh) return
+            mesh.geometry.dispose()
+            disposeMaterial(mesh.material)
+          })
+        }
         model.traverse((o) => (o.frustumCulled = false))
         body.add(model)
       })
@@ -349,8 +369,9 @@ export function setupProbes(
         group.remove(o)
         o.traverse((c) => {
           const m = c as THREE.Mesh & { material?: THREE.Material | THREE.Material[] }
-          m.geometry?.dispose?.()
-          disposeMaterial(m.material)
+          // Direction cones share module-level geometry/material constants.
+          if (m.geometry !== ARROW_GEO) m.geometry?.dispose?.()
+          if (m.material !== ARROW_MAT) disposeMaterial(m.material)
         })
       }
       probeMeshesRef.current.clear()
