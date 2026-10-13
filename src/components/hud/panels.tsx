@@ -18,11 +18,13 @@ function toggleFullscreen() {
 export function TitleCard({
   now,
   satCount,
+  usgsUpdatedAt,
   tleAgeDays,
   subtitle,
 }: {
   now: number
   satCount: number
+  usgsUpdatedAt: number | null
   tleAgeDays: number | null
   /** Mode-specific hint; defaults to the Earth overview line. */
   subtitle?: string
@@ -49,6 +51,11 @@ export function TitleCard({
             sats: satCount > 0 ? t('{n} satellites', { n: satCount }) : 'ISS',
           })}
       </p>
+      {usgsUpdatedAt !== null && now - usgsUpdatedAt > 5 * 60_000 && (
+        <p className="mt-1 text-[11px] text-amber-300" role="status">
+          ⚠️ USGS feed has not updated for {Math.floor((now - usgsUpdatedAt) / 60_000)} minutes — quake data may be stale
+        </p>
+      )}
       {tleAgeDays !== null && tleAgeDays > 3 && (
         <p className="mt-1 text-[11px] text-amber-300" role="status">
           🛰 TLE data {Math.floor(tleAgeDays)} days old — satellite positions may be inaccurate
