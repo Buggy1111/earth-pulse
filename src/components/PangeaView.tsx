@@ -144,10 +144,13 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     // used to pin every frame until unmount (69 × 2048² with mips ≈ 0.8 GB on
     // desktop, ~200 MB of 1024² on phones); re-entering a frame reloads
     // instantly from the SW cache.
-    const KEEP_RADIUS = mobile ? 5 : 8
+    // Two frames are sampled on every render; keep only nearby frames decoded.
+    // Large scrub ranges should not retain ~17 desktop textures / ~11 mobile textures.
+    const KEEP_RADIUS = mobile ? 2 : 3
     const dir = mobile ? 'planets/paleo/sd/' : 'planets/paleo/'
     // bump when the frame artwork is regenerated: the service worker caches
-    // these CacheFirst for 30 days, so unchanged URLs would keep old frames
+    // the image SW cache is stale-while-revalidate, but URL revision still
+    // forces a fresh asset after a map re-export
     const REV = '?r=2'
     const textures: (THREE.Texture | null)[] = FRAMES.map(() => null)
     const blank = new THREE.DataTexture(new Uint8Array([10, 16, 30, 255]), 1, 1)
