@@ -43,7 +43,7 @@ const H: Hist[] = [
   { year: 1991, month: 6, day: 15, title: 'Mount Pinatubo', category: 'volcanoes', lat: 15.13, lng: 120.35, size: 'VEI 6', note: 'Its aerosols cooled the whole planet by about 0.5 °C for two years.' },
   { year: 2004, month: 12, day: 26, title: 'Indian Ocean earthquake & tsunami', category: 'earthquakes', lat: 3.3, lng: 95.98, size: 'M 9.1', note: 'Waves up to 30 m struck 14 countries; roughly 230,000 people died.' },
   { year: 2005, month: 8, day: 29, title: 'Hurricane Katrina', category: 'severeStorms', lat: 29.3, lng: -89.6, size: 'Cat 5 → 3', note: 'Levee failures flooded 80% of New Orleans; the costliest US hurricane of its time.' },
-  { year: 2010, month: 1, day: 12, title: 'Haiti earthquake', category: 'earthquakes', lat: 18.45, lng: -72.53, size: 'M 7.0', note: 'A shallow quake directly under Port-au-Prince — over 200,000 deaths.' },
+  { year: 2010, month: 1, day: 12, title: 'Haiti earthquake', category: 'earthquakes', lat: 18.45, lng: -72.53, size: 'M 7.0', note: 'A devastating shallow earthquake near Port-au-Prince. Fatality estimates vary widely between official totals and independent studies.' },
   { year: 2010, month: 4, day: 14, title: 'Eyjafjallajökull', category: 'volcanoes', lat: 63.63, lng: -19.62, size: 'VEI 4', note: 'Its ash cloud grounded European air traffic for a week — the biggest closure since WWII.' },
   { year: 2011, month: 3, day: 11, title: 'Tōhoku earthquake & tsunami', category: 'earthquakes', lat: 38.3, lng: 142.37, size: 'M 9.1', note: 'It shifted Japan\'s coast by 2.4 m and shortened the day by 1.8 microseconds.' },
   { year: 2013, month: 2, day: 15, title: 'Chelyabinsk meteor', category: 'impact', lat: 54.8, lng: 61.1, size: '~500 kt airburst', note: 'A 20 m asteroid exploded over Russia, its shock wave shattering windows across a city.' },
@@ -56,7 +56,7 @@ const H: Hist[] = [
   { year: 1917, month: 12, day: 6, title: 'Halifax explosion', category: 'manmade', lat: 44.669, lng: -63.606, size: '~2.9 kt', note: 'A munitions ship blew up in the harbour — the largest man-made blast before the atomic bomb.' },
   { year: 1920, month: 12, day: 16, title: 'Haiyuan earthquake', category: 'earthquakes', lat: 36.6, lng: 105.3, size: 'M 7.8', note: 'Landslides buried whole villages in China\'s loess hills; some 200,000 died.' },
   { year: 1923, month: 9, day: 1, title: 'Great Kantō earthquake', category: 'earthquakes', lat: 35.33, lng: 139.13, size: 'M 7.9', note: 'Quake and firestorms destroyed much of Tokyo and Yokohama; over 100,000 died.' },
-  { year: 1931, month: 7, day: 15, title: 'China floods', category: 'floods', lat: 30.6, lng: 114.3, size: 'up to millions', note: 'The Yangtze and Huai burst their banks — among the deadliest natural disasters ever recorded.' },
+  { year: 1931, month: 7, day: 15, title: 'China floods', category: 'floods', lat: 30.6, lng: 114.3, size: 'up to millions', note: 'The Yangtze and Huai flooded vast areas. Death-toll estimates differ sharply depending on whether later famine and disease are counted.' },
   { year: 1937, month: 5, day: 6, title: 'Hindenburg disaster', category: 'manmade', lat: 40.03, lng: -74.32, size: '36 lives', note: 'The giant airship burst into flames while landing in New Jersey — and ended the age of airships.' },
   { year: 1945, month: 7, day: 16, title: 'Trinity test', category: 'nuclear', lat: 33.6773, lng: -106.4754, size: '~25 kt', note: 'The first nuclear explosion, in the New Mexico desert, opened the atomic age.' },
   { year: 1945, month: 8, day: 6, title: 'Hiroshima', category: 'nuclear', lat: 34.3955, lng: 132.4536, size: '~15 kt', note: 'The first atomic bomb used in war destroyed the city; about 140,000 died by the end of 1945.' },
@@ -116,6 +116,8 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 // Verified event-specific primary sources. Other entries retain their existing
 // category attribution until a source covering their particular claims is checked.
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
+  'Haiti earthquake': { source: 'USGS · 2010 Haiti earthquake impact', link: 'https://earthquake.usgs.gov/earthquakes/eventpage/usp000h60h/impact' },
+  'China floods': { source: 'DisasterHistory · Central China Flood 1931', link: 'https://disasterhistory.org/central-china-flood-1931' },
   'Chernobyl disaster': { source: 'IAEA · Chernobyl accident', link: 'https://www.iaea.org/newscenter/news/twenty-years-after-the-chernobyl-accident' },
   'Fukushima Daiichi': { source: 'IAEA · Fukushima Daiichi accident report', link: 'https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1710-ReportByTheDG-Web.pdf' },
   'Mount Tambora': { source: 'Smithsonian GVP · Tambora', link: 'https://volcano.si.edu/volcano.cfm?vn=264040' },
