@@ -266,10 +266,14 @@ test.describe('mobile', () => {
     expect(errors).toEqual([])
   })
 
-  test('Sky AR remains closable when the camera permission is denied', async ({ page, context }) => {
-    await context.grantPermissions(['geolocation'])
-    await context.setGeolocation({ latitude: 50.1, longitude: 14.4 })
+  test('Sky AR remains closable when the camera permission is denied', async ({ page }) => {
     await page.addInitScript(() => {
+      Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+        configurable: true,
+        value: (success: (position: GeolocationPosition) => void) => success({
+          coords: { latitude: 50.1, longitude: 14.4 },
+        } as GeolocationPosition),
+      })
       const media = navigator.mediaDevices
       if (media) {
         Object.defineProperty(media, 'getUserMedia', {
@@ -281,13 +285,55 @@ test.describe('mobile', () => {
     const errors = await bootGlobe(page)
     await page.getByRole('button', { name: /open sky ar/i }).click()
     await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
-    const locate = page.getByRole('button', { name: /use my location/i })
-    if (await locate.isVisible()) await locate.click()
-    await expect(page.getByRole('button', { name: /start/i })).toBeVisible()
-    await page.getByRole('button', { name: /start/i }).click()
+    await page.locator('button').filter({ hasText: '📍' }).click()
+    await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
+    await page.locator('button').filter({ hasText: /^▶\s*\S+/ }).click()
     await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
     await page.getByRole('button', { name: /close sky ar/i }).click()
     await expect(page.locator('video')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+
+  test('Sky AR releases its camera and offers restart after backgrounding', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+        configurable: true,
+        value: (success: (position: GeolocationPosition) => void) => success({
+          coords: { latitude: 50.1, longitude: 14.4 },
+        } as GeolocationPosition),
+      })
+      ;(window as unknown as { __arCamera?: { starts: number; stops: number } }).__arCamera = { starts: 0, stops: 0 }
+      const media = navigator.mediaDevices
+      if (media) {
+        Object.defineProperty(media, 'getUserMedia', {
+          configurable: true,
+          value: async () => {
+            const state = (window as unknown as { __arCamera: { starts: number; stops: number } }).__arCamera
+            state.starts++
+            return { getTracks: () => [{ stop: () => { state.stops++ }, readyState: 'live' }] }
+          },
+        })
+      }
+    })
+    const errors = await bootGlobe(page)
+    await page.getByRole('button', { name: /open sky ar/i }).click()
+    await page.locator('button').filter({ hasText: '📍' }).click()
+    await page.locator('button').filter({ hasText: /^▶\s*\S+/ }).click()
+    await page.waitForFunction(() =>
+      (window as unknown as { __arCamera?: { starts: number } }).__arCamera?.starts === 1,
+    )
+    // Simulate tab background by overriding visibilityState in the test only.
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
+    expect(await page.evaluate(() => (window as unknown as { __arCamera: { stops: number } }).__arCamera.stops)).toBe(1)
+    await page.getByRole('button', { name: /close sky ar/i }).click()
     expect(errors).toEqual([])
   })
 
