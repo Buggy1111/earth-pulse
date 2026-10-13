@@ -23,7 +23,7 @@ describe('history of the planet', () => {
     expect(src(/Titanic/)).not.toMatch(/USGS/)
     expect(src(/Apollo 11/)).toMatch(/NASA/)
     expect(src(/Fukushima/)).toMatch(/IAEA/)
-    expect(src(/Krakatoa/)).toMatch(/USGS/)
+    expect(src(/Krakatoa/)).toMatch(/Smithsonian GVP/)
   })
 
   it('links selected historical events to their verified primary sources', () => {
