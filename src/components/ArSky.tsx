@@ -74,6 +74,10 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     userLocRef.current = userLoc
   }, [userLoc])
 
+  // Read visibility at call time; TypeScript otherwise narrows the DOM value
+  // across awaits even though the browser can change it asynchronously.
+  const isHidden = (): boolean => document.visibilityState === 'hidden'
+
   // start the back camera + the orientation sensor on the user's tap (iOS needs
   // the gesture for both the permission prompt and getUserMedia)
   async function start(): Promise<void> {
@@ -91,7 +95,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     } catch {
       // denied — we fall back to a fixed pose and the overhead list
     }
-    if (closedRef.current || session !== sessionRef.current || document.visibilityState === 'hidden') return
+    if (closedRef.current || session !== sessionRef.current || isHidden()) return
     startStarlink() // independent of the camera — kick it off right away so a
     // slow/blocked getUserMedia can never hold the satellite overlay hostage
     try {
@@ -99,7 +103,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
-      if (closedRef.current || session !== sessionRef.current || document.visibilityState === 'hidden') {
+      if (closedRef.current || session !== sessionRef.current || isHidden()) {
         stream.getTracks().forEach((t) => t.stop())
         return
       }
@@ -109,7 +113,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         await videoRef.current.play().catch(() => {})
       }
     } catch {
-      if (!closedRef.current && session === sessionRef.current && document.visibilityState !== 'hidden') setCamDenied(true) // no camera → dark sky backdrop
+      if (!closedRef.current && session === sessionRef.current && !isHidden()) setCamDenied(true) // no camera → dark sky backdrop
     }
   }
 
