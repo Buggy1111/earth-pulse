@@ -70,10 +70,12 @@ export function TitleCard({
 
 export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
   weather,
+  now,
   moonLabel,
   onOpenMoon,
 }: {
   weather: SpaceWeather
+  now: number
   moonLabel: string
   onOpenMoon: () => void
 }) {
@@ -100,6 +102,12 @@ export const SpaceWeatherPanel = memo(function SpaceWeatherPanel({
           {t('solar wind')} {Math.round(wind.speedKms)} km/s
           {Number.isFinite(wind.densityPerCm3) && <> · {wind.densityPerCm3.toFixed(1)} p/cm³</>}
         </p>
+      )}
+      {(weather.kpUpdatedAt === null || now - weather.kpUpdatedAt > 5 * 60_000) && (
+        <p className="mt-1 text-[11px] text-amber-300" role="status">⚠️ NOAA Kp feed unavailable or stale</p>
+      )}
+      {(weather.windUpdatedAt === null || now - weather.windUpdatedAt > 5 * 60_000) && (
+        <p className="mt-1 text-[11px] text-amber-300" role="status">⚠️ NOAA solar wind feed unavailable or stale</p>
       )}
       <button
         type="button"
