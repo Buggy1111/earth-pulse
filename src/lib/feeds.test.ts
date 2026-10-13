@@ -31,6 +31,20 @@ describe('parseQuakes', () => {
     expect(quakes[0].place).toBe('unknown location')
   })
 
+  it('rejects malformed USGS positions, magnitude and timestamps', () => {
+    const malformed: UsgsFeed = {
+      features: [
+        { id: 'nan', properties: { mag: Number.NaN, place: 'bad', time: 2000 }, geometry: { coordinates: [0, 0, 5] } },
+        { id: 'latitude', properties: { mag: 2, place: 'bad', time: 2000 }, geometry: { coordinates: [0, 95, 5] } },
+        { id: 'longitude', properties: { mag: 2, place: 'bad', time: 2000 }, geometry: { coordinates: [181, 0, 5] } },
+        { id: 'depth', properties: { mag: 2, place: 'bad', time: 2000 }, geometry: { coordinates: [0, 0, Infinity] } },
+        { id: 'timestamp', properties: { mag: 2, place: 'bad', time: 0 }, geometry: { coordinates: [0, 0, 5] } },
+        { id: 'valid', properties: { mag: 3, place: 'okay', time: 2000 }, geometry: { coordinates: [0, 0, 5] } },
+      ],
+    }
+    expect(parseQuakes(malformed).map((q) => q.id)).toEqual(['valid'])
+  })
+
   it('stats: počet, nejsilnější, nejnovější', () => {
     const s = quakeStats(parseQuakes(feed))
     expect(s.count).toBe(2)

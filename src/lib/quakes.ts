@@ -26,8 +26,13 @@ export const USGS_FEED_URL =
 export function parseQuakes(feed: UsgsFeed): Quake[] {
   const out: Quake[] = []
   for (const f of feed.features ?? []) {
-    if (!f.geometry || f.properties.mag === null) continue
+    if (!f || !f.geometry || !f.properties || !Array.isArray(f.geometry.coordinates)) continue
     const [lng, lat, depth] = f.geometry.coordinates
+    if (typeof f.id !== 'string' || !f.id ||
+      !Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(depth) ||
+      Math.abs(lat) > 90 || Math.abs(lng) > 180 ||
+      typeof f.properties.mag !== 'number' || !Number.isFinite(f.properties.mag) || !Number.isFinite(f.properties.time) ||
+      f.properties.time <= 0) continue
     out.push({
       id: f.id,
       lat,
