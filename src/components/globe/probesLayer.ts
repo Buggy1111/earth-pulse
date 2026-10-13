@@ -14,7 +14,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { AU_SCENE } from '../../lib/planets'
 import { SUNLIT_LAYER } from './helpers'
 import { withL2Probes } from '../../lib/l2'
-import { isValidTraj, PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
+import { parseProbeTrajectories, PROBE_INFO, probePosAu, type ProbeTraj } from '../../lib/probes'
 import { TELESCOPE_MODELS } from './telescopeModels'
 import { makeNameSprite } from '../spaceObjects'
 import { isMobileDevice } from '../perf'
@@ -336,7 +336,10 @@ export function setupProbes(
     .catch(() => [] as ProbeTraj[])
     .then((trajs) => {
       if (disposed) return
-      for (const traj of withL2Probes(trajs.filter(isValidTraj))) {
+      // A successful HTTP response can still contain an error object instead
+      // of an array. Keep the locally generated L2 craft in that case.
+      const validTrajs = parseProbeTrajectories(trajs)
+      for (const traj of withL2Probes(validTrajs)) {
         // one bad craft (model factory / trail) must not take the rest of the fleet down
         try {
           addCraft(traj)

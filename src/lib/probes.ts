@@ -59,15 +59,22 @@ const JD_UNIX = 2440587.5
  * samples — the weekly HORIZONS refresh could in principle bake an empty or
  * partial entry, and one NaN position reaching the camera freezes the view.
  * Both loaders (React nav + 3D layer) filter through this. */
-export function isValidTraj(t: ProbeTraj): boolean {
+export function isValidTraj(t: ProbeTraj | null | undefined): t is ProbeTraj {
   return (
+    t != null &&
+    typeof t.id === 'string' && t.id.length > 0 &&
     Number.isFinite(t.jd0) &&
-    t.stepDays > 0 &&
+    Number.isFinite(t.stepDays) && t.stepDays > 0 &&
     Array.isArray(t.pos) &&
     t.pos.length >= 6 &&
     t.pos.length % 3 === 0 &&
     t.pos.every(Number.isFinite)
   )
+}
+
+/** A 200 OK can still return a JSON error object, not a trajectory list. */
+export function parseProbeTrajectories(value: unknown): ProbeTraj[] {
+  return Array.isArray(value) ? value.filter(isValidTraj) : []
 }
 
 /** Heliocentric ecliptic position (AU) at `date`, linearly interpolated between
