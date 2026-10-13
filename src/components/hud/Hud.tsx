@@ -117,6 +117,7 @@ interface HudProps {
   onCloseQuake: () => void
   // events + data layers
   events: ComponentProps<typeof EventsPanel>['events']
+  eonetUpdatedAt: number | null
   onEventClick: ComponentProps<typeof EventsPanel>['onEventClick']
   selectedEvent: ComponentProps<typeof EventDetail>['event'] | null
   onCloseEvent: () => void
@@ -246,7 +247,7 @@ export function Hud(p: HudProps) {
     ) : null
   const eventsEl =
     p.mode === 'earth' && p.layers.events && !p.history.open ? (
-      <EventsPanel events={p.events} onEventClick={p.onEventClick} />
+      <EventsPanel events={p.events} onEventClick={p.onEventClick} updatedAt={p.eonetUpdatedAt} now={p.now} />
     ) : null
   const dataLayerEl =
     p.mode === 'earth' ? (

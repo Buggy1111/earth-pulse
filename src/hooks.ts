@@ -180,27 +180,34 @@ export function useTleSats(): { sats: TrackedSat[]; tleAgeDays: number | null } 
 }
 
 /** NASA EONET natural events (wildfires, storms, volcanoes…), refreshed slowly. */
-export function useEvents(intervalMs = 600_000): EarthEvent[] {
+export function useEvents(intervalMs = 600_000): { events: EarthEvent[]; updatedAt: number | null } {
   const [events, setEvents] = useState<EarthEvent[]>([])
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
   useEffect(() => {
     let cancelled = false
-    const load = () =>
-      void fetch(EONET_URL)
-        .then((r) => r.json())
-        .then((json) => {
-          if (!cancelled) setEvents(parseEvents(json))
-        })
-        .catch(() => {
-          // EONET unreachable — the events layer just stays empty
-        })
-    load()
-    const id = setInterval(load, intervalMs)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const load = async () => {
+      try {
+        const response = await fetch(EONET_URL)
+        if (!response.ok) throw new Error(`NASA EONET HTTP ${response.status}`)
+        const json = await response.json()
+        if (!json || !Array.isArray(json.events)) throw new Error('Invalid NASA EONET feed')
+        if (!cancelled) {
+          setEvents(parseEvents(json))
+          setUpdatedAt(Date.now())
+        }
+      } catch {
+        // Preserve last successful events but let the status indicator age.
+      }
+      if (!cancelled) timer = setTimeout(load, intervalMs)
+    }
+    void load()
     return () => {
       cancelled = true
-      clearInterval(id)
+      if (timer) clearTimeout(timer)
     }
   }, [intervalMs])
-  return events
+  return { events, updatedAt }
 }
 
 export interface SpaceWeather {
