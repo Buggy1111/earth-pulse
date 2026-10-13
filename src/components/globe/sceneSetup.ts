@@ -149,28 +149,28 @@ export function swapGlobeTextures(
   isStillWanted: () => boolean,
 ): void {
   const loader = new THREE.TextureLoader()
-  void Promise.all([
+  void Promise.allSettled([
     loader.loadAsync(`earth-day-${wanted}.jpg`),
     loader.loadAsync(`earth-night-${wanted}.jpg`),
-  ])
-    .then(([day, night]) => {
-      if (!isStillWanted()) {
-        // a newer swap superseded this one — free the textures we just decoded
-        day.dispose()
-        night.dispose()
-        return
+  ]).then(([dayResult, nightResult]) => {
+    if (dayResult.status !== 'fulfilled' || nightResult.status !== 'fulfilled' || !isStillWanted()) {
+      // One texture can load while the other fails, or the mode may unmount
+      // while the request is pending. Always release successful partial loads.
+      if (dayResult.status === 'fulfilled') dayResult.value.dispose()
+      if (nightResult.status === 'fulfilled') nightResult.value.dispose()
+      if (dayResult.status === 'rejected' || nightResult.status === 'rejected') {
+        console.warn('Globe day/night textures failed to load')
       }
-      day.colorSpace = THREE.SRGBColorSpace
-      night.colorSpace = THREE.SRGBColorSpace
-      for (const [key, tex] of [['dayTexture', day], ['nightTexture', night]] as const) {
-        const old = material.uniforms[key].value as THREE.Texture
-        material.uniforms[key].value = tex
-        old.dispose()
-      }
-    })
-    .catch((err) => {
-      // a transient fetch error shouldn't surface as an unhandled rejection —
-      // keep whatever textures the globe already has
-      console.warn('Globe day/night textures failed to load:', err)
-    })
+      return
+    }
+    const day = dayResult.value
+    const night = nightResult.value
+    day.colorSpace = THREE.SRGBColorSpace
+    night.colorSpace = THREE.SRGBColorSpace
+    for (const [key, tex] of [['dayTexture', day], ['nightTexture', night]] as const) {
+      const old = material.uniforms[key].value as THREE.Texture
+      material.uniforms[key].value = tex
+      old.dispose()
+    }
+  })
 }
