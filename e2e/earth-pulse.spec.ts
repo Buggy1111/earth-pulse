@@ -303,13 +303,16 @@ test.describe('mobile', () => {
           coords: { latitude: 50.1, longitude: 14.4 },
         } as GeolocationPosition),
       })
+      ;(window as unknown as { __arCamera?: { starts: number; stops: number } }).__arCamera = { starts: 0, stops: 0 }
       const media = navigator.mediaDevices
       if (media) {
         Object.defineProperty(media, 'getUserMedia', {
           configurable: true,
-          value: async () => ({
-            getTracks: () => [{ stop: () => {}, readyState: 'live' }],
-          }),
+          value: async () => {
+            const state = (window as unknown as { __arCamera: { starts: number; stops: number } }).__arCamera
+            state.starts++
+            return { getTracks: () => [{ stop: () => { state.stops++ }, readyState: 'live' }] }
+          },
         })
       }
     })
@@ -318,7 +321,9 @@ test.describe('mobile', () => {
     const locate = page.getByRole('button', { name: /use my location/i })
     if (await locate.isVisible()) await locate.click()
     await page.getByRole('button', { name: /start/i }).click()
-    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+    await page.waitForFunction(() =>
+      (window as unknown as { __arCamera?: { starts: number } }).__arCamera?.starts === 1,
+    )
     // Simulate tab background by overriding visibilityState in the test only.
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
@@ -329,6 +334,7 @@ test.describe('mobile', () => {
       document.dispatchEvent(new Event('visibilitychange'))
     })
     await expect(page.getByRole('button', { name: /start/i })).toBeVisible()
+    expect(await page.evaluate(() => (window as unknown as { __arCamera: { stops: number } }).__arCamera.stops)).toBe(1)
     await page.getByRole('button', { name: /close sky ar/i }).click()
     expect(errors).toEqual([])
   })
