@@ -51,6 +51,8 @@ describe('history of the planet', () => {
   it('keeps the year-79 eruption in AD 79, not 1979', () => {
     expect(yearOf(HISTORIC_EVENTS[0])).toBe(79)
     expect(HISTORIC_EVENTS[0].title).toMatch(/Vesuvius/)
+    expect(HISTORIC_EVENTS[0].note).toMatch(/Date uncertain/)
+    expect(HISTORIC_EVENTS[0].link).toContain('pompeiisites.org/e-journal')
   })
 
   it('slices the chronology safely', () => {
