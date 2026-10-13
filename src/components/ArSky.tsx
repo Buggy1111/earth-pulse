@@ -83,6 +83,8 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   async function start(): Promise<void> {
     const session = ++sessionRef.current
     setModel3D(false) // a previous session's model must not hide fallback dots
+    slAzEl.current = [] // do not show satellite positions from a previous AR session
+    slNames.current = []
     setCamDenied(false)
     setStarted(true)
     // iOS: the Motion & Orientation prompt MUST be requested inside the user
@@ -184,6 +186,8 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
       if (videoRef.current) videoRef.current.srcObject = null
       slWorker.current?.terminate()
       slWorker.current = null
+      slAzEl.current = []
+      slNames.current = []
       setStarted(false) // show the existing Start button for explicit resume
     }
     document.addEventListener('visibilitychange', onVisibility)
