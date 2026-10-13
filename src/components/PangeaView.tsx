@@ -147,7 +147,7 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
     const KEEP_RADIUS = mobile ? 5 : 8
     const dir = mobile ? 'planets/paleo/sd/' : 'planets/paleo/'
     // bump when the frame artwork is regenerated: the service worker caches
-    // these CacheFirst for 30 days, so unchanged URLs would keep old frames
+    // these via StaleWhileRevalidate, so the revision also bypasses older local caches
     const REV = '?r=2'
     const textures: (THREE.Texture | null)[] = FRAMES.map(() => null)
     const blank = new THREE.DataTexture(new Uint8Array([10, 16, 30, 255]), 1, 1)
@@ -160,7 +160,11 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         }
       }
       if (textures[i]) return textures[i] as THREE.Texture
-      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp${REV}`)
+      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp${REV}`, (loaded) => {
+        // A user can scrub away (or leave the scene) while decoding is pending.
+        // The late callback must not resurrect a discarded GPU texture.
+        if (disposed || textures[i] !== loaded) loaded.dispose()
+      })
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       textures[i] = t
@@ -180,7 +184,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         }
       }
       if (futureTex[k]) return futureTex[k] as THREE.Texture
-      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp${REV}`)
+      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp${REV}`, (loaded) => {
+        if (disposed || futureTex[k] !== loaded) loaded.dispose()
+      })
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       futureTex[k] = t
