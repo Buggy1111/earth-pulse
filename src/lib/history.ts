@@ -117,7 +117,7 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 // category attribution until a source covering their particular claims is checked.
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
   'Chernobyl disaster': { source: 'IAEA · Chernobyl accident', link: 'https://www.iaea.org/newscenter/news/twenty-years-after-the-chernobyl-accident' },
-  'Fukushima Daiichi': { source: 'IAEA · Fukushima Daiichi accident report', link: 'https://www.iaea.org/publications/search/topics/fukushima-nuclear-accident/type/non-serial-publications' },
+  'Fukushima Daiichi': { source: 'IAEA · Fukushima Daiichi accident report', link: 'https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1710-ReportByTheDG-Web.pdf' },
   'Apollo 11 launch': { source: 'NASA · Apollo 11 Mission Overview', link: 'https://www.nasa.gov/history/apollo-11-mission-overview/' },
   'Great Chilean earthquake': { source: 'USGS · Earthquake Facts', link: 'https://pubs.usgs.gov/circ/c1187/' },
   'Galveston hurricane': { source: 'NOAA / NWS · Hurricane History', link: 'https://www.nhc.noaa.gov/outreach/history/index.php' },
