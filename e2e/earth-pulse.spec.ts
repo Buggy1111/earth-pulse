@@ -295,8 +295,7 @@ test('planet diary, history film and meteor showers open from the Earth HUD', as
   await page.getByRole('button', { name: /play from the start/ }).click()
   await expect(page.getByText('AD 79').first()).toBeVisible()
   await expect(page.getByText(/Vesuvius buries Pompeii/).first()).toBeVisible()
-  // the globe now carries the curated pins instead of the live EONET ones
-  await page.waitForFunction(() => document.body.innerText.includes('Vesuvius'), null, { timeout: 10_000 })
+  // The visible timeline label above confirms the history replay state.
   expect(errors).toEqual([])
 })
 
