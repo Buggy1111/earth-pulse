@@ -23,9 +23,12 @@ interface KpRow {
 
 /** Latest estimated Kp from the 1-minute feed (array of rows, newest last). */
 export function parseKp(rows: KpRow[]): KpReading | null {
-  for (let i = (rows ?? []).length - 1; i >= 0; i--) {
+  if (!Array.isArray(rows)) return null
+  for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i]
-    if (typeof r?.estimated_kp === 'number' && Number.isFinite(r.estimated_kp)) {
+    if (typeof r?.estimated_kp === 'number' && Number.isFinite(r.estimated_kp) &&
+      r.estimated_kp >= 0 && r.estimated_kp <= 9 &&
+      typeof r.time_tag === 'string' && Number.isFinite(Date.parse(r.time_tag))) {
       return { kp: r.estimated_kp, time: r.time_tag }
     }
   }
@@ -43,14 +46,16 @@ export interface SolarWindReading {
 export function parseSolarWind(rows: (string | number | null)[][]): SolarWindReading | null {
   if (!Array.isArray(rows) || rows.length < 2) return null
   const header = rows[0]
+  if (!Array.isArray(header)) return null
   const iTime = header.indexOf('time_tag')
   const iSpeed = header.indexOf('speed')
   const iDensity = header.indexOf('density')
   if (iTime < 0 || iSpeed < 0) return null
   for (let i = rows.length - 1; i >= 1; i--) {
     const row = rows[i]
+    if (!Array.isArray(row) || typeof row[iTime] !== 'string' || !Number.isFinite(Date.parse(row[iTime] as string))) continue
     const speed = Number(row[iSpeed])
-    if (row[iSpeed] === null || !Number.isFinite(speed)) continue
+    if (row[iSpeed] === null || !Number.isFinite(speed) || speed <= 0 || speed > 3000) continue
     return {
       speedKms: speed,
       densityPerCm3: iDensity >= 0 ? Number(row[iDensity] ?? NaN) : NaN,
