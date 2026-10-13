@@ -120,7 +120,8 @@ export function setupStars(
   globe.renderer().domElement.addEventListener('pointermove', onMove)
   globe.renderer().domElement.addEventListener('click', onClick)
 
-  void fetch(STARS_URL)
+  const catalogController = new AbortController()
+  void fetch(STARS_URL, { signal: catalogController.signal })
     .then((r) => (r.ok ? (r.json() as Promise<StarCatalog>) : Promise.reject(new Error('no stars'))))
     .then((cat) => {
       if (disposed) return
@@ -254,6 +255,7 @@ export function setupStars(
     },
     dispose() {
       disposed = true
+      catalogController.abort()
       focus.dispose()
       globe.renderer().domElement.removeEventListener('pointerdown', onDown)
       globe.renderer().domElement.removeEventListener('pointermove', onMove)
