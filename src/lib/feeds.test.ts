@@ -134,6 +134,15 @@ describe('space weather (NOAA SWPC)', () => {
     expect(r?.time).toBe('2026-07-05T06:08:00Z')
   })
 
+  it('rejects malformed NOAA rows instead of returning invalid space-weather values', () => {
+    expect(parseKp(null as unknown as Parameters<typeof parseKp>[0])).toBeNull()
+    expect(parseKp([{ time_tag: 'invalid', estimated_kp: 4 }])).toBeNull()
+    expect(parseKp([{ time_tag: '2026-10-13T00:00:00Z', estimated_kp: 99 }])).toBeNull()
+    expect(parseSolarWind([null as unknown as string[]])).toBeNull()
+    expect(parseSolarWind([['time_tag', 'speed'], ['not a date', '450']])).toBeNull()
+    expect(parseSolarWind([['time_tag', 'speed'], ['2026-10-13T00:00:00Z', '0']])).toBeNull()
+  })
+
   it('kpColor/kpLabel: zelená klid, žlutá aktivní, červená bouře', () => {
     expect(kpColor(2)).toBe('#34d399')
     expect(kpColor(4.5)).toBe('#fbbf24')
