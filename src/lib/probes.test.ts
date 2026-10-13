@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AU_KM, probePosAu, probeSpeedKms, type ProbeTraj } from './probes'
+import { AU_KM, parseProbeTrajectories, probePosAu, probeSpeedKms, type ProbeTraj } from './probes'
 
 const traj: ProbeTraj = {
   id: 'x',
@@ -29,5 +29,15 @@ describe('probePosAu', () => {
   it('derives speed from the local trajectory slope', () => {
     // marches 10 AU every 10 days = 1 AU/day → AU_KM / 86400 s
     expect(probeSpeedKms(traj, dateForJd(2461046.5))).toBeCloseTo(AU_KM / 86_400, 0)
+  })
+})
+
+describe('parseProbeTrajectories', () => {
+  it('rejects non-array HTTP JSON payloads', () => {
+    expect(parseProbeTrajectories({ error: 'temporarily unavailable' })).toEqual([])
+    expect(parseProbeTrajectories(null)).toEqual([])
+  })
+  it('keeps valid trajectories while discarding malformed entries', () => {
+    expect(parseProbeTrajectories([null, { error: 'bad' }, traj])).toEqual([traj])
   })
 })
