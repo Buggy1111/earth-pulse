@@ -23,7 +23,8 @@ interface IssResponse {
  * (`globe.pointOfView`) — one NaN there breaks the view. Returns null on bad
  * data; callers already treat ISS as `IssState | null`. */
 export function parseIss(data: Partial<IssResponse> | null | undefined): IssState | null {
-  if (!data || !Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) return null
+  if (!data || !Number.isFinite(data.latitude) || !Number.isFinite(data.longitude) ||
+    Math.abs(data.latitude as number) > 90 || Math.abs(data.longitude as number) > 180) return null
   return {
     lat: data.latitude as number,
     lng: data.longitude as number,

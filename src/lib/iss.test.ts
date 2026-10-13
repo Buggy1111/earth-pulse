@@ -13,6 +13,9 @@ describe('ISS telemetry freshness', () => {
 
   it('rejects invalid coordinates', () => {
     expect(parseIss({ latitude: NaN, longitude: 15 })).toBeNull()
+    expect(parseIss({ latitude: 91, longitude: 15 })).toBeNull()
+    expect(parseIss({ latitude: 45, longitude: -181 })).toBeNull()
+    expect(parseIss({ latitude: -90, longitude: 180 })?.lat).toBe(-90)
     expect(parseIss({ latitude: 50, longitude: 15 })?.lat).toBe(50)
   })
 })
