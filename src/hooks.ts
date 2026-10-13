@@ -213,22 +213,29 @@ export function useEvents(intervalMs = 600_000): { events: EarthEvent[]; updated
 export interface SpaceWeather {
   kp: KpReading | null
   wind: SolarWindReading | null
+  kpUpdatedAt: number | null
+  windUpdatedAt: number | null
 }
 
 /** NOAA SWPC space weather (Kp + solar wind), refreshed every `intervalMs`. */
 export function useSpaceWeather(intervalMs = 60_000): SpaceWeather {
-  const [state, setState] = useState<SpaceWeather>({ kp: null, wind: null })
+  const [state, setState] = useState<SpaceWeather>({ kp: null, wind: null, kpUpdatedAt: null, windUpdatedAt: null })
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
     const tick = async () => {
       const [kp, wind] = await Promise.all([
-        fetch(KP_URL).then((r) => r.json()).then(parseKp).catch(() => null),
-        fetch(SOLAR_WIND_URL).then((r) => r.json()).then(parseSolarWind).catch(() => null),
+        fetch(KP_URL).then((r) => { if (!r.ok) throw new Error(`NOAA Kp HTTP ${r.status}`); return r.json() }).then(parseKp).catch(() => null),
+        fetch(SOLAR_WIND_URL).then((r) => { if (!r.ok) throw new Error(`NOAA wind HTTP ${r.status}`); return r.json() }).then(parseSolarWind).catch(() => null),
       ])
       if (!cancelled) {
         // keep the last good reading if one endpoint hiccups
-        setState((prev) => ({ kp: kp ?? prev.kp, wind: wind ?? prev.wind }))
+        setState((prev) => ({
+          kp: kp ?? prev.kp,
+          wind: wind ?? prev.wind,
+          kpUpdatedAt: kp ? Date.now() : prev.kpUpdatedAt,
+          windUpdatedAt: wind ? Date.now() : prev.windUpdatedAt,
+        }))
       }
       if (!cancelled) timer = setTimeout(tick, intervalMs)
     }
