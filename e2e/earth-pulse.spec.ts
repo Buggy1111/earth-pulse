@@ -340,12 +340,15 @@ test.describe('mobile', () => {
         (window as unknown as { __arCamera?: { starts: number } }).__arCamera?.starts === expected,
         cycle,
       )
-      // Allow React's post-commit visibility listener to attach after start().
-      await page.waitForTimeout(150)
       await page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
         document.dispatchEvent(new Event('visibilitychange'))
       })
+      // Wait for the hidden handler to stop the active camera before foregrounding.
+      await page.waitForFunction((expected) =>
+        (window as unknown as { __arCamera?: { stops: number } }).__arCamera?.stops === expected,
+        cycle,
+      )
       await page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
         document.dispatchEvent(new Event('visibilitychange'))
