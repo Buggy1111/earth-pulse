@@ -82,6 +82,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   // the gesture for both the permission prompt and getUserMedia)
   async function start(): Promise<void> {
     const session = ++sessionRef.current
+    setModel3D(false) // a previous session's model must not hide fallback dots
     setCamDenied(false)
     setStarted(true)
     // iOS: the Motion & Orientation prompt MUST be requested inside the user
