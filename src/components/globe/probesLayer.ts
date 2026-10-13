@@ -61,7 +61,19 @@ function loadModel(file: string): Promise<THREE.Object3D> {
     // Keep this rejection handler attached to avoid an unhandled rejection.
     void p.catch(() => { if (modelCache.get(file) === p) modelCache.delete(file) })
   }
-  return p.then((s) => s.clone(true))
+  return p.then((source) => {
+    const instance = source.clone(true)
+    // Object3D.clone shares geometry/material objects by default. The probe
+    // layer disposes instance resources on exit, so each clone must own them.
+    instance.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+      mesh.geometry = mesh.geometry.clone()
+      if (Array.isArray(mesh.material)) mesh.material = mesh.material.map((m) => m.clone())
+      else if (mesh.material) mesh.material = mesh.material.clone()
+    })
+    return instance
+  })
 }
 
 export interface ProbesLayer {
@@ -256,7 +268,17 @@ export function setupProbes(
     if (procedural || !isMobileDevice())
       void (procedural ? Promise.resolve(procedural()) : loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL))
       .then((model) => {
-        if (disposed) return
+        if (disposed) {
+          // An async model may resolve after solar mode has been destroyed.
+          // Dispose the detached instance, but never shared cached textures.
+          model.traverse((o) => {
+            const mesh = o as THREE.Mesh
+            if (!mesh.isMesh) return
+            mesh.geometry.dispose()
+            disposeMaterial(mesh.material)
+          })
+          return
+        }
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
         model.scale.setScalar(MODEL_TARGET / (Math.max(size.x, size.y, size.z) || 1))
@@ -286,9 +308,18 @@ export function setupProbes(
           }
           m.emissiveIntensity = 0.7
           mesh.material = m
+          src.dispose() // the per-instance material was replaced; maps remain shared
         })
         const ph = body.getObjectByName('ph')
-        if (ph) body.remove(ph)
+        if (ph) {
+          body.remove(ph)
+          ph.traverse((o) => {
+            const mesh = o as THREE.Mesh
+            if (!mesh.isMesh) return
+            mesh.geometry.dispose()
+            disposeMaterial(mesh.material)
+          })
+        }
         model.traverse((o) => (o.frustumCulled = false))
         body.add(model)
       })
@@ -354,8 +385,9 @@ export function setupProbes(
         group.remove(o)
         o.traverse((c) => {
           const m = c as THREE.Mesh & { material?: THREE.Material | THREE.Material[] }
-          m.geometry?.dispose?.()
-          disposeMaterial(m.material)
+          // Direction cones share module-level geometry/material constants.
+          if (m.geometry !== ARROW_GEO) m.geometry?.dispose?.()
+          if (m.material !== ARROW_MAT) disposeMaterial(m.material)
         })
       }
       probeMeshesRef.current.clear()
