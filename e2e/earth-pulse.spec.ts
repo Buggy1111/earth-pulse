@@ -368,6 +368,7 @@ test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', 
   const switchMode = async (key: string) => {
     await page.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), key)
   }
+  const resourceSamples: { geometries: number; textures: number }[] = []
   for (let cycle = 0; cycle < 3; cycle++) {
     await switchMode('3')
     await page.waitForFunction(() => {
@@ -402,6 +403,18 @@ test('repeated Earth, Solar and Pangea switches release inactive WebGL scenes', 
       return count
     })
     expect(remainingProbes).toBe(0)
+    // After returning to Earth, resources should not accumulate each cycle.
+    resourceSamples.push(await page.evaluate(() => {
+      const globe = (window as Record<string, unknown>).__earthPulseGlobe as {
+        renderer(): { info: { memory: { geometries: number; textures: number } } }
+      }
+      const { geometries, textures } = globe.renderer().info.memory
+      return { geometries, textures }
+    }))
   }
+  // Compare after each full teardown/re-entry, allowing small asynchronous
+  // texture upload variation; a monotonic substantial growth is suspicious.
+  expect(resourceSamples[2].geometries).toBeLessThanOrEqual(resourceSamples[0].geometries + 20)
+  expect(resourceSamples[2].textures).toBeLessThanOrEqual(resourceSamples[0].textures + 20)
   expect(errors).toEqual([])
 })
