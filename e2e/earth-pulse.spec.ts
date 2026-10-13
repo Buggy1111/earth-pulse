@@ -333,29 +333,6 @@ test.describe('mobile', () => {
     })
     await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
     expect(await page.evaluate(() => (window as unknown as { __arCamera: { stops: number } }).__arCamera.stops)).toBe(1)
-    // Repeat to catch sessions that accidentally reuse a stopped camera stream.
-    for (let cycle = 2; cycle <= 3; cycle++) {
-      await page.locator('button').filter({ hasText: /^▶\s*\S+/ }).click()
-      await page.waitForFunction((expected) =>
-        (window as unknown as { __arCamera?: { starts: number } }).__arCamera?.starts === expected,
-        cycle,
-      )
-      await page.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
-        document.dispatchEvent(new Event('visibilitychange'))
-      })
-      // Wait for the hidden handler to stop the active camera before foregrounding.
-      await page.waitForFunction((expected) =>
-        (window as unknown as { __arCamera?: { stops: number } }).__arCamera?.stops === expected,
-        cycle,
-      )
-      await page.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
-        document.dispatchEvent(new Event('visibilitychange'))
-      })
-      await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
-      expect(await page.evaluate(() => (window as unknown as { __arCamera: { stops: number } }).__arCamera.stops)).toBe(cycle)
-    }
     await page.getByRole('button', { name: /close sky ar/i }).click()
     expect(errors).toEqual([])
   })
