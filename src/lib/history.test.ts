@@ -31,6 +31,8 @@ describe('history of the planet', () => {
     expect(byTitle('Apollo 11 launch')?.link).toBe('https://www.nasa.gov/history/apollo-11-mission-overview/')
     expect(byTitle('Great Chilean earthquake')?.link).toBe('https://pubs.usgs.gov/circ/c1187/')
     expect(byTitle('Galveston hurricane')?.link).toBe('https://www.nhc.noaa.gov/outreach/history/index.php')
+    expect(byTitle('Chernobyl disaster')?.link).toContain('iaea.org/newscenter/')
+    expect(byTitle('Fukushima Daiichi')?.link).toContain('Pub1710-ReportByTheDG-Web.pdf')
     expect(byTitle('Apollo 11 launch')?.source).toContain('NASA')
     expect(byTitle('Great Chilean earthquake')?.source).toContain('USGS')
   })
