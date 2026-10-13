@@ -163,7 +163,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         }
       }
       if (textures[i]) return textures[i] as THREE.Texture
-      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp${REV}`)
+      const t = loader.load(`${dir}paleo-${pad(FRAMES[i])}.webp${REV}`, (loaded) => {
+        if (disposed || textures[i] !== loaded) loaded.dispose()
+      })
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       textures[i] = t
@@ -183,7 +185,9 @@ export function PangeaView({ onClose }: { onClose: () => void }) {
         }
       }
       if (futureTex[k]) return futureTex[k] as THREE.Texture
-      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp${REV}`)
+      const t = loader.load(`${dir}paleo-fut${pad(k * 50)}.webp${REV}`, (loaded) => {
+        if (disposed || futureTex[k] !== loaded) loaded.dispose()
+      })
       t.colorSpace = THREE.SRGBColorSpace
       t.anisotropy = maxAniso
       futureTex[k] = t
