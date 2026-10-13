@@ -146,6 +146,10 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
     .catch(() => {
       // no model → the DOM dot layer stays the visual
     })
+    .finally(() => {
+      // Draco can retain a decoder worker; the AR model is decoded at this point.
+      draco.dispose()
+    })
 
   // place each pooled model at its satellite's sky direction (hide the spares)
   function layout(): void {
