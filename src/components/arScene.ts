@@ -41,6 +41,28 @@ function skyDir(azDeg: number, elDeg: number, out: THREE.Vector3): THREE.Vector3
   return out.set(c * Math.sin(az), Math.sin(el), -c * Math.cos(az))
 }
 
+/** Dispose a decoded GLB even if loading finishes after the AR view closed. */
+export function disposeArModel(root: THREE.Object3D): void {
+  const geometries = new Set<THREE.BufferGeometry>()
+  const materials = new Set<THREE.Material>()
+  const textures = new Set<THREE.Texture>()
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh
+    if (!mesh.isMesh) return
+    if (mesh.geometry) geometries.add(mesh.geometry)
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (!material) continue
+      materials.add(material)
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) textures.add(value)
+      }
+    }
+  })
+  geometries.forEach((geometry) => geometry.dispose())
+  materials.forEach((material) => material.dispose())
+  textures.forEach((texture) => texture.dispose())
+}
+
 export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): ArScene {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -73,7 +95,10 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
     .setDRACOLoader(draco)
     .loadAsync(MODEL_URL)
     .then((gltf) => {
-      if (disposed) return
+      if (disposed) {
+        disposeArModel(gltf.scene)
+        return
+      }
       const root = gltf.scene
       // self-light the model so it reads against a bright daytime sky AND the
       // dark night sky — like the named-sat models on the globe
@@ -174,13 +199,7 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
       cancelAnimationFrame(raf)
       // free the model clones' GPU buffers now, not at GC's leisure — repeated
       // AR open/close on a phone otherwise stacks dead contexts + buffers
-      scene.traverse((o) => {
-        const m = o as THREE.Mesh & { material?: THREE.Material | THREE.Material[] }
-        m.geometry?.dispose?.()
-        const mat = m.material
-        if (Array.isArray(mat)) mat.forEach((x) => x.dispose())
-        else mat?.dispose?.()
-      })
+      disposeArModel(scene)
       renderer.dispose()
       renderer.forceContextLoss()
     },
