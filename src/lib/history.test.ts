@@ -29,8 +29,8 @@ describe('history of the planet', () => {
   it('links selected historical events to their verified primary sources', () => {
     const byTitle = (title: string) => HISTORIC_EVENTS.find((e) => e.title === title)
     expect(byTitle('Apollo 11 launch')?.link).toBe('https://www.nasa.gov/history/apollo-11-mission-overview/')
-    expect(byTitle('Great Chilean earthquake')?.link).toMatch(/^https:\/\/www\.usgs\.gov\//)
-    expect(byTitle('Galveston hurricane')?.link).toMatch(/^https:\/\/www\.weather\.gov\//)
+    expect(byTitle('Great Chilean earthquake')?.link).toBe('https://pubs.usgs.gov/circ/c1187/c1187.pdf')
+    expect(byTitle('Galveston hurricane')?.link).toBe('https://www.nhc.noaa.gov/outreach/history/')
     expect(byTitle('Apollo 11 launch')?.source).toContain('NASA')
     expect(byTitle('Great Chilean earthquake')?.source).toContain('USGS')
   })
