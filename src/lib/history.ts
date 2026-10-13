@@ -118,8 +118,10 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
   'Chernobyl disaster': { source: 'IAEA · Chernobyl accident', link: 'https://www.iaea.org/newscenter/news/twenty-years-after-the-chernobyl-accident' },
   'Fukushima Daiichi': { source: 'IAEA · Fukushima Daiichi accident report', link: 'https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1710-ReportByTheDG-Web.pdf' },
+  'Mount Tambora': { source: 'Smithsonian GVP · Tambora', link: 'https://volcano.si.edu/volcano.cfm?vn=264040' },
+  'Krakatoa': { source: 'Smithsonian GVP · Krakatau', link: 'https://volcano.si.edu/volcano.cfm?vn=262000' },
   'Apollo 11 launch': { source: 'NASA · Apollo 11 Mission Overview', link: 'https://www.nasa.gov/history/apollo-11-mission-overview/' },
-  'Great Chilean earthquake': { source: 'USGS · Earthquake Facts', link: 'https://pubs.usgs.gov/circ/c1187/' },
+  'Great Chilean earthquake': { source: 'USGS · Earthquake Facts', link: 'https://earthquake.usgs.gov/earthquakes/eventpage/official19600522191120_30' },
   'Galveston hurricane': { source: 'NOAA / NWS · Hurricane History', link: 'https://www.nhc.noaa.gov/outreach/history/index.php' },
 }
 
