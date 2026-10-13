@@ -286,8 +286,8 @@ test.describe('mobile', () => {
     await page.getByRole('button', { name: /open sky ar/i }).click()
     await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
     await page.locator('button').filter({ hasText: '📍' }).click()
-    await expect(page.locator('button').filter({ hasText: '▶' })).toBeVisible()
-    await page.locator('button').filter({ hasText: '▶' }).click()
+    await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
+    await page.locator('button').filter({ hasText: /^▶\s*\S+/ }).click()
     await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
     await page.getByRole('button', { name: /close sky ar/i }).click()
     await expect(page.locator('video')).toHaveCount(0)
@@ -318,7 +318,7 @@ test.describe('mobile', () => {
     const errors = await bootGlobe(page)
     await page.getByRole('button', { name: /open sky ar/i }).click()
     await page.locator('button').filter({ hasText: '📍' }).click()
-    await page.locator('button').filter({ hasText: '▶' }).click()
+    await page.locator('button').filter({ hasText: /^▶\s*\S+/ }).click()
     await page.waitForFunction(() =>
       (window as unknown as { __arCamera?: { starts: number } }).__arCamera?.starts === 1,
     )
@@ -331,7 +331,7 @@ test.describe('mobile', () => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
       document.dispatchEvent(new Event('visibilitychange'))
     })
-    await expect(page.locator('button').filter({ hasText: '▶' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: /^▶\s*\S+/ })).toBeVisible()
     expect(await page.evaluate(() => (window as unknown as { __arCamera: { stops: number } }).__arCamera.stops)).toBe(1)
     await page.getByRole('button', { name: /close sky ar/i }).click()
     expect(errors).toEqual([])
