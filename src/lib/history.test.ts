@@ -48,6 +48,15 @@ describe('history of the planet', () => {
     expect(floods?.link).toContain('central-china-flood-1931')
   })
 
+  it('labels pre-instrumental magnitudes as estimates and cites research', () => {
+    const shaanxi = HISTORIC_EVENTS.find((e) => e.title === 'Shaanxi earthquake')
+    const lisbon = HISTORIC_EVENTS.find((e) => e.title === 'Great Lisbon earthquake')
+    expect(shaanxi?.magnitudeLabel).toMatch(/estimated/)
+    expect(lisbon?.magnitudeLabel).toMatch(/estimated/)
+    expect(shaanxi?.link).toContain('2019JB017848')
+    expect(lisbon?.link).toContain('pubs.usgs.gov/publication/')
+  })
+
   it('keeps the year-79 eruption in AD 79, not 1979', () => {
     expect(yearOf(HISTORIC_EVENTS[0])).toBe(79)
     expect(HISTORIC_EVENTS[0].title).toMatch(/Vesuvius/)
