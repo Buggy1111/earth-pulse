@@ -95,7 +95,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
-      if (closedRef.current) {
+      if (closedRef.current || document.visibilityState === 'hidden') {
         stream.getTracks().forEach((t) => t.stop())
         return
       }
@@ -105,7 +105,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         await videoRef.current.play().catch(() => {})
       }
     } catch {
-      setCamDenied(true) // no camera → dark sky backdrop, the overlay still works
+      if (!closedRef.current) setCamDenied(true) // no camera → dark sky backdrop
     }
   }
 
@@ -159,6 +159,24 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
       streamRef.current = null
     }
   }, [])
+
+  // Mobile browsers can suspend camera capture when an app goes into the
+  // background. Explicitly release the tracks to avoid a stuck privacy LED or
+  // an unavailable camera on reopening AR.
+  useEffect(() => {
+    if (!started) return
+    const onVisibility = (): void => {
+      if (document.visibilityState !== 'hidden') return
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+      if (videoRef.current) videoRef.current.srcObject = null
+      slWorker.current?.terminate()
+      slWorker.current = null
+      setStarted(false) // show the existing Start button for explicit resume
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [started])
 
   // the 3D layer: a transparent WebGL canvas over the camera that draws the real
   // Starlink model where each satellite is. Built once started; kept in sync via
