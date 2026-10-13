@@ -48,7 +48,7 @@ export default defineConfig({
           {
             // Draco and 3D models change rarely. Keep their cache separate
             // from the frequently updated artwork so one cannot evict the other.
-            urlPattern: /\\/(models|draco)\\/.*|\\.(?:glb)$/i,
+            urlPattern: /\/(models|draco)\/.*|\.(?:glb)$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'ep-models-v3',
@@ -63,7 +63,7 @@ export default defineConfig({
           {
             // Refresh imagery in the background so corrected paleomaps and
             // textures do not remain stale for an entire month.
-            urlPattern: /\\.(?:jpg|jpeg|webp)$/i,
+            urlPattern: /\.(?:jpg|jpeg|webp)$/i,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'ep-images-v3',
