@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { propagateSats, isIss, type TrackedSat } from '../lib/satellites'
 import { lookAngles, projectToView, type LookAngles } from '../lib/arMath'
+import { safeArOrientation } from '../lib/arOrientation'
 import { skyBodies } from '../lib/arBodies'
 import type { ProbeTraj } from '../lib/probes'
 import { sunElevationDeg } from '../lib/sun'
@@ -208,10 +209,11 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     if (!started) return
     const onOrient = (e: DeviceOrientationEvent): void => {
       const compass = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading ?? null
-      const heading = compass != null ? compass : e.alpha != null ? 360 - e.alpha : 0
-      // back-camera elevation: phone vertical (beta 90) = horizon, tilted back
-      // toward face-down (beta 180) = straight up
-      const pitch = e.beta != null ? Math.max(-90, Math.min(90, e.beta - 90)) : 45
+      // A phone can report partial or NaN sensor frames, especially when
+      // waking from the background. Preserve the last valid pose instead.
+      const pose = safeArOrientation(e.alpha, e.beta, compass, orient.current)
+      if (!pose.valid) return
+      const { heading, pitch } = pose
       orient.current = { heading, pitch, live: true }
       orientRaw.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, compass }
       orientCount.current++
