@@ -23,7 +23,7 @@ interface Hist {
 }
 
 const H: Hist[] = [
-  { year: 79, month: 10, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Date uncertain: the traditional 24 August date from Pliny is disputed. Archaeological evidence supports an autumn eruption, often provisionally dated 24 October. Pompeii and Herculaneum were buried in volcanic deposits.' },
+  { year: 79, month: 8, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Exact date disputed: Pliny’s manuscript tradition gives 24 August, used here only as a timeline placeholder. Some archaeological evidence points to autumn, but 24 October lacks a firm manuscript basis. Pompeii and Herculaneum were buried in volcanic deposits.' },
   { year: 1556, month: 1, day: 23, title: 'Shaanxi earthquake', category: 'earthquakes', lat: 34.5, lng: 109.7, size: '~M 8', note: 'The deadliest earthquake on record — about 830,000 died, many in collapsing cave dwellings.' },
   { year: 1755, month: 11, day: 1, title: 'Great Lisbon earthquake', category: 'earthquakes', lat: 36.0, lng: -10.0, size: '~M 8.5–9', note: 'Quake, tsunami and fire destroy Lisbon on All Saints\' Day, shaking European thought for a generation.' },
   { year: 1783, month: 6, day: 8, title: 'Laki fissure eruption', category: 'volcanoes', lat: 64.07, lng: -18.23, size: '15 km³ lava', note: 'Iceland\'s haze famine killed about a fifth of its people and chilled the Northern Hemisphere.' },
