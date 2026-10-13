@@ -51,6 +51,9 @@ export function TitleCard({
             sats: satCount > 0 ? t('{n} satellites', { n: satCount }) : 'ISS',
           })}
       </p>
+      {usgsUpdatedAt === null && (
+        <p className="mt-1 text-[11px] text-amber-300" role="status">⚠️ Awaiting USGS earthquake feed — live status unverified</p>
+      )}
       {usgsUpdatedAt !== null && now - usgsUpdatedAt > 5 * 60_000 && (
         <p className="mt-1 text-[11px] text-amber-300" role="status">
           ⚠️ USGS feed has not updated for {Math.floor((now - usgsUpdatedAt) / 60_000)} minutes — quake data may be stale
