@@ -23,7 +23,7 @@ interface Hist {
 }
 
 const H: Hist[] = [
-  { year: 79, month: 8, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Pompeii and Herculaneum vanish under ash and pyroclastic flows, preserving a Roman city almost intact.' },
+  { year: 79, month: 8, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Exact date disputed: Pliny’s manuscript tradition gives 24 August, used here only as a timeline placeholder. Some archaeological evidence points to autumn, but 24 October lacks a firm manuscript basis. Pompeii and Herculaneum were buried in volcanic deposits.' },
   { year: 1556, month: 1, day: 23, title: 'Shaanxi earthquake', category: 'earthquakes', lat: 34.5, lng: 109.7, size: 'estimated Mw ~7.5–8.5', note: 'No instrumental measurement exists. Historical intensity estimates suggest M 8.25–8.5, while a 2020 fault-length study suggests Mw ~7.5 and at most Mw 8.0. The often-cited ~830,000 deaths include later famine and disease.' },
   { year: 1755, month: 11, day: 1, title: 'Great Lisbon earthquake', category: 'earthquakes', lat: 36.0, lng: -10.0, size: 'estimated Mw 8.5–9', note: 'Magnitude inferred from historical shaking and tsunami records, not seismometers. Earthquake, tsunami and fires devastated Lisbon on All Saints\' Day.' },
   { year: 1783, month: 6, day: 8, title: 'Laki fissure eruption', category: 'volcanoes', lat: 64.07, lng: -18.23, size: '15 km³ lava', note: 'Iceland\'s haze famine killed about a fifth of its people and chilled the Northern Hemisphere.' },
@@ -116,6 +116,7 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 // Verified event-specific primary sources. Other entries retain their existing
 // category attribution until a source covering their particular claims is checked.
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
+  'Vesuvius buries Pompeii': { source: 'Pompeii Archaeological Park · eruption-date research', link: 'https://pompeiisites.org/e-journal-degli-scavi-di-pompei/la-data-della-distruzione-di-pompei-premesse-per-un-dibattito-aperto/' },
   'Shaanxi earthquake': { source: 'JGR Solid Earth · historical & paleoseismic study', link: 'https://doi.org/10.1029/2019JB017848' },
   'Great Lisbon earthquake': { source: 'USGS · tsunami modelling of the 1755 Lisbon earthquake', link: 'https://pubs.usgs.gov/publication/70036556' },
   'Haiti earthquake': { source: 'USGS · 2010 Haiti earthquake impact', link: 'https://earthquake.usgs.gov/earthquakes/eventpage/usp000h60h/impact' },
