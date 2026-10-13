@@ -31,7 +31,7 @@ export function parseQuakes(feed: UsgsFeed): Quake[] {
     if (typeof f.id !== 'string' || !f.id ||
       !Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(depth) ||
       Math.abs(lat) > 90 || Math.abs(lng) > 180 ||
-      !Number.isFinite(f.properties.mag) || !Number.isFinite(f.properties.time) ||
+      typeof f.properties.mag !== 'number' || !Number.isFinite(f.properties.mag) || !Number.isFinite(f.properties.time) ||
       f.properties.time <= 0) continue
     out.push({
       id: f.id,
