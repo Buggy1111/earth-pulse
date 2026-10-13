@@ -70,6 +70,11 @@ export function isValidTraj(t: ProbeTraj): boolean {
   )
 }
 
+/** A 200 OK can still return a JSON error object, not a trajectory list. */
+export function parseProbeTrajectories(value: unknown): ProbeTraj[] {
+  return Array.isArray(value) ? value.filter(isValidTraj) : []
+}
+
 /** Heliocentric ecliptic position (AU) at `date`, linearly interpolated between
  * baked samples; clamps to the trajectory's ends outside its window. */
 export function probePosAu(t: ProbeTraj, date: Date): [number, number, number] {
