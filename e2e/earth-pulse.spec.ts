@@ -266,10 +266,14 @@ test.describe('mobile', () => {
     expect(errors).toEqual([])
   })
 
-  test('Sky AR remains closable when the camera permission is denied', async ({ page, context }) => {
-    await context.grantPermissions(['geolocation'])
-    await context.setGeolocation({ latitude: 50.1, longitude: 14.4 })
+  test('Sky AR remains closable when the camera permission is denied', async ({ page }) => {
     await page.addInitScript(() => {
+      Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+        configurable: true,
+        value: (success: (position: GeolocationPosition) => void) => success({
+          coords: { latitude: 50.1, longitude: 14.4 },
+        } as GeolocationPosition),
+      })
       const media = navigator.mediaDevices
       if (media) {
         Object.defineProperty(media, 'getUserMedia', {
@@ -291,10 +295,14 @@ test.describe('mobile', () => {
     expect(errors).toEqual([])
   })
 
-  test('Sky AR releases its camera and offers restart after backgrounding', async ({ page, context }) => {
-    await context.grantPermissions(['geolocation'])
-    await context.setGeolocation({ latitude: 50.1, longitude: 14.4 })
+  test('Sky AR releases its camera and offers restart after backgrounding', async ({ page }) => {
     await page.addInitScript(() => {
+      Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+        configurable: true,
+        value: (success: (position: GeolocationPosition) => void) => success({
+          coords: { latitude: 50.1, longitude: 14.4 },
+        } as GeolocationPosition),
+      })
       const media = navigator.mediaDevices
       if (media) {
         Object.defineProperty(media, 'getUserMedia', {
