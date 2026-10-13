@@ -63,15 +63,21 @@ interface RawEonet {
 /** Flatten the EONET response: one marker per event at its latest point. */
 export function parseEvents(json: RawEonet): EarthEvent[] {
   const out: EarthEvent[] = []
-  for (const e of json.events ?? []) {
-    const geom = e.geometry ?? []
-    // last geometry = most recent position; skip non-point (track) tails
-    const pt = [...geom].reverse().find((g) => Array.isArray(g.coordinates) && g.coordinates.length >= 2)
+  for (const e of Array.isArray(json?.events) ? json.events : []) {
+    if (!e || typeof e.id !== 'string' || !e.id || typeof e.title !== 'string') continue
+    const geom = Array.isArray(e.geometry) ? e.geometry : []
+    // Use the newest VALID point. A malformed final update must not hide an
+    // otherwise usable event or allow invalid coordinates into the renderer.
+    const pt = [...geom].reverse().find((g) => {
+      if (!g || !Array.isArray(g.coordinates) || g.coordinates.length !== 2) return false
+      const [lng, lat] = g.coordinates
+      return Number.isFinite(lng) && Number.isFinite(lat) &&
+        Math.abs(lng) <= 180 && Math.abs(lat) <= 90 &&
+        typeof g.date === 'string' && Number.isFinite(Date.parse(g.date))
+    })
     if (!pt || !pt.coordinates) continue
     const [lng, lat] = pt.coordinates
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue
-    const date = pt.date ? Date.parse(pt.date) : NaN
-    if (!Number.isFinite(date)) continue
+    const date = Date.parse(pt.date!)
     out.push({
       id: e.id,
       title: e.title,
