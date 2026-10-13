@@ -117,8 +117,8 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 // category attribution until a source covering their particular claims is checked.
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
   'Apollo 11 launch': { source: 'NASA · Apollo 11 Mission Overview', link: 'https://www.nasa.gov/history/apollo-11-mission-overview/' },
-  'Great Chilean earthquake': { source: 'USGS · Earthquake Facts', link: 'https://pubs.usgs.gov/circ/c1187/c1187.pdf' },
-  'Galveston hurricane': { source: 'NOAA / NWS · Hurricane History', link: 'https://www.nhc.noaa.gov/outreach/history/' },
+  'Great Chilean earthquake': { source: 'USGS · Earthquake Facts', link: 'https://pubs.usgs.gov/circ/c1187/' },
+  'Galveston hurricane': { source: 'NOAA / NWS · Hurricane History', link: 'https://www.nhc.noaa.gov/outreach/history/index.php' },
 }
 
 /** The chronology, oldest first. */
