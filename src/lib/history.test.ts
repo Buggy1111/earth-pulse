@@ -23,7 +23,20 @@ describe('history of the planet', () => {
     expect(src(/Titanic/)).not.toMatch(/USGS/)
     expect(src(/Apollo 11/)).toMatch(/NASA/)
     expect(src(/Fukushima/)).toMatch(/IAEA/)
-    expect(src(/Krakatoa/)).toMatch(/USGS/)
+    expect(src(/Krakatoa/)).toMatch(/Smithsonian GVP/)
+  })
+
+  it('links selected historical events to their verified primary sources', () => {
+    const byTitle = (title: string) => HISTORIC_EVENTS.find((e) => e.title === title)
+    expect(byTitle('Apollo 11 launch')?.link).toBe('https://www.nasa.gov/history/apollo-11-mission-overview/')
+    expect(byTitle('Great Chilean earthquake')?.link).toBe('https://earthquake.usgs.gov/earthquakes/eventpage/official19600522191120_30')
+    expect(byTitle('Galveston hurricane')?.link).toBe('https://www.nhc.noaa.gov/outreach/history/index.php')
+    expect(byTitle('Chernobyl disaster')?.link).toContain('iaea.org/newscenter/')
+    expect(byTitle('Fukushima Daiichi')?.link).toContain('Pub1710-ReportByTheDG-Web.pdf')
+    expect(byTitle('Mount Tambora')?.link).toContain('volcano.cfm?vn=264040')
+    expect(byTitle('Krakatoa')?.link).toContain('volcano.cfm?vn=262000')
+    expect(byTitle('Apollo 11 launch')?.source).toContain('NASA')
+    expect(byTitle('Great Chilean earthquake')?.source).toContain('USGS')
   })
 
   it('keeps the year-79 eruption in AD 79, not 1979', () => {

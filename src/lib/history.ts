@@ -113,6 +113,18 @@ const SOURCE: Record<string, string> = {
 }
 const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 
+// Verified event-specific primary sources. Other entries retain their existing
+// category attribution until a source covering their particular claims is checked.
+const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
+  'Chernobyl disaster': { source: 'IAEA · Chernobyl accident', link: 'https://www.iaea.org/newscenter/news/twenty-years-after-the-chernobyl-accident' },
+  'Fukushima Daiichi': { source: 'IAEA · Fukushima Daiichi accident report', link: 'https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1710-ReportByTheDG-Web.pdf' },
+  'Mount Tambora': { source: 'Smithsonian GVP · Tambora', link: 'https://volcano.si.edu/volcano.cfm?vn=264040' },
+  'Krakatoa': { source: 'Smithsonian GVP · Krakatau', link: 'https://volcano.si.edu/volcano.cfm?vn=262000' },
+  'Apollo 11 launch': { source: 'NASA · Apollo 11 Mission Overview', link: 'https://www.nasa.gov/history/apollo-11-mission-overview/' },
+  'Great Chilean earthquake': { source: 'USGS · Earthquake Facts', link: 'https://earthquake.usgs.gov/earthquakes/eventpage/official19600522191120_30' },
+  'Galveston hurricane': { source: 'NOAA / NWS · Hurricane History', link: 'https://www.nhc.noaa.gov/outreach/history/index.php' },
+}
+
 /** The chronology, oldest first. */
 export const HISTORIC_EVENTS: EarthEvent[] = H.map((h) => ({
   id: `hist-${h.year}-${h.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
@@ -123,7 +135,8 @@ export const HISTORIC_EVENTS: EarthEvent[] = H.map((h) => ({
   date: utcMs(h.year, h.month, h.day),
   magnitudeLabel: h.size,
   note: h.note,
-  source: SOURCE[h.category] ?? DEFAULT_SOURCE,
+  source: PRIMARY_SOURCES[h.title]?.source ?? SOURCE[h.category] ?? DEFAULT_SOURCE,
+  link: PRIMARY_SOURCES[h.title]?.link,
   historic: true,
 })).sort((a, b) => a.date - b.date)
 
