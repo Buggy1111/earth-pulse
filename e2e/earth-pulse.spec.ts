@@ -266,6 +266,31 @@ test.describe('mobile', () => {
     expect(errors).toEqual([])
   })
 
+  test('Sky AR remains closable when the camera permission is denied', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation'])
+    await context.setGeolocation({ latitude: 50.1, longitude: 14.4 })
+    await page.addInitScript(() => {
+      const media = navigator.mediaDevices
+      if (media) {
+        Object.defineProperty(media, 'getUserMedia', {
+          configurable: true,
+          value: async () => { throw new DOMException('Permission denied', 'NotAllowedError') },
+        })
+      }
+    })
+    const errors = await bootGlobe(page)
+    await page.getByRole('button', { name: /open sky ar/i }).click()
+    await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
+    const locate = page.getByRole('button', { name: /use my location/i })
+    if (await locate.isVisible()) await locate.click()
+    await expect(page.getByRole('button', { name: /^start$/i })).toBeVisible()
+    await page.getByRole('button', { name: /^start$/i }).click()
+    await expect(page.getByRole('button', { name: /close sky ar/i })).toBeVisible()
+    await page.getByRole('button', { name: /close sky ar/i }).click()
+    await expect(page.locator('video')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+
   test('the Sky AR overlay opens with its controls and the camera element', async ({ page }) => {
     await bootGlobe(page)
     await page.evaluate(() => {
