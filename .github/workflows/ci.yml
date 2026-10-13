@@ -6,8 +6,15 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch: {}
+
+# Keep one CI run per PR head, and avoid duplicate branch-push runs.
+# Cancel superseded PR builds, not completed runs and not main deployments.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
