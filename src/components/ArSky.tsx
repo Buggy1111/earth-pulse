@@ -43,6 +43,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   // stream AFTER the unmount cleanup ran — the async starters re-check this flag
   // and tear their resource down immediately instead of parking it in a dead ref
   const closedRef = useRef(false)
+  const sessionRef = useRef(0)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const arScene = useRef<ArScene | null>(null)
   const [model3D, setModel3D] = useState(false) // real 3D models loaded → drop the dots
@@ -73,9 +74,15 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     userLocRef.current = userLoc
   }, [userLoc])
 
+  // Read visibility at call time; TypeScript otherwise narrows the DOM value
+  // across awaits even though the browser can change it asynchronously.
+  const isHidden = (): boolean => document.visibilityState === 'hidden'
+
   // start the back camera + the orientation sensor on the user's tap (iOS needs
   // the gesture for both the permission prompt and getUserMedia)
   async function start(): Promise<void> {
+    const session = ++sessionRef.current
+    setCamDenied(false)
     setStarted(true)
     // iOS: the Motion & Orientation prompt MUST be requested inside the user
     // gesture and BEFORE any await — the camera await below would consume the
@@ -88,6 +95,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     } catch {
       // denied — we fall back to a fixed pose and the overhead list
     }
+    if (closedRef.current || session !== sessionRef.current || isHidden()) return
     startStarlink() // independent of the camera — kick it off right away so a
     // slow/blocked getUserMedia can never hold the satellite overlay hostage
     try {
@@ -95,7 +103,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
-      if (closedRef.current || document.visibilityState === 'hidden') {
+      if (closedRef.current || session !== sessionRef.current || isHidden()) {
         stream.getTracks().forEach((t) => t.stop())
         return
       }
@@ -105,7 +113,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         await videoRef.current.play().catch(() => {})
       }
     } catch {
-      if (!closedRef.current) setCamDenied(true) // no camera → dark sky backdrop
+      if (!closedRef.current && session === sessionRef.current && !isHidden()) setCamDenied(true) // no camera → dark sky backdrop
     }
   }
 
@@ -153,6 +161,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     closedRef.current = false // StrictMode re-runs the effect on the same instance
     return () => {
       closedRef.current = true
+      sessionRef.current++
       slWorker.current?.terminate()
       slWorker.current = null
       streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -167,6 +176,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
     if (!started) return
     const onVisibility = (): void => {
       if (document.visibilityState !== 'hidden') return
+      sessionRef.current++
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
       if (videoRef.current) videoRef.current.srcObject = null
