@@ -50,7 +50,7 @@
 **Cíl:** produkčně spolehlivý Earth Pulse, nikoli neověřitelný slib „dokonalosti“. Starší seznam výše popisuje již implementované funkce, ne dokončený audit. Stav hotovo znamená sloučené PR; funkčnost na fyzickém mobilu je nutné ověřit zvlášť.
 
 ## P0 — otevřené blokery a potvrzení vydání
-- [ ] **HIST-01** PR #26: u Vesuvu 79 uvést datum jako sporné; potvrdit zelené CI, sloučit a zkontrolovat následné CI `main`.
+- [x] **HIST-01** Datum erupce Vesuvu 79 označeno jako sporné v náhradním PR #28 (původní PR #26 byl nahrazen).
 - [ ] **QA-01** Po každém merge zkontrolovat CI na `main`; opravy až po diagnóze logu, žádné slepé navyšování timeoutů.
 - [ ] **RELEASE-01** Reálný smoke test produkčního nasazení na Vercelu: start, Earth, Solar, Moon, Pangea, přechody, práce bez sítě a chybové stavy. CI neověřuje skutečné nasazení automaticky.
 
@@ -60,6 +60,16 @@
 - [ ] **HIST-04** Strukturované pole `dateCertainty` / `measurementType` / `source` a jednotná prezentace nejistot v CZ/EN; historicky sporná data nezobrazovat jako jistotu.
 - [ ] **FEEDS-01** Audit aktuálnosti a výpadků USGS, EMSC, EONET, NOAA, ISS a TLE; testovat neplatná data, stale stav, fallback a jejich srozumitelné oznámení.
 - [ ] **SPACE-01** Porovnat zobrazení drah, epoch a extrapolací sond a družic s referenčními hodnotami; indikovat zastaralé efemeridy a limity přesnosti.
+
+## Sky AR — stav stabilizace po PR #29–49
+- [x] Ošetření neplatných hodnot orientačních senzorů (#34), zavírání kamery při přechodu do pozadí (#35), opakovaného otevírání (#36) a opožděných async operací (#38–39).
+- [x] Regresní test odmítnuté kamery (#40), reset stavu 3D modelu (#41), test jednoho přechodu do pozadí a zpět (#42).
+- [x] Vyčištění Starlink cache při nové relaci (#43), uvolnění Draco dekodéru (#44), trvale připojený visibility listener (#45).
+- [x] Regresní testy sdílených geometrií, materiálů a textur (#46), jednorázové ukončení scény (#47), odstranění referencí na starou scénu (#48), ignorování pozdních aktualizací po dispose (#49).
+- [ ] **AR-DEVICE** Ověřit fyzický iPhone Safari a Android: oprávnění kamery/pohybu, kompas a orientace, návrat z pozadí, opakované start/stop, kvalita 3D.
+- [ ] **AR-MEMORY** Změřit 10–20 cyklů otevření/zavření, aktivní MediaStreamTrack, worker, počet WebGL kontextů, FPS, JS heap a případné crash/tepelné omezení. Zelené CI neprokazuje stabilitu GPU paměti na zařízení.
+- [ ] **AR-MULTIRESUME** Samostatně diagnostikovat tři po sobě jdoucí přechody do pozadí a popředí. Starší emulované E2E selhávalo při čekání na restart gate; neoznačovat za potvrzeně opravené.
+- [ ] **AR-LATELOAD** Přidat deterministický test ukončení během rozpracovaného načítání GLB a přechodu pozdního výsledku do cleanup větve.
 
 ## P1 — výkon, paměť a mobilní použitelnost
 - [ ] **WEBGL-01** Změřit opakované vytváření/rušení scén: context-lost, počty canvasů, JS heap a FPS; odlišit per-renderer metriky od skutečné akumulace GPU paměti. Navázat na PR #22.
