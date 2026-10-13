@@ -94,7 +94,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
-      if (closedRef.current) {
+      if (closedRef.current || document.visibilityState === 'hidden') {
         stream.getTracks().forEach((t) => t.stop())
         return
       }
@@ -169,6 +169,9 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
       if (videoRef.current) videoRef.current.srcObject = null
+      slWorker.current?.terminate()
+      slWorker.current = null
+      setStarted(false) // show the existing Start button for explicit resume
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
