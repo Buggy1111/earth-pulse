@@ -23,7 +23,7 @@ interface Hist {
 }
 
 const H: Hist[] = [
-  { year: 79, month: 8, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Pompeii and Herculaneum vanish under ash and pyroclastic flows, preserving a Roman city almost intact.' },
+  { year: 79, month: 10, day: 24, title: 'Vesuvius buries Pompeii', category: 'volcanoes', lat: 40.821, lng: 14.426, size: 'VEI 5', note: 'Date uncertain: the traditional 24 August date from Pliny is disputed. Archaeological evidence supports an autumn eruption, often provisionally dated 24 October. Pompeii and Herculaneum were buried in volcanic deposits.' },
   { year: 1556, month: 1, day: 23, title: 'Shaanxi earthquake', category: 'earthquakes', lat: 34.5, lng: 109.7, size: '~M 8', note: 'The deadliest earthquake on record — about 830,000 died, many in collapsing cave dwellings.' },
   { year: 1755, month: 11, day: 1, title: 'Great Lisbon earthquake', category: 'earthquakes', lat: 36.0, lng: -10.0, size: '~M 8.5–9', note: 'Quake, tsunami and fire destroy Lisbon on All Saints\' Day, shaking European thought for a generation.' },
   { year: 1783, month: 6, day: 8, title: 'Laki fissure eruption', category: 'volcanoes', lat: 64.07, lng: -18.23, size: '15 km³ lava', note: 'Iceland\'s haze famine killed about a fifth of its people and chilled the Northern Hemisphere.' },
@@ -118,6 +118,7 @@ const DEFAULT_SOURCE = 'curated · USGS / Smithsonian GVP / NOAA'
 const PRIMARY_SOURCES: Record<string, { source: string; link: string }> = {
   'Haiti earthquake': { source: 'USGS · 2010 Haiti earthquake impact', link: 'https://earthquake.usgs.gov/earthquakes/eventpage/usp000h60h/impact' },
   'China floods': { source: 'DisasterHistory · Central China Flood 1931', link: 'https://disasterhistory.org/central-china-flood-1931' },
+  'Vesuvius buries Pompeii': { source: 'Pompeii Archaeological Park · eruption-date research', link: 'https://pompeiisites.org/e-journal-degli-scavi-di-pompei/la-data-della-distruzione-di-pompei-premesse-per-un-dibattito-aperto/' },
   'Chernobyl disaster': { source: 'IAEA · Chernobyl accident', link: 'https://www.iaea.org/newscenter/news/twenty-years-after-the-chernobyl-accident' },
   'Fukushima Daiichi': { source: 'IAEA · Fukushima Daiichi accident report', link: 'https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1710-ReportByTheDG-Web.pdf' },
   'Mount Tambora': { source: 'Smithsonian GVP · Tambora', link: 'https://volcano.si.edu/volcano.cfm?vn=264040' },
