@@ -41,3 +41,48 @@
   vybereš skutečné snímky, doplníš `PHOTOS` ve `scripts/fetch-star-photos.mjs` + `STAR_PHOTOS`
   v `src/lib/starLook.ts` a workflow spustíš znovu. Test `scripts/star-photos.test.ts` hlídá,
   že každá fotka patří skutečné hvězdě z katalogu a má soubor.
+
+
+---
+
+# Aktivní TODO: stabilita, správnost dat a kvalita (13. 10. 2026)
+
+**Cíl:** produkčně spolehlivý Earth Pulse, nikoli neověřitelný slib „dokonalosti“. Starší seznam výše popisuje již implementované funkce, ne dokončený audit. Stav hotovo znamená sloučené PR; funkčnost na fyzickém mobilu je nutné ověřit zvlášť.
+
+## P0 — otevřené blokery a potvrzení vydání
+- [ ] **HIST-01** PR #26: u Vesuvu 79 uvést datum jako sporné; potvrdit zelené CI, sloučit a zkontrolovat následné CI `main`.
+- [ ] **QA-01** Po každém merge zkontrolovat CI na `main`; opravy až po diagnóze logu, žádné slepé navyšování timeoutů.
+- [ ] **RELEASE-01** Reálný smoke test produkčního nasazení na Vercelu: start, Earth, Solar, Moon, Pangea, přechody, práce bez sítě a chybové stavy. CI neověřuje skutečné nasazení automaticky.
+
+## P1 — správná data a důvěryhodnost
+- [ ] **HIST-02** Inventura všech historických záznamů: datum, poloha, magnituda, počty obětí, popis, kategorie, odkazy; označit tvrzení nepodložená příslušným zdrojem.
+- [ ] **HIST-03** Ke každé historické události ověřit konkrétní primární nebo odborný pramen; obecná rozcestníková stránka nestačí. Průběžně kontrolovat nefunkční odkazy.
+- [ ] **HIST-04** Strukturované pole `dateCertainty` / `measurementType` / `source` a jednotná prezentace nejistot v CZ/EN; historicky sporná data nezobrazovat jako jistotu.
+- [ ] **FEEDS-01** Audit aktuálnosti a výpadků USGS, EMSC, EONET, NOAA, ISS a TLE; testovat neplatná data, stale stav, fallback a jejich srozumitelné oznámení.
+- [ ] **SPACE-01** Porovnat zobrazení drah, epoch a extrapolací sond a družic s referenčními hodnotami; indikovat zastaralé efemeridy a limity přesnosti.
+
+## P1 — výkon, paměť a mobilní použitelnost
+- [ ] **WEBGL-01** Změřit opakované vytváření/rušení scén: context-lost, počty canvasů, JS heap a FPS; odlišit per-renderer metriky od skutečné akumulace GPU paměti. Navázat na PR #22.
+- [ ] **WEBGL-02** Audit Three.js zdrojů vč. GLB/model cache, materiálů, textur, workerů a pozdních async fetchů; cílené regresní testy.
+- [ ] **MOBILE-01** Otestovat fyzicky iPhone Safari a alespoň jeden slabší Android: první start, 2K/4K, rychlé přepínání, 10min používání, paměť, zahřívání, baterie a obnovení po návratu z pozadí.
+- [ ] **MOBILE-02** Audit čitelnosti, kontrastu, dotykových ploch, VoiceOver/TalkBack, ovládání drawerů, klávesnice a úsporného režimu.
+
+## P2 — provoz, bezpečnost a předání agentům
+- [ ] **PWA-01** Ověřit offline fallback, cache limity, aktualizaci service workeru a návrat online.
+- [ ] **OPS-01** Audit plánovaných GitHub Actions, chyb fetch skriptů, licencí a původu dat; minimalizovat duplicitní CI a hlučné notifikace.
+- [ ] **SEC-01** Prověřit závislosti, secrets, síťová oprávnění a žádné tokeny na klientovi; Telegram alerting vyžaduje vlastní GitHub secrets.
+- [ ] **DOC-01** Aktualizovat README (počty událostí, testů, sond), CHANGELOG a datové zdroje podle reality v kódu.
+- [ ] **QA-02** Definovat release checklist + konkrétní kritéria „hotovo“ pro každý režim a zátěžové testy.
+
+## Už provedeno — nezaměňovat s kompletním ověřením
+- [x] **WEBGL-BASE** PR #22: E2E přepínání Earth / Solar / Pangea a uvolnění kontextu na simulovaném mobilu.
+- [x] **HIST-SOURCES** PR #23: konkrétní zdroje pro sedm vybraných událostí.
+- [x] **HIST-CASUALTIES** PR #24: upozornění na nejisté odhady obětí Haiti 2010 a čínských povodní 1931.
+- [x] **HIST-MAGNITUDES** PR #25: označení historických magnitud Shaanxi a Lisabon jako odhadů.
+
+## Pravidla práce pro Codex / Claude Code
+1. Vždy zkontroluj existující issue/PR a stav `main`, ať se práce neduplikuje.
+2. Jedno zaměřené PR = jedna ověřitelná změna; nejdřív důkaz problému, pak oprava a test.
+3. CI `lint → build → unit → E2E`, po mergi navíc kontrola `main`. Neprohlašuj green před dokončením.
+4. Historická čísla neopravovat odhadem bez odkazu na relevantní primární či odborný zdroj.
+5. Stav mobilního GPU, baterie nebo Safari neoznačovat „otestováno“, pokud neproběhl reálný test na zařízení.
