@@ -17,7 +17,7 @@ import { useQuakePing } from './uiHooks'
 import { mergeQuakes } from './lib/emsc'
 
 export function useLiveData() {
-  const { quakes: usgsQuakes, newQuakes, flashes: usgsFlashes } = useQuakes()
+  const { quakes: usgsQuakes, newQuakes, flashes: usgsFlashes, updatedAt: usgsUpdatedAt } = useQuakes()
   const { quakes: emscQuakes, fresh: emscFresh } = useEmsc()
   const quakes = useMemo(() => mergeQuakes(usgsQuakes, emscQuakes), [usgsQuakes, emscQuakes])
   const flashes = useMemo(() => [...usgsFlashes, ...emscFresh], [usgsFlashes, emscFresh])
@@ -28,5 +28,5 @@ export function useLiveData() {
   const now = useNow()
   const { soundOn, toggleSound } = useQuakePing(newQuakes, emscFresh)
   const { ambientOn, toggleAmbient } = useAmbient(quakes, weather.kp?.kp ?? null, now)
-  return { quakes, flashes, iss, sats, tleAgeDays, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient }
+  return { quakes, flashes, usgsUpdatedAt, iss, sats, tleAgeDays, weather, edits, totalSeen, now, soundOn, toggleSound, ambientOn, toggleAmbient }
 }

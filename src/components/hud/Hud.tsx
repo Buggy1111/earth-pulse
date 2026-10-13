@@ -42,6 +42,7 @@ interface HudProps {
   // title + clock
   now: number
   satCount: number
+  usgsUpdatedAt: number | null
   tleAgeDays: number | null
   solarMode: boolean
   moonMode: boolean
@@ -147,6 +148,7 @@ export function Hud(p: HudProps) {
     <TitleCard
       now={p.now}
       satCount={p.satCount}
+      usgsUpdatedAt={p.usgsUpdatedAt}
       tleAgeDays={p.tleAgeDays}
       subtitle={
         p.solarMode
