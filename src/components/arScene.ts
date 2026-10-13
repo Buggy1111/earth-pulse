@@ -199,6 +199,7 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
     },
     ready: () => loaded,
     dispose() {
+      if (disposed) return // cleanup must be safe if React invokes it repeatedly
       disposed = true
       cancelAnimationFrame(raf)
       // free the model clones' GPU buffers now, not at GC's leisure — repeated
