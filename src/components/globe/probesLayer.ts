@@ -265,7 +265,17 @@ export function setupProbes(
     if (procedural || !isMobileDevice())
       void (procedural ? Promise.resolve(procedural()) : loadModel(MODEL_FILE[traj.id] ?? GENERIC_MODEL))
       .then((model) => {
-        if (disposed) return
+        if (disposed) {
+          // An async model may resolve after solar mode has been destroyed.
+          // Dispose the detached instance, but never shared cached textures.
+          model.traverse((o) => {
+            const mesh = o as THREE.Mesh
+            if (!mesh.isMesh) return
+            mesh.geometry.dispose()
+            disposeMaterial(mesh.material)
+          })
+          return
+        }
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
         model.scale.setScalar(MODEL_TARGET / (Math.max(size.x, size.y, size.z) || 1))
@@ -295,6 +305,7 @@ export function setupProbes(
           }
           m.emissiveIntensity = 0.7
           mesh.material = m
+          src.dispose() // the per-instance material was replaced; maps remain shared
         })
         const ph = body.getObjectByName('ph')
         if (ph) {
