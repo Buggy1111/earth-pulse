@@ -180,20 +180,24 @@ export function createArScene(canvas: HTMLCanvasElement, onReady?: () => void): 
 
   return {
     setPose(headingDeg, pitchDeg) {
+      if (disposed) return
       pose.heading = headingDeg
       pose.pitch = pitchDeg
     },
     setSatellites(list) {
+      if (disposed) return
       sats.length = 0
       for (let i = 0; i < list.length && i < POOL; i++) sats.push(list[i])
       if (loaded) layout()
     },
     resize(width, height) {
+      if (disposed) return
       renderer.setSize(width, height, false)
       camera.aspect = width / Math.max(height, 1)
       camera.updateProjectionMatrix()
     },
     setNightFactor(f) {
+      if (disposed) return
       nightFactor = Math.max(0, Math.min(1, f))
       applyNight()
     },
