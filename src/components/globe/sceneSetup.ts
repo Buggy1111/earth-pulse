@@ -1,3 +1,4 @@
+import { isMobileDevice } from '../perf'
 /** One-time globe scene setup: create the globe.gl instance, wire the sky,
  * surface and pointer feature modules, handle resize, and return the cleanup.
  * Split out of GlobeView so the component stays a thin React-wiring root. */
@@ -65,7 +66,10 @@ export function setupScene(container: HTMLDivElement, deps: SceneSetupDeps): () 
   deps.userInteractedRef.current = !!fromLink
   globe.controls().autoRotate = !fromLink
   globe.controls().autoRotateSpeed = 0.45
-  globe.renderer().setPixelRatio(deps.ecoRef.current ? 1 : Math.min(window.devicePixelRatio, 2))
+  // Apply the mobile 1× DPR cap before first scene/texture allocations, not
+  // only in GlobeView's later quality effect. Safari can exhaust GPU memory
+  // during the initial 2× framebuffer allocation when reopening Earth/AR.
+  globe.renderer().setPixelRatio(deps.ecoRef.current || isMobileDevice() ? 1 : Math.min(window.devicePixelRatio, 2))
   // solar-system bodies live on SUNLIT_LAYER (lit only by the Sun's light)
   ;(globe.camera() as THREE.PerspectiveCamera).layers.enable(SUNLIT_LAYER)
 
