@@ -199,6 +199,20 @@ describe('external feed validation', () => {
     expect(parseEmscEvent(event(4.2, [15, 50]))?.mag).toBe(4.2)
   })
 
+  it('keeps the latest valid EONET point when a later update is malformed', () => {
+    const parsed = parseEvents({ events: [{
+      id: 'multi', title: 'tracked fire', categories: [{ id: 'wildfires' }],
+      geometry: [
+        { date: '2026-10-12T12:00:00Z', coordinates: [15, 50] },
+        { date: 'invalid', coordinates: [15, 51] },
+        { date: '2026-10-13T12:00:00Z', coordinates: [15, 95] },
+      ],
+    }] })
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0]).toMatchObject({ id: 'multi', lat: 50, lng: 15 })
+    expect(parseEvents({ events: null } as unknown as Parameters<typeof parseEvents>[0])).toEqual([])
+  })
+
   it('drops EONET events with invalid dates or impossible latitudes', () => {
     const item = (id: string, date: string, coordinates: number[]) => ({
       id, title: id, categories: [{ id: 'wildfires' }], geometry: [{ date, coordinates }],
