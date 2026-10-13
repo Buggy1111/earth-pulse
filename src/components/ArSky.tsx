@@ -96,7 +96,7 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
       // denied — we fall back to a fixed pose and the overhead list
     }
     if (closedRef.current || session !== sessionRef.current || isHidden()) return
-    startStarlink() // independent of the camera — kick it off right away so a
+    void startStarlink(session) // independent of the camera — kick it off right away so a
     // slow/blocked getUserMedia can never hold the satellite overlay hostage
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -118,17 +118,18 @@ export function ArSky({ sats, userLoc, probes, onLocate, onClose }: ArSkyProps):
   }
 
   // spin up the Starlink worker (once) and keep the above-horizon az/el cached
-  async function startStarlink(): Promise<void> {
-    if (slWorker.current) return
+  async function startStarlink(session: number): Promise<void> {
+    if (slWorker.current || closedRef.current || session !== sessionRef.current || isHidden()) return
     try {
       const tle = await fetch('tle/starlink.txt').then((r) =>
         r.ok ? r.text() : Promise.reject(new Error('no tle')),
       )
-      if (closedRef.current) return // AR closed while the TLE fetch was in flight
+      if (closedRef.current || session !== sessionRef.current || isHidden()) return // stale TLE fetch
       const w = new Worker(new URL('../workers/starlinkWorker.ts', import.meta.url), {
         type: 'module',
       })
       w.onmessage = (e: MessageEvent<{ type: string; data?: Float32Array; names?: string[] }>) => {
+        if (closedRef.current || session !== sessionRef.current || isHidden()) return
         if (e.data.type === 'ready') {
           slNames.current = e.data.names ?? []
           return
