@@ -57,6 +57,9 @@ function loadModel(file: string): Promise<THREE.Object3D> {
   if (!p) {
     p = gltfLoader.loadAsync(`models/probes/${file}`).then((g) => g.scene)
     modelCache.set(file, p)
+    // A failed GLB must be retried next time the solar mode is entered.
+    // Keep this rejection handler attached to avoid an unhandled rejection.
+    void p.catch(() => { if (modelCache.get(file) === p) modelCache.delete(file) })
   }
   return p.then((s) => s.clone(true))
 }
@@ -296,7 +299,8 @@ export function setupProbes(
 
   // L2 telescopes (Webb, Roman) are propagated locally, so they appear even if
   // the baked HORIZONS snapshot is missing or lacks them
-  void fetch(PROBES_URL)
+  const trajectoryController = new AbortController()
+  void fetch(PROBES_URL, { signal: trajectoryController.signal })
     .then((r) => (r.ok ? (r.json() as Promise<ProbeTraj[]>) : Promise.reject(new Error('no probes'))))
     .catch(() => [] as ProbeTraj[])
     .then((trajs) => {
@@ -343,6 +347,7 @@ export function setupProbes(
 
     dispose() {
       disposed = true
+      trajectoryController.abort()
       globe.renderer().domElement.removeEventListener('pointerdown', onDown)
       globe.renderer().domElement.removeEventListener('click', onClick)
       for (const o of added) {
