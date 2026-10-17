@@ -79,6 +79,12 @@ export class ErrorBoundary extends Component<Props, State> {
             'The globe hit an unexpected error and had to stop. This can happen on mobile when the GPU runs out of room. Reload to pick the signal back up.',
           )}
         </p>
+        <details style={{ maxWidth: '28rem', width: '100%', fontSize: '0.8rem', opacity: 0.8, overflowWrap: 'anywhere' }}>
+          <summary style={{ cursor: 'pointer' }}>Technical error / Technická chyba</summary>
+          <code style={{ display: 'block', marginTop: '0.5rem', whiteSpace: 'pre-wrap', textAlign: 'left' }}>
+            {`${this.state.error.name}: ${this.state.error.message.slice(0, 300)}`}
+          </code>
+        </details>
         <button
           type="button"
           onClick={this.reload}
