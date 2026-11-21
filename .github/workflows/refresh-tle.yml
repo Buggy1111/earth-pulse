@@ -21,10 +21,23 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Refresh Celestrak elements
+      # CelesTrak requires stopping all queries after any non-200 response.
+      # Scripts validate input before writing; the previous valid snapshot is retained on error.
+      - name: Refresh CelesTrak elements
+        id: download
         run: |
+          set +e
           node scripts/fetch-starlink.mjs
-          node scripts/fetch-famous.mjs
+          starlink=$?
+          famous=skipped
+          if [ "$starlink" -eq 0 ]; then
+            node scripts/fetch-famous.mjs
+            famous=$?
+          else
+            echo "::warning::Skipping second CelesTrak request after failed Starlink download (provider usage policy)."
+          fi
+          echo "starlink=$starlink" >> "$GITHUB_OUTPUT"
+          echo "famous=$famous" >> "$GITHUB_OUTPUT"
       - name: Commit refreshed elements
         run: |
           FILES="public/tle/starlink.txt public/tle/famous.txt"
@@ -38,4 +51,14 @@ jobs:
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main
+          fi
+      - name: Report snapshot refresh failures
+        if: ${{ always() && steps.download.outcome == 'success' }}
+        env:
+          STARLINK_RESULT: ${{ steps.download.outputs.starlink }}
+          FAMOUS_RESULT: ${{ steps.download.outputs.famous }}
+        run: |
+          if [ "$STARLINK_RESULT" != "0" ] || [ "$FAMOUS_RESULT" != "0" ]; then
+            echo "::error::TLE refresh incomplete (Starlink: $STARLINK_RESULT; famous: $FAMOUS_RESULT). Existing valid snapshots retained on failure."
+            exit 1
           fi
