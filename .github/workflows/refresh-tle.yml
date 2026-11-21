@@ -21,16 +21,23 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      # A 403 from one CelesTrak group must not prevent refreshing the other.
-      # The scripts validate data before writing, so failed downloads leave existing snapshots untouched.
-      - name: Refresh Starlink elements
-        id: starlink
-        continue-on-error: true
-        run: node scripts/fetch-starlink.mjs
-      - name: Refresh famous satellite elements
-        id: famous
-        continue-on-error: true
-        run: node scripts/fetch-famous.mjs
+      # CelesTrak requires stopping all queries after any non-200 response.
+      # Scripts validate input before writing; the previous valid snapshot is retained on error.
+      - name: Refresh CelesTrak elements
+        id: download
+        run: |
+          set +e
+          node scripts/fetch-starlink.mjs
+          starlink=$?
+          famous=skipped
+          if [ "$starlink" -eq 0 ]; then
+            node scripts/fetch-famous.mjs
+            famous=$?
+          else
+            echo "::warning::Skipping second CelesTrak request after failed Starlink download (provider usage policy)."
+          fi
+          echo "starlink=$starlink" >> "$GITHUB_OUTPUT"
+          echo "famous=$famous" >> "$GITHUB_OUTPUT"
       - name: Commit refreshed elements
         run: |
           FILES="public/tle/starlink.txt public/tle/famous.txt"
@@ -45,14 +52,13 @@ jobs:
             git rebase origin/main
             git push origin HEAD:main
           fi
-      # Preserve a red workflow status if any upstream feed failed, after committing successful updates.
       - name: Report snapshot refresh failures
-        if: ${{ always() }}
+        if: ${{ always() && steps.download.outcome == 'success' }}
         env:
-          STARLINK_RESULT: ${{ steps.starlink.outcome }}
-          FAMOUS_RESULT: ${{ steps.famous.outcome }}
+          STARLINK_RESULT: ${{ steps.download.outputs.starlink }}
+          FAMOUS_RESULT: ${{ steps.download.outputs.famous }}
         run: |
-          if [ "$STARLINK_RESULT" != "success" ] || [ "$FAMOUS_RESULT" != "success" ]; then
-            echo "::error::TLE refresh incomplete (Starlink: $STARLINK_RESULT; famous: $FAMOUS_RESULT). Previous valid snapshots were kept for failed feeds."
+          if [ "$STARLINK_RESULT" != "0" ] || [ "$FAMOUS_RESULT" != "0" ]; then
+            echo "::error::TLE refresh incomplete (Starlink: $STARLINK_RESULT; famous: $FAMOUS_RESULT). Existing valid snapshots retained on failure."
             exit 1
           fi
