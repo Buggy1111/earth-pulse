@@ -21,10 +21,16 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Refresh Celestrak elements
-        run: |
-          node scripts/fetch-starlink.mjs
-          node scripts/fetch-famous.mjs
+      # A 403 from one CelesTrak group must not prevent refreshing the other.
+      # The scripts validate data before writing, so failed downloads leave existing snapshots untouched.
+      - name: Refresh Starlink elements
+        id: starlink
+        continue-on-error: true
+        run: node scripts/fetch-starlink.mjs
+      - name: Refresh famous satellite elements
+        id: famous
+        continue-on-error: true
+        run: node scripts/fetch-famous.mjs
       - name: Commit refreshed elements
         run: |
           FILES="public/tle/starlink.txt public/tle/famous.txt"
@@ -38,4 +44,15 @@ jobs:
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main
+          fi
+      # Preserve a red workflow status if any upstream feed failed, after committing successful updates.
+      - name: Report snapshot refresh failures
+        if: ${{ always() }}
+        env:
+          STARLINK_RESULT: ${{ steps.starlink.outcome }}
+          FAMOUS_RESULT: ${{ steps.famous.outcome }}
+        run: |
+          if [ "$STARLINK_RESULT" != "success" ] || [ "$FAMOUS_RESULT" != "success" ]; then
+            echo "::error::TLE refresh incomplete (Starlink: $STARLINK_RESULT; famous: $FAMOUS_RESULT). Previous valid snapshots were kept for failed feeds."
+            exit 1
           fi
