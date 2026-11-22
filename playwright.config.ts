@@ -6,6 +6,7 @@ import { defineConfig, devices } from '@playwright/test'
  * headless Chromium. The dev server is reused if one is already running. */
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/browser-smoke.spec.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

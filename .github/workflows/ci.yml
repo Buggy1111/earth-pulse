@@ -32,7 +32,9 @@ jobs:
       - run: npm run lint
       - run: npm run build # tsc -b + vite build
       - run: npm run test
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: e2e (WebGL globe in headless Chromium)
         run: npm run e2e
+      - name: Cross-browser smoke (Firefox and WebKit)
+        run: npx playwright test --config=playwright.cross-browser.config.ts
