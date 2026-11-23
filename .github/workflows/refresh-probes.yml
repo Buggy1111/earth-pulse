@@ -1,18 +1,13 @@
-# Keeps the baked live-data snapshots fresh with one weekly run:
-#  - deep-space probe trajectories from NASA JPL HORIZONS (active missions like
-#    Psyche only publish a month or two ahead — without refreshes they freeze)
-#  - the Starlink TLE snapshot + the curated famous-satellite TLEs from
-#    Celestrak (SGP4 propagation of stale elements drifts within days; the
-#    starlink unit test is the canary that fires when this rots)
+# Refresh deep-space probe trajectory snapshots weekly.
+# Satellite TLEs have a dedicated daily workflow; never query the same
+# CelesTrak groups again in this weekly workflow.
 # Pushing to main triggers a fresh Vercel deploy automatically.
-# Actions are pinned to commit SHAs — this workflow holds contents:write, so a
-# hijacked mutable tag could commit straight to production.
 name: Refresh live-data snapshots
 
 on:
   schedule:
     - cron: '0 4 * * 1' # every Monday 04:00 UTC
-  workflow_dispatch: {} # allow a manual run from the Actions tab
+  workflow_dispatch: {}
 
 concurrency:
   group: earth-pulse-snapshot-refresh
@@ -31,22 +26,16 @@ jobs:
           node-version: 22
       - name: Re-bake probe trajectories from JPL HORIZONS
         run: node scripts/fetch-probes.mjs
-      - name: Refresh Starlink + famous-satellite TLEs from Celestrak
+      - name: Commit if snapshot changed
         run: |
-          node scripts/fetch-starlink.mjs
-          node scripts/fetch-famous.mjs
-      - name: Commit if any snapshot changed
-        run: |
-          FILES="public/probes/probes.json public/tle/starlink.txt public/tle/famous.txt"
+          FILES="public/probes/probes.json"
           if git diff --quiet -- $FILES; then
-            echo "All snapshots unchanged."
+            echo "Probe snapshot unchanged."
           else
             git config user.name "data-refresh bot"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add $FILES
-            git commit -m "🛰 chore: refresh probe + TLE snapshots (HORIZONS, Celestrak)"
-            # Another commit may have landed on main while snapshots were fetched.
-            # Rebase the data-only commit instead of failing on a non-fast-forward.
+            git commit -m "chore: refresh weekly probe trajectories (HORIZONS)"
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main

@@ -7,9 +7,11 @@ import { writeFile } from 'node:fs/promises'
 const TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle'
 const OUT = new URL('../public/tle/starlink.txt', import.meta.url)
 
-const resp = await fetch(TLE_URL)
+const resp = await fetch(TLE_URL, { redirect: 'manual' })
 if (!resp.ok) {
-  console.error(`Celestrak responded ${resp.status} ${resp.statusText}`)
+  // V případě chyby CelesTraku nikdy neopakovat požadavek; další dotazy by mohly vést k blokaci IP.
+  const detail = (await resp.text()).replace(/\s+/g, ' ').slice(0, 300)
+  console.error(`CelesTrak responded ${resp.status} ${resp.statusText}: ${detail}`)
   process.exit(1)
 }
 const text = await resp.text()

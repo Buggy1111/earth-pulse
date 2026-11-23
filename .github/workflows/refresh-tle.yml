@@ -18,13 +18,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0 # Required to check the last successful snapshot commit.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Refresh Celestrak elements
+      # CelesTrak updates GP data every two hours. Do not re-fetch snapshots
+      # recently committed to this repository (e.g. after manual dispatch).
+      # Stop querying CelesTrak after the first failed HTTP response.
+      - name: Refresh CelesTrak elements
+        id: download
+        shell: bash
         run: |
-          node scripts/fetch-starlink.mjs
-          node scripts/fetch-famous.mjs
+          set -uo pipefail
+          now=$(date -u +%s)
+          min_age=72000 # 20 hours: conservative guard for daily/manual invocations.
+          needs_refresh() {
+            local file="$1" last
+            last=$(git log -1 --format=%ct -- "$file")
+            if [[ "$last" =~ ^[0-9]+$ ]] && (( now >= last && now - last < min_age )); then
+              echo "::notice::$file was committed less than 20 hours ago; skipping request." >&2
+              return 1
+            fi
+            return 0
+          }
+          starlink=skipped_recent
+          famous=skipped_recent
+          if needs_refresh public/tle/starlink.txt; then
+            if node scripts/fetch-starlink.mjs; then
+              starlink=ok
+            else
+              starlink=failed
+              famous=skipped_after_failure
+              echo "::warning::Stopping CelesTrak requests after Starlink failure."
+            fi
+          fi
+          if [ "$starlink" != "failed" ] && needs_refresh public/tle/famous.txt; then
+            if node scripts/fetch-famous.mjs; then
+              famous=ok
+            else
+              famous=failed
+              echo "::warning::Stopping CelesTrak requests after famous-satellite failure."
+            fi
+          fi
+          echo "starlink=$starlink" >> "$GITHUB_OUTPUT"
+          echo "famous=$famous" >> "$GITHUB_OUTPUT"
       - name: Commit refreshed elements
         run: |
           FILES="public/tle/starlink.txt public/tle/famous.txt"
@@ -38,4 +76,15 @@ jobs:
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main
+          fi
+      - name: Report snapshot refresh failures
+        if: ${{ always() && steps.download.outcome == 'success' }}
+        env:
+          STARLINK_RESULT: ${{ steps.download.outputs.starlink }}
+          FAMOUS_RESULT: ${{ steps.download.outputs.famous }}
+        run: |
+          echo "Starlink: $STARLINK_RESULT; famous: $FAMOUS_RESULT"
+          if [ "$STARLINK_RESULT" = "failed" ] || [ "$FAMOUS_RESULT" = "failed" ] || [ "$FAMOUS_RESULT" = "skipped_after_failure" ]; then
+            echo "::error::TLE refresh incomplete; previous validated snapshots were kept for failed sources."
+            exit 1
           fi

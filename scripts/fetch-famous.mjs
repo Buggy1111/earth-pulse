@@ -40,9 +40,11 @@ const FAMOUS = [
 const URL_ACTIVE = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle'
 const OUT = new URL('../public/tle/famous.txt', import.meta.url)
 
-const resp = await fetch(URL_ACTIVE)
+const resp = await fetch(URL_ACTIVE, { redirect: 'manual' })
 if (!resp.ok) {
-  console.error(`Celestrak responded ${resp.status} ${resp.statusText}`)
+  // Po odmítnutí požadavku se nesmí zkoušet další dotazy na CelesTrak.
+  const detail = (await resp.text()).replace(/\s+/g, ' ').slice(0, 300)
+  console.error(`CelesTrak responded ${resp.status} ${resp.statusText}: ${detail}`)
   process.exit(1)
 }
 const lines = (await resp.text()).split('\n').map((l) => l.replace(/\r$/, ''))
